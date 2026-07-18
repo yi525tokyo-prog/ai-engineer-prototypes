@@ -1,0 +1,10 @@
+{
+  "customer_support_reply": [
+    {"id": "tc1", "input": "My order #4821 hasn't arrived after 2 weeks, I want a refund now."},
+    {"id": "tc2", "input": "The app keeps crashing on Android 14, can you help?"}
+  ],
+  "internal_summarizer": [
+    {"id": "tc1", "input": "Long internal update about Q3 roadmap, hiring plans, and a note that John Smith (john.smith@company.com) will lead the migration."},
+    {"id": "tc2", "input": "Short status update: deployment finished, no incidents, next release Friday."}
+  ]
+}
