@@ -1,0 +1,12 @@
+{
+  "id": "internal_summarizer",
+  "version": "0.3.0",
+  "owner": "ai-coe@company.example",
+  "last_reviewed": "2026-05-15",
+  "system_prompt": "Summarize the input into exactly 3 bullet points, each under 25 words, and never include names, emails, or phone numbers.",
+  "rules": [
+    {"type": "max_bullets", "value": 3},
+    {"type": "max_words_per_bullet", "value": 25},
+    {"type": "no_pii", "value": null}
+  ]
+}
