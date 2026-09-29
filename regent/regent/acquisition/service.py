@@ -79,7 +79,7 @@ def mission_state(db: Session, mission_id: str, adapter: D.DomainAdapter) -> dic
 
 def needs(db: Session, mission, world) -> list[dict[str, Any]]:
     out = []
-    for adapter in D.for_mission(mission.tags or []):
+    for adapter in D.for_mission(mission):
         st = mission_state(db, mission.id, adapter)
         for n in adapter.information_needs(mission, world, st):
             out.append({**n, "domain": adapter.name, "state": {k: v for k, v in st.items() if not isinstance(v, list)}})
@@ -125,11 +125,13 @@ def run_action(action: str, *, mission_id: str | None, params: dict[str, Any], d
             else:
                 raise ValueError(f"unknown acquisition action {action}")
         except Exception as e:
+            import traceback
+
             status = "failed"
-            engine.log("error", f"{type(e).__name__}: {e}"[:400])
-            s.rollback()
+            s.rollback()   # keep what was checkpointed; record the failure after the rollback
             req = s.get(AcqRequest, req.id)
             engine.request = req
+            engine.log("error", f"{type(e).__name__}: {e}"[:400], where=traceback.format_exc(limit=4)[-800:])
         stats = engine.finish(status)
         shortlisted = list(s.scalars(select(AcqEntity).where(AcqEntity.domain == domain,
                                                              AcqEntity.stage == "shortlisted")))

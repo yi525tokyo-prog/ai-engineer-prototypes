@@ -17,6 +17,7 @@ from typing import Any
 from sqlalchemy import select
 
 from regent.acquisition.domain import DomainAdapter
+from regent.acquisition.housing import text as T
 from regent.acquisition.housing.enricher import HousingEnricher
 from regent.acquisition.housing.extractor import HousingExtractor
 from regent.acquisition.housing.resolver import HousingEntityResolver, building_features
@@ -49,8 +50,12 @@ ATTRS: dict[str, AttrSpec] = {a.name: a for a in [
     AttrSpec("layout", "unit", "text", ttl_s=180 * D), AttrSpec("area_m2", "unit", "number", "m2", ttl_s=Y, abs_tol=0.15),
     AttrSpec("floor", "unit", "number", ttl_s=Y), AttrSpec("room_number", "unit", "text", ttl_s=Y),
     # building
-    AttrSpec("name", "building", "text", ttl_s=180 * D), AttrSpec("address", "building", "text", ttl_s=Y),
-    AttrSpec("stations", "building", "json", ttl_s=180 * D), AttrSpec("built_year", "building", "number", ttl_s=Y),
+    AttrSpec("name", "building", "text", ttl_s=180 * D, key=T.name_key),
+    AttrSpec("address", "building", "hier", ttl_s=Y, key=T.address_key),
+    # sites list different subsets of nearby stations; walk times disagree only beyond 3 min
+    AttrSpec("stations", "building", "set", ttl_s=180 * D, item_key="station", item_value="walk_min", abs_tol=3),
+    # "築5年" style ages give the year only to +-1
+    AttrSpec("built_year", "building", "number", ttl_s=Y, abs_tol=1),
     AttrSpec("floors_total", "building", "number", ttl_s=Y), AttrSpec("structure", "building", "text", ttl_s=Y),
     AttrSpec("building_type", "building", "text", ttl_s=30 * D), AttrSpec("coords", "building", "json", ttl_s=Y),
     AttrSpec("nearest_stations_public", "building", "json", ttl_s=180 * D),
@@ -99,6 +104,8 @@ NAV_HINTS = {
 class HousingAdapter(DomainAdapter):
     name = "housing"
     tags = ("housing",)
+    keywords = ("住居", "住まい", "住む", "部屋探し", "賃貸", "引っ越", "引越", "物件", "アパート", "マンション",
+                "housing", "apartment", "place to live", "rent a flat")
     attributes = ATTRS
     time_sensitive = ("availability", "rent")
     network_jobs = HousingEnricher.network_jobs
@@ -121,6 +128,9 @@ class HousingAdapter(DomainAdapter):
         if m.entity_type == "unit":
             f = dict(m.key_fields)
             f["housing_type"] = claims.get("housing_type") or "rent"
+            for k in ("management_fee", "deposit", "key_money"):   # listing terms: same-site identity evidence
+                if claims.get(k) is not None:
+                    f[k] = claims[k]
             return f
         return dict(m.key_fields)
 

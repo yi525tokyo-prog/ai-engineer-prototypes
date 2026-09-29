@@ -89,7 +89,7 @@ class RegentLoop:
         if not pending and not external and not resumed and m.tick_count > 0 and not force:
             from regent.acquisition.domain import for_mission
 
-            if for_mission(m.tags or []):
+            if for_mission(m):
                 from regent.acquisition import service
 
                 try:
@@ -114,7 +114,7 @@ class RegentLoop:
         # 2b. ACQUIRE: what don't I know that blocks a decision? -----------
         from regent.acquisition.domain import for_mission
 
-        if for_mission(m.tags or []):
+        if for_mission(m):
             m.phase = "acquire"
             acq = self._acquisition_needs(m, world)
             if acq["created"]:

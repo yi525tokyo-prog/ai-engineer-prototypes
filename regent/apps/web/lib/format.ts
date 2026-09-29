@@ -85,3 +85,31 @@ export function humanStatus(s: string): string {
 export function estimateDelta(changes: Record<string, { from: number; to: number }> | undefined): string[] {
   return Object.entries(changes ?? {}).map(([k, v]) => `${k.replace(/_/g, " ")} ${num(v.from)} → ${num(v.to)}`);
 }
+
+const YEN_ATTRS = new Set(["rent", "management_fee", "deposit", "key_money", "initial_cost", "monthly", "renewal_fee",
+  "other_initial_cost"]);
+
+/** Human text for an acquired attribute value (yen amounts, booleans, station lists). */
+export function beliefText(attr: string, v: unknown): string {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "boolean") return v ? "yes" : "no";
+  if (YEN_ATTRS.has(attr) || attr.startsWith("market_rent")) {
+    const n = Number(v);
+    return Number.isFinite(n) ? `¥${Math.round(n).toLocaleString("en-US")}` : String(v);
+  }
+  if (Array.isArray(v)) {
+    return v.map((x) => (x && typeof x === "object" && "station" in x
+      ? `${x.station} ${x.walk_min ?? x.distance_m ?? ""}${x.walk_min != null ? "min" : x.distance_m != null ? "m" : ""}`
+      : typeof x === "object" ? JSON.stringify(x) : String(x))).join(", ");
+  }
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+export function ttlText(seconds: number | null | undefined): string {
+  if (!seconds) return "—";
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  if (seconds < 86400 * 2) return `${Math.round(seconds / 3600)}h`;
+  if (seconds < 86400 * 300) return `${Math.round(seconds / 86400)}d`;
+  return `${Math.round(seconds / (86400 * 365))}y`;
+}

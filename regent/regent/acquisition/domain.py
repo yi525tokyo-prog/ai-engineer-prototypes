@@ -25,6 +25,8 @@ class DomainAdapter(ABC):
     name: str = "domain"
     #: mission tags that make this adapter responsible for a mission
     tags: tuple[str, ...] = ()
+    #: words in a mission's title/objective that make this adapter responsible when no tag says so
+    keywords: tuple[str, ...] = ()
     attributes: dict[str, AttrSpec] = {}
     #: attributes whose staleness triggers a recheck
     time_sensitive: tuple[str, ...] = ()
@@ -81,5 +83,18 @@ def adapters() -> dict[str, DomainAdapter]:
     return _ADAPTERS
 
 
-def for_mission(tags: list[str]) -> list[DomainAdapter]:
-    return [a for a in adapters().values() if set(a.tags) & set(tags or [])]
+def for_mission(mission: Any) -> list[DomainAdapter]:
+    """Adapters responsible for a mission: by tag, else by the words of its title/objective.
+    Accepts a Mission row, a mission dict, or a plain list of tags."""
+    import unicodedata
+
+    if isinstance(mission, (list, tuple, set)):
+        tags, text = set(mission), ""
+    elif isinstance(mission, dict):
+        tags, text = set(mission.get("tags") or []), f"{mission.get('title', '')} {mission.get('objective', '')}"
+    else:
+        tags = set(getattr(mission, "tags", None) or [])
+        text = f"{getattr(mission, 'title', '')} {getattr(mission, 'objective', '')}"
+    text = unicodedata.normalize("NFKC", text).lower()
+    return [a for a in adapters().values()
+            if set(a.tags) & tags or (text and any(k in text for k in a.keywords))]

@@ -74,12 +74,19 @@ class HousingEntityResolver:
             common = set(s1) & set(s2)
             close = [k for k in common if abs(s1[k] - s2[k]) <= 2]
             d["stations_common"] = sorted(common)
-            logit += 1.5 if close else (-0.5 if common else -1.5)
+            # the same building's walk time differs by rounding (<= 2 min) across sites, not by more
+            logit += 1.5 if close else (-2.0 if common else -1.5)
         g1, g2 = m.get("coords"), e.get("coords")
         if g1 and g2:
             dist = _haversine_m(g1, g2)
             d["distance_m"] = round(dist)
             logit += 2.0 if dist <= 60 else (-4.0 if dist > 300 else 0)
+        if not (n1 and n2) and not d.get("address_equal") and not (g1 and g2):
+            # without a name, a street number or coordinates, block-level agreement (chome, year,
+            # stations) fits many buildings: at most "ambiguous" -- a matching unit inside can
+            # still lift it to a merge through joint evidence
+            logit = min(logit, 1.0)
+            d["identity_capped"] = "no name/street number on one side"
         p = _sig(logit)
         d["logit"] = round(logit, 2)
         return p, d
@@ -100,7 +107,7 @@ class HousingEntityResolver:
         if a1 and a2:
             diff = abs(float(a1) - float(a2))
             d["area_diff"] = round(diff, 2)
-            logit += 3.5 if diff <= 0.1 else (2.0 if diff <= 0.5 else (0 if diff <= 1.5 else -6))
+            logit += 3.5 if diff <= 0.1 else (0 if diff <= 0.3 else (-1 if diff <= 0.6 else (-3 if diff <= 1.5 else -6)))
         f1, f2 = m.get("floor"), e.get("floor")
         if f1 is not None and f2 is not None:
             d["floor_equal"] = f1 == f2
@@ -110,20 +117,21 @@ class HousingEntityResolver:
             d["room_equal"] = r1 == r2
             logit += 4.0 if r1 == r2 else -6
         p1 = m.get("rent")
-        if p1:
-            same_host = [float(r) for r in (e.get("_rent_by_host") or {}).get(m.get("_host") or "", [])]
-            if same_host:
-                # one site shows one price per room at a time: a different price on the same site
-                # means a different room (e.g. identical 1Ks on the same floor)
-                rel = min(abs(float(p1) - r) / max(float(p1), r) for r in same_host)
-                d["same_host_rent_rel_diff"] = round(rel, 3)
-                logit += 1.0 if rel <= 0.005 else -6
-            elif e.get("rent"):
-                # across sites a price difference is a *claim conflict*, not evidence of another room
-                p2 = float(e["rent"])
-                rel = abs(float(p1) - p2) / max(float(p1), p2)
-                d["rent_rel_diff"] = round(rel, 3)
-                logit += 1.0 if rel <= 0.02 else (0.3 if rel <= 0.08 else -1.5)
+        same_host = (e.get("_terms_by_host") or {}).get(m.get("_host") or "", [])
+        if p1 and same_host:
+            # One site shows one set of terms per listing at a time: different rent / fees / deposit /
+            # key money on the *same* site means a different room or a different agent's listing
+            # (kept apart as separate listings), never a conflict to average away.
+            same = any(_same_terms(_terms(m), t) for t in same_host)
+            d["same_host_terms_equal"] = same
+            logit += 1.0 if same else -6
+        elif p1 and e.get("rent"):
+            # across sites a price difference is a *claim conflict*, not evidence of another room --
+            # unless it is large
+            p2 = float(e["rent"])
+            rel = abs(float(p1) - p2) / max(float(p1), p2)
+            d["rent_rel_diff"] = round(rel, 3)
+            logit += 1.5 if rel <= 0.01 else (0.5 if rel <= 0.03 else (-0.5 if rel <= 0.06 else -2))
         d["logit"] = round(logit, 2)
         return _sig(logit), d
 
@@ -140,9 +148,12 @@ class HousingEntityResolver:
         if m.get("_doc"):
             out["_docs"] = sorted(set(out.get("_docs") or []) | {m["_doc"]})
         if m.get("_host") and m.get("rent"):
-            rb = dict(out.get("_rent_by_host") or {})
-            rb[m["_host"]] = sorted(set(rb.get(m["_host"], [])) | {float(m["rent"])})
-            out["_rent_by_host"] = rb
+            tb = dict(out.get("_terms_by_host") or {})
+            seen = list(tb.get(m["_host"], []))
+            if _terms(m) not in seen:
+                seen.append(_terms(m))
+            tb[m["_host"]] = seen[-20:]
+            out["_terms_by_host"] = tb
         return out
 
     def label(self, entity_type: str, f: dict[str, Any]) -> str:
@@ -154,6 +165,25 @@ class HousingEntityResolver:
                      f"#{f['room_number']}" if f.get("room_number") else None]
             return " ".join(p for p in parts if p) or "unit"
         return f.get("area") or entity_type
+
+
+TERMS = ("rent", "management_fee", "deposit", "key_money")
+
+
+def _terms(f: dict[str, Any]) -> list[float | None]:
+    return [None if f.get(k) is None else float(f[k]) for k in TERMS]
+
+
+def _same_terms(a: list[float | None], b: list[float | None]) -> bool:
+    """Rent within 0.5 %, other amounts within 100 yen; a term missing on either side is no evidence."""
+    for i, (x, y) in enumerate(zip(a, b)):
+        if x is None or y is None:
+            continue
+        if i == 0 and abs(x - y) / max(x, y, 1.0) > 0.005:
+            return False
+        if i > 0 and abs(x - y) > 100:
+            return False
+    return True
 
 
 def _haversine_m(a: list[float], b: list[float]) -> float:

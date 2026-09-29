@@ -28,6 +28,7 @@ from urllib.parse import urljoin, urlparse
 from lxml import html as LH
 
 from regent.acquisition.housing import text as T
+from regent.acquisition.fetch import separate_blocks
 from regent.acquisition.types import ClaimIn, FetchedDocument, Mention
 
 LABELS: list[tuple[str, str]] = [
@@ -51,6 +52,9 @@ POI = re.compile(r"(スーパー|コンビニ|ドラッグストア|図書館|�
                  r"[^\d]{0,24}?(\d{1,4})\s*m")
 
 
+RENT_MIN, RENT_MAX = 10_000, 3_000_000   # JPY per month; outside this a "rent" is a parse error
+
+
 def _t(e) -> str:
     return T.norm(e.text_content())
 
@@ -72,8 +76,10 @@ class HousingExtractor:
             return []
         for bad in tree.xpath("//script|//style|//noscript|//template|//svg"):
             bad.drop_tree()
+        separate_blocks(tree)
         out: list[Mention] = []
-        out += self.market_tables(tree, doc, purpose)
+        if purpose == "market":   # listing pages carry side widgets (neighbour-area averages, tabs) -- not a market source
+            out += self.market_tables(tree, doc, purpose)
         units = self.listing_units(tree, doc)
         if not units:
             vac = self.vacancy_cards(tree, doc)
@@ -137,6 +143,8 @@ class HousingExtractor:
                 inner = self._building_mention(u, [], doc)   # building facts may live inside the row itself
                 if inner.value("address"):
                     b = inner
+            if not b.value("address") and not b.value("name"):
+                continue   # a row with no building identity (e.g. a recommendation widget) cannot be resolved
             m = self._unit_mention(u, b, doc, now)
             if m is not None:
                 if segment != "rent":
@@ -218,8 +226,8 @@ class HousingExtractor:
     def _unit_mention(self, u, building: Mention, doc: FetchedDocument, now: datetime) -> Mention | None:
         t = _t(u)
         fields = self._money_fields(t)
-        if not fields.get("rent"):
-            return None
+        if not fields.get("rent") or not (RENT_MIN <= fields["rent"] <= RENT_MAX):
+            return None   # out-of-range amounts are parse failures, not rents
         claims = []
         conf_lbl = 0.95 if fields.get("_labeled") else 0.82
         ev = t[:240]

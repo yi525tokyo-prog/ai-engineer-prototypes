@@ -7,6 +7,7 @@ import {
   MissionPanel, NowPanel, SystemPanel, WhyPanel, WorldPanel,
 } from "./components/sections";
 import { Status } from "./components/ui";
+import { AcquisitionPanel } from "./components/acquisition";
 
 const POLL_MS = 1500;
 
@@ -136,6 +137,7 @@ export default function Page() {
             <ChangesPanel c={c} />
             <NowPanel c={c} busy={busy} onTell={(t) => act("Fact ingested", () => api.tell(t))} />
           </div>
+          <div className="wide"><AcquisitionPanel missionId={c.mission.id} /></div>
         </div>
       )}
       {toast ? <div className="toast">{toast}</div> : null}

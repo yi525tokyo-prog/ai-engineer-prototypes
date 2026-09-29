@@ -188,6 +188,22 @@ def parse_address(a: str | None) -> dict:
     return {"pref": pref, "city": city, "town": town.strip("-"), "chome": chome, "rest": rest}
 
 
+def address_key(a: str | None) -> str:
+    """General-to-specific key: "東京都|中野区|弥生町|3|12|5". "弥生町3" and "弥生町3丁目12-5"
+    share a prefix, so they are compatible granularities of one address, not a conflict."""
+    p = parse_address(norm(kanji_chome(a or "")).replace(" ", ""))
+    if not p:
+        return ""
+    rest = re.sub(r"番地?|号", "-", p.get("rest") or "")
+    toks = [p.get("pref") or "", p.get("city") or "", (p.get("town") or "").strip("-")]
+    if p.get("chome") is not None:
+        toks.append(str(p["chome"]))
+    toks += [t for t in re.split(r"[-‐－の]", rest) if t]
+    while toks and not toks[-1]:
+        toks.pop()
+    return "|".join(toks)
+
+
 def move_in(s: str) -> str | None:
     if re.search(r"即(?:入居)?(?:可)?", s):
         return "immediate"
@@ -215,7 +231,9 @@ def is_placeholder_name(n: str | None) -> bool:
     if not n:
         return True
     n = norm(n)
-    return bool(re.search(r"[区市][^\s]{0,8}\d*丁目|駅\)$|^\S+[区市]\s|物件\d*件|\d+件|掲載|一覧|検索", n))
+    return bool(re.search(r"[区市][^\s]{0,8}\d*丁目|駅\)$|^\S+[区市]\s|物件\d*件|\d+件|掲載|一覧|検索"
+                          r"|^(?:\S*線\s*)?\S+駅$|^(?:初期費用|空室情報|周辺環境|お問い?合わせ|賃料|家賃|管理費|敷金|礼金"
+                          r"|間取り?|専有面積|詳細|物件詳細|おすすめ|新着)$", n))
 
 
 def date_ymd(s: str) -> str | None:

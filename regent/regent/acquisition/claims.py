@@ -44,6 +44,14 @@ def _aware(dt: datetime) -> datetime:
 def value_key(spec: AttrSpec | None, value: Any) -> str:
     if value is None:
         return "null"
+    if spec is not None and spec.kind == "set":
+        items = value if isinstance(value, list) else []
+        return "|".join(sorted(str(it.get(spec.item_key)) if isinstance(it, dict) else str(it) for it in items))[:200]
+    if spec is not None and spec.key is not None:
+        try:
+            return str(spec.key(value))[:200]
+        except Exception:
+            pass
     if spec is not None and spec.kind == "number":
         try:
             return f"{float(value):g}"
@@ -133,6 +141,8 @@ class ClaimStore:
             keep = [c for c in cs if latest - _aware(c.observed_at) <= SAME_WINDOW]
             superseded += len(cs) - len(keep)
             current.extend(keep)
+        if spec is not None and spec.kind == "set":
+            return self._set_belief(attribute, spec, claims, current, superseded, now)
         # 2. group values within tolerance
         groups = self._group(spec, current)
         hyps = []
@@ -174,7 +184,61 @@ class ClaimStore:
             "hypotheses": hyps[:6],
         }
 
+    def _set_belief(self, attribute: str, spec: AttrSpec, claims: list[AcqClaim], current: list[AcqClaim],
+                    superseded: int, now: datetime) -> dict[str, Any]:
+        """Union of items across sources. Listing different subsets is not a disagreement;
+        the same item with values further apart than ``abs_tol`` is."""
+        per_host: dict[str, float] = {}
+        items: dict[str, list[tuple[float, dict, AcqClaim]]] = defaultdict(list)
+        hyps = []
+        fresh_any = False
+        for c in current:
+            age = (now - _aware(c.observed_at)).total_seconds()
+            w = self.reliability(c.source_host, c.source_kind) * c.confidence * freshness(age, c.ttl_s)
+            fresh_any = fresh_any or age <= c.ttl_s
+            per_host[c.source_host] = max(per_host.get(c.source_host, 0.0), w)
+            for it in c.value if isinstance(c.value, list) else []:
+                if isinstance(it, dict) and it.get(spec.item_key) is not None:
+                    items[str(it[spec.item_key])].append((w, it, c))
+            hyps.append({"value": c.value, "support": round(w, 4), "hosts": [c.source_host], "fresh": age <= c.ttl_s,
+                         "sources": [{"claim_id": c.id, "host": c.source_host, "kind": c.source_kind,
+                                      "observed_at": _aware(c.observed_at).isoformat(), "weight": round(w, 4),
+                                      "fresh": age <= c.ttl_s, "url": c.url, "evidence": c.evidence[:160],
+                                      "value": c.value}]})
+        union, disputes = [], []
+        for k, obs in items.items():
+            best = max(obs, key=lambda x: x[0])[1]
+            union.append(best)
+            vals = sorted({x[1].get(spec.item_value) for x in obs if x[1].get(spec.item_value) is not None})
+            if len(vals) >= 2 and vals[-1] - vals[0] > spec.abs_tol:
+                disputes.append({"item": k, "values": vals, "hosts": sorted({x[2].source_host for x in obs})})
+        union.sort(key=lambda it: (it.get(spec.item_value) is None, it.get(spec.item_value) or 0))
+        support = 1.0 - math.prod(1.0 - w for w in per_host.values())
+        total = sum(h["support"] for h in hyps) or 1.0
+        for h in hyps:
+            h["share"] = round(h["support"] / total, 4)
+        hyps.sort(key=lambda h: -h["support"])
+        latest = max((_aware(c.observed_at) for c in claims), default=None)
+        return {
+            "value": union, "confidence": round(support * (0.6 if disputes else 1.0), 4), "fresh": fresh_any,
+            "conflict": bool(disputes) and fresh_any, "disputes": disputes,
+            "n_sources": len(per_host), "n_claims": len(claims), "superseded": superseded,
+            "latest_observed": latest.isoformat() if latest else None, "ttl_s": self.policy.ttl(attribute),
+            "hypotheses": hyps[:6],
+        }
+
     def _group(self, spec: AttrSpec | None, claims: list[AcqClaim]) -> list[tuple[Any, list[AcqClaim]]]:
+        if spec is not None and spec.kind == "hier":
+            keyed = sorted(((value_key(spec, c.value).split("|"), c) for c in claims), key=lambda x: -len(x[0]))
+            hier: list[tuple[list[str], list[AcqClaim]]] = []
+            for toks, c in keyed:
+                for gt, members in hier:
+                    if gt[:len(toks)] == toks:     # less specific but compatible
+                        members.append(c)
+                        break
+                else:
+                    hier.append((toks, [c]))
+            return [(members[0].value, members) for _, members in hier]
         if spec is not None and spec.kind == "number":
             nums = []
             for c in claims:

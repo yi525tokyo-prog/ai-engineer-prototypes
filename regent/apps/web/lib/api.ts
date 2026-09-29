@@ -79,4 +79,7 @@ export const api = {
   event: (type: string, payload: Json) =>
     req<Json>("/api/events", { method: "POST", body: JSON.stringify({ type, payload, source: "principal" }) }),
   decision: (id: string) => req<Json>(`/api/decisions/${id}`),
+  acqOverview: (missionId?: string) =>
+    req<Json>(`/api/acquisition/overview${missionId ? `?mission_id=${encodeURIComponent(missionId)}` : ""}`),
+  acqEntity: (id: string) => req<Json>(`/api/acquisition/entities/${id}`),
 };

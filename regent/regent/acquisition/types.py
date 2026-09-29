@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 SourceKind = Literal["search", "portal", "operator", "maps", "reviews", "public_data", "derived", "principal"]
 
@@ -28,12 +28,20 @@ class AttrSpec:
 
     name: str
     level: str                       # entity type the attribute belongs to ("building", "unit", ...)
-    kind: Literal["number", "text", "bool", "date", "json"] = "text"
+    kind: Literal["number", "text", "bool", "date", "json", "hier", "set"] = "text"
     unit: str = ""
     ttl_s: float = 86400.0
     rel_tol: float = 0.0             # numbers within this relative tolerance agree
     abs_tol: float = 0.0             # ... or within this absolute tolerance
     material: bool = True            # material claims require provenance in the UI
+    #: domain normalizer: two values with the same key are the same value ("カ-ザ" == "カーザ").
+    #: For ``hier`` the key is "|"-separated from general to specific ("東京都|中野区|弥生町|3"),
+    #: and a value agrees with any more specific value it is a prefix of.
+    key: Callable[[Any], str] | None = None
+    #: ``set`` attributes (e.g. nearby stations) are lists of items; sources may list different
+    #: subsets (not a conflict) but disagree when the same item's ``item_value`` differs by > abs_tol.
+    item_key: str = ""
+    item_value: str = ""
 
 
 @dataclass

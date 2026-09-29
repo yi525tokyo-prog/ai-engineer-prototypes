@@ -58,6 +58,19 @@ def normalize_text(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+BLOCK_TAGS = ("td", "th", "tr", "li", "div", "p", "br", "dd", "dt", "dl", "ul", "ol", "table", "tbody", "thead",
+              "section", "article", "h1", "h2", "h3", "h4", "h5", "h6", "header", "footer", "label", "option")
+
+
+def separate_blocks(tree) -> None:
+    """Insert whitespace at cell/block boundaries so ``text_content()`` never glues
+    neighbouring cells together (a room number "201" followed by a rent "9.6万円" must
+    not read as "2019.6万円")."""
+    for el in tree.iter(*BLOCK_TAGS):
+        el.text = " " + (el.text or "")
+        el.tail = " " + (el.tail or "")
+
+
 def html_to_text(html: str) -> tuple[str, str]:
     """(title, visible text) with scripts/styles removed and NFKC normalization."""
     from lxml import html as LH
@@ -68,6 +81,7 @@ def html_to_text(html: str) -> tuple[str, str]:
         return "", normalize_text(re.sub(r"<[^>]+>", " ", html))
     for bad in doc.xpath("//script|//style|//noscript|//template"):
         bad.drop_tree()
+    separate_blocks(doc)
     title = normalize_text(" ".join(doc.xpath("//title/text()")))
     return title, normalize_text(doc.text_content())
 
@@ -185,7 +199,7 @@ class Fetcher:
             return self._record(url, url, host, purpose, 0, "", "static", blocked={"type": "robots",
                                 "detail": "disallowed by robots.txt"}, robots_allowed=False)
         doc = None
-        if render in ("static", "auto"):
+        if render in ("static", "auto") or not self.allow_browser:   # no browser: static is all we have
             doc = self._static(url, host, purpose)
             if on_static is not None:
                 on_static(doc)

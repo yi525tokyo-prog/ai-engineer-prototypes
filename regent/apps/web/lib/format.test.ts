@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ago, componentLabel, estimateDelta, num, signed, sortedComponents, sparkPoints, statusTone, symmetricMax } from "./format";
+import { ago, beliefText, componentLabel, estimateDelta, num, signed, sortedComponents, sparkPoints, statusTone, symmetricMax, ttlText } from "./format";
 
 describe("format", () => {
   it("formats numbers compactly", () => {
@@ -31,5 +31,14 @@ describe("format", () => {
     expect(statusTone("waiting_human")).toBe("warn");
     expect(statusTone("failed")).toBe("bad");
     expect(estimateDelta({ success_probability: { from: 0.55, to: 0.1375 } })).toEqual(["success probability 0.55 → 0.14"]);
+  });
+  it("acquired belief values", () => {
+    expect(beliefText("rent", 82000)).toBe("¥82,000");
+    expect(beliefText("availability", true)).toBe("yes");
+    expect(beliefText("stations", [{ station: "野方", walk_min: 2 }])).toBe("野方 2min");
+    expect(beliefText("rent", null)).toBe("—");
+    expect(ttlText(6 * 3600)).toBe("6h");
+    expect(ttlText(86400 * 30)).toBe("30d");
+    expect(ttlText(86400 * 365)).toBe("1y");
   });
 });

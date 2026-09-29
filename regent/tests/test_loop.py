@@ -77,7 +77,7 @@ def test_hysteresis_keeps_incumbent_on_small_changes(db, services):
     m = mission(db)
     a = route_from(db, m, prop("a", expected_upside=100, success_probability=0.6, sensitivities=[
         {"fact": "tiny", "op": "eq", "value": True, "effects": {"success_probability": {"add": -0.01}}}]))
-    b = route_from(db, m, prop("b", expected_upside=100, success_probability=0.595))
+    route_from(db, m, prop("b", expected_upside=100, success_probability=0.595))
     _pin_generation(db, m)
     db.commit()
     loop = RegentLoop(db, services)
