@@ -1,0 +1,203 @@
+{
+ "pages": {
+  "https://suumo.jp/chintai/": {
+   "fetched_at": "2026-09-29T12:01:23.881409+00:00",
+   "file": "941ba8acb22cdc9b2e95.html.gz",
+   "final_url": "https://suumo.jp/chintai/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://suumo.jp/chintai/soba/tokyo/": {
+   "fetched_at": "2026-09-29T12:01:25.523028+00:00",
+   "file": "4930853d0c69b0be0cc2.html.gz",
+   "final_url": "https://suumo.jp/chintai/soba/tokyo/",
+   "purpose": "listing",
+   "render": "static",
+   "status": 200
+  },
+  "https://suumo.jp/chintai/tokyo/": {
+   "fetched_at": "2026-09-29T12:02:01.330357+00:00",
+   "file": "e7e65a2309708695106f.html.gz",
+   "final_url": "https://suumo.jp/chintai/tokyo/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://suumo.jp/chintai/tokyo/sc_edogawa/": {
+   "fetched_at": "2026-09-29T12:02:06.888347+00:00",
+   "file": "b8502682d4ae586951ac.html.gz",
+   "final_url": "https://suumo.jp/chintai/tokyo/sc_edogawa/",
+   "purpose": "listing",
+   "render": "static",
+   "status": 200
+  },
+  "https://suumo.jp/chintai/tokyo/sc_edogawa/?page=2": {
+   "fetched_at": "2026-09-29T12:02:12.249159+00:00",
+   "file": "d7cac4e9dbb17c9121d1.html.gz",
+   "final_url": "https://suumo.jp/chintai/tokyo/sc_edogawa/?page=2",
+   "purpose": "listing",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.athome.co.jp/chintai/": {
+   "fetched_at": "2026-09-29T12:02:43.500128+00:00",
+   "final_url": "https://www.athome.co.jp/chintai/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 405
+  },
+  "https://www.chintai.net/": {
+   "fetched_at": "2026-09-29T12:02:30.326687+00:00",
+   "file": "439e5ecc96ffa84ab101.html.gz",
+   "final_url": "https://www.chintai.net/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.chintai.net/tokyo/area/": {
+   "fetched_at": "2026-09-29T12:02:34.127484+00:00",
+   "file": "10e392632aa81a93b786.html.gz",
+   "final_url": "https://www.chintai.net/tokyo/area/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.chintai.net/tokyo/area/13123/list/": {
+   "fetched_at": "2026-09-29T12:02:40.849910+00:00",
+   "file": "564ea5933fec27513e25.html.gz",
+   "final_url": "https://www.chintai.net/tokyo/area/13123/list/",
+   "purpose": "listing",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.chintai.net/tokyo/ensen/": {
+   "fetched_at": "2026-09-29T12:02:32.125173+00:00",
+   "file": "4f38213b34f705bdded2.html.gz",
+   "final_url": "https://www.chintai.net/tokyo/ensen/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.homes.co.jp/chintai/": {
+   "fetched_at": "2026-09-29T12:02:16.253474+00:00",
+   "file": "e8f281786001ada524fd.html.gz",
+   "final_url": "https://www.homes.co.jp/chintai/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.homes.co.jp/chintai/tokyo/city/": {
+   "fetched_at": "2026-09-29T12:02:20.568456+00:00",
+   "file": "e668b63a9dbfcfd26afc.html.gz",
+   "final_url": "https://www.homes.co.jp/chintai/tokyo/city/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.homes.co.jp/chintai/tokyo/edogawa-city/list/": {
+   "fetched_at": "2026-09-29T12:02:23.476971+00:00",
+   "file": "1d794c976ba6ec309405.html.gz",
+   "final_url": "https://www.homes.co.jp/chintai/tokyo/edogawa-city/list/",
+   "purpose": "listing",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.homes.co.jp/chintai/tokyo/edogawa-city/list/?page=2": {
+   "fetched_at": "2026-09-29T12:02:26.532621+00:00",
+   "file": "46571d99479cf3e20783.html.gz",
+   "final_url": "https://www.homes.co.jp/chintai/tokyo/edogawa-city/list/?page=2",
+   "purpose": "listing",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.homes.co.jp/chintai/tokyo/line/": {
+   "fetched_at": "2026-09-29T12:02:18.759893+00:00",
+   "file": "bdddd5adfd86e440b4b1.html.gz",
+   "final_url": "https://www.homes.co.jp/chintai/tokyo/line/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.monthly-mansion.com/": {
+   "fetched_at": "2026-09-29T12:03:33.593636+00:00",
+   "file": "8ae8b660496391881209.html.gz",
+   "final_url": "https://www.monthly-mansion.com/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.monthly-mansion.com/tokyo/": {
+   "fetched_at": "2026-09-29T12:03:35.632888+00:00",
+   "file": "0d2d804463417a9cabc6.html.gz",
+   "final_url": "https://www.monthly-mansion.com/tokyo/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.monthly-mansion.com/tokyo/search/list.html?search_mode=area&jyuusyo_cd=13123": {
+   "fetched_at": "2026-09-29T12:03:37.734261+00:00",
+   "file": "bce65ffe3d1aaf2e5fe4.html.gz",
+   "final_url": "https://www.monthly-mansion.com/tokyo/search/list.html?search_mode=area&jyuusyo_cd=13123",
+   "purpose": "listing",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.oakhouse.jp/": {
+   "fetched_at": "2026-09-29T12:01:45.254448+00:00",
+   "file": "50355ab34dab370370c9.html.gz",
+   "final_url": "https://www.oakhouse.jp/",
+   "purpose": "navigate",
+   "render": "browser",
+   "status": 200
+  },
+  "https://www.oakhouse.jp/area/tokyo/sharehouse": {
+   "fetched_at": "2026-09-29T12:01:58.437916+00:00",
+   "file": "6f2fd97bc010dbe472ab.html.gz",
+   "final_url": "https://www.oakhouse.jp/area/tokyo/sharehouse",
+   "purpose": "listing",
+   "render": "browser",
+   "status": 200
+  },
+  "https://www.oakhouse.jp/area/tokyo/ueno-asakusa-toyosu/edogawa/sharehouse": {
+   "fetched_at": "2026-09-29T12:03:32.076954+00:00",
+   "file": "c456103c8600111be251.html.gz",
+   "final_url": "https://www.oakhouse.jp/area/tokyo/ueno-asakusa-toyosu/edogawa/sharehouse",
+   "purpose": "listing",
+   "render": "browser",
+   "status": 200
+  },
+  "https://www.ur-net.go.jp/chintai/": {
+   "fetched_at": "2026-09-29T12:02:44.953067+00:00",
+   "file": "7a214c8ee30179318231.html.gz",
+   "final_url": "https://www.ur-net.go.jp/chintai/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.ur-net.go.jp/chintai/kanto/tokyo/area/123.html": {
+   "fetched_at": "2026-09-29T12:03:07.285151+00:00",
+   "file": "484838d151b0c6d66718.html.gz",
+   "final_url": "https://www.ur-net.go.jp/chintai/kanto/tokyo/area/123.html",
+   "purpose": "listing",
+   "render": "browser",
+   "status": 200
+  },
+  "https://www.ur-net.go.jp/chintai/kanto/tokyo/counter/": {
+   "fetched_at": "2026-09-29T12:02:46.827648+00:00",
+   "file": "30703e00ea57d6bfff05.html.gz",
+   "final_url": "https://www.ur-net.go.jp/chintai/kanto/tokyo/counter/",
+   "purpose": "navigate",
+   "render": "static",
+   "status": 200
+  }
+ },
+ "robots": {
+  "suumo.jp": "User-agent: *\r\nDisallow: /edit/rewrite/\r\nDisallow: /edit/include\r\nDisallow: /edit/ssi\r\nDisallow: /edit/ssi_include\r\nDisallow: /mb/chintai/shosai/MO301FD0015/\r\nDisallow: /edit/error/error.html\r\nDisallow: /jj/jjcommon/js/kuchikomi_link.js\r\nDisallow: /ms/shinchiku/brand_list/*/\r\nDisallow: /mb/\r\nDisallow: /journal/\r\nDisallow: /jj/kaisha/top/JJ052FA001/\r\nDisallow: /jj/chintai/common/JJ901FI396/\r\nDisallow: /jj/chintai/common/FR901FK150/\r\nDisallow: /jj/common/parts/JJ901FI402/\r\nDisallow: /jj/chintai/common/JJ901FI394/\r\nDisallow: /jj/chintai/common/JJ901FJ440/\r\nDisallow: /jj/chintai/shiryou/FR400FG001/\r\nDisallow: /jj/chintai/shiryou/FR400FG002/\r\nDisallow: /jj/chintai/shosai/FR301FD006/\r\nDisallow: /jj/bukken/shiryou/JJ010FJ010/\r\nDisallow: /jj/common/parts/JJ901FI396/\r\nDisallow: /sp/bridge/request/\r\nDisallow: /sp/sp/\r\nDisallow: /jj/chintai/common/FR301FK030/\r\nDisallow: /jj/fudousan/shosai/FR351FD002/\r\nDisallow: /jj/fudousan/common/FR351FK100/\r\nDisallow: /jj/bukken/shosai/JJ011FD102/\r\nDisallow: /jj/bukken/ichiran/JJ012FC003/\r\nDisallow: /jj/bukken/shosai/JJ012FD030/\r\nDisallow: /jj/bukken/shosai/JJ012FD033/\r\nDisallow: /jj/kaisha/shosai/parts/JJ050FI007/\r\nDisallow: /jj/common/parts/JJ901FI306/\r\nDisallow: /jj/common/parts/JJ901FI394/\r\nDisallow: /jj/common/parts/JJ901FJ440/excute/\r\nDisallow: /jj/kaisha/kensaku/JJ951FB002/\r\nDisallow: /jj/common/parts/krInputFormRecommend01/\r\nDisallow: /jj/bukken/shiryou/JJ010FG500/\r\nDisallow: /display/\r\nDisallow: /sp/ikkodate/lp/\r\nDisallow: /jj/chintai/common/FR301FK002/\r\nDisallow: /sp/chintai/personalize/bukken/pickup/\r\nDisallow: /jj/chintai/parts/FR301FI004/\r\nDisallow: /jj/common/parts/JJ901FJ901/\r\nDisallow: /jj/common/parts/JJ901FI372/\r\nDisallow: /jj/common/parts/JJ901FI382/\r\nDisallow: /jj/common/parts/JJ901FI313/\r\nDisallow: /edit/assets/suumo/js/bk-zen-top.js\r\nDisallow: /chintai/bc_*/printout/\r\nDisallow: /chintai/*/__JJ_FR301FC001\r\nDisallow: /chintai/kaisha/kc_*/smkz1n01.html\r\nDisallow: /chintai/*/__JJ_FR301FC005\r\nDisallow: /chintai/*/__JJ_FR301FC002\r\nDisallow: /chintai/kaisha/kc_*/smkz1r02.html\r\nDisallow: /chintai/*/__JJ_FR301FB002\r\nDisallow: /chintai/*/__JJ_FR351FC001\r\nDisallow: /chintai/bc_*/tenpo/[object%20HTMLParagraphElement]\r\nDisallow: /chintai/__JJ_FR301FD001\r\nDisallow: /chintai/*/__JJ_FR301FB001\r\nDisallow: /chintai/*/__JJ_FR351FD001\r\nDisallow: /ms/shinchiku/*/ek_*/null\r\nDisallow: /baikyaku/*/ek_*/jisseki/\r\nDisallow: /baikyaku/*/en_*/jisseki/\r\nDisallow: /baikyaku/*/ek_*/$\r\nDisallow: /baikyaku/*/ek_*/kibousha/\r\nDisallow: /baikyaku/*/en_*/$\r\nDisallow: /baikyaku/*/en_*/kibousha/\r\nDisallow: /remodel/blog/entries_access_ranking_module\r\nDisallow: /chumon/tn_*/an_*/ts_*/$\r\nDisallow: /chumon/tn_*/ts_*/$\r\nDisallow: /chumon/*/ts_*/$\r\nDisallow: /chumon/tn_*/an_*/ts_*/ITn02.html\r\nDisallow: /chumon/theme/ts_*/tn_*/an_*/$\r\nDisallow: /chumon/tn_*/ts_*/ITn02.html\r\nDisallow: /chumon/tn_*/dn_*/ts_*/$\r\nDisallow: /chumon/*/ts_*/ITn02.html\r\nDisallow: /chumon/tn_*/dn_*/ts_*/ITn02.html\r\nDisallow: /chumon/theme/ts_*/tn_*/an_*/ITn02.html\r\nDisallow: /article/oyakudachi/rrpOyakApi.php\r\nDisallow: /journal/404error/\r\nDisallow: /sp/matomete/\r\nDisallow: /map/chintai/\r\nDisallow: /ms/shinchiku/hokkaido/tokushu/M1YS0001/\r\nDisallow: /ms/shinchiku/tohoku/tokushu/M2YS0001/\r\nDisallow: /ms/shinchiku/kanto/tokushu/M3YS0001/\r\nDisallow: /ms/shinchiku/tokai/tokushu/M5YS0001/\r\nDisallow: /ms/shinchiku/kansai/tokushu/M6YS0001/\r\nDisallow: /ms/shinchiku/chugoku/tokushu/M8YS0001/\r\nDisallow: /ms/shinchiku/kyushu/tokushu/M9YS0001/\r\nDisallow: /edit/assets/suumo/js/ch-case_list_company.js\r\nDisallow: /edit/assets/suumo/js/ch-company_detail.js\r\nDisallow: /edit/assets/suumo/js/ch-company_list.js\r\nDisallow: /edit/assets/suumo_sp/js/ch-case_list_company.js\r\nDisallow: /edit/assets/suumo_sp/js/ch-company_detail.js\r\nDisallow: /*?rnekTmp=\r\nDisallow: /*?*&rnekTmp=\r\nDisallow: /*?rnTmp=\r\nDisallow: /*?*&rnTmp=\r\nDisallow: /jj/bukken/ichiran/JJ010FJ001/\r\nDisallow: /jj/log/parts/JJ700FI002/\r\nDisallow: /jj/bukken/ichiran/JJ012FC001/\r\nDisallow: /jj/common/parts/JJ901FJ430/excute\r\nDisallow: /jj/jjcommon/sc/catalyst.js\r\nDisallow: /jj/jjcommon/sc/s_code.js\r\nDisallow: /jj/common/parts/JJ901FI307/\r\nDisallow: /jj/jjcommon/vos/vos.js\r\nDisallow: /jj/jjcommon/js/send-beacon.js\r\nDisallow: /jj/log/common/JJ700FK003/\r\nDisallow: /jj/common/parts/JJ901FI311/\r\nDisallow: /jj/common/parts/JJ901FI301/\r\nDisallow: /jj/jjcommon/js/dropdown.js\r\nDisallow: /jj/jjcommon/lib/jquery.bgiframe.min.js\r\nDisallow: /jj/jjcommon/js/add_mylist.js\r\nDisallow: /jj/jjcommon/js/check_railroad.js\r\nDisallow: /jj/jjcommon/js/check_station.js\r\nDisallow: /jj/jjcommon/js/autocomplete_station.js\r\nDisallow: /jj/jjcommon/lib/jquery.autocomplete.js\r\nDisallow: /jj/jjcommon/js/validate_default.js\r\nDisallow: /jj/jjcommon/css/dropdown.css\r\nDisallow: /jj/jjcommon/lib/jquery.validate.js\r\nDisallow: /jj/bukken/shosai/JJ012FD016/\r\nDisallow: /jj/jjcommon/js/onloadCallTpvBeacon.js\r\nDisallow: /jj/jjcommon/lib/jquery.autocomplete.css\r\nDisallow: /jj/jjcommon/js/browserBackCheck.js\r\nDisallow: /jj/krcommon/js/baibai_kr_shosai_common_model.js\r\nDisallow: /jj/krcommon/js/baibai_kr_shosai_loan_model.js\r\nDisallow: /jj/krcommon/js/baibai_kr_shosai_loan_controller.js\r\nDisallow: /jj/krcommon/css/common.css\r\nDisallow: /jj/krcommon/js/baibai_kr_common_model.js\r\nDisallow: /jj/common/function/JJ901FL118/\r\nDisallow: /jj/krcommon/css/cm_global_new_s.css\r\nDisallow: /jj/krcommon/css/x2_common_kr.css\r\nDisallow: /jj/krcommon/js/baibai_kr_shosai_recommend.js\r\nDisallow: /jj/jjcommon/js/thickbox_kr_patch.js\r\nDisallow: /jj/jjcommon/js/thickbox_kr.js\r\nDisallow: /jj/jjcommon/lib/rollover.js\r\nDisallow: /jj/jjcommon/js/checkall_checkbox.js\r\nDisallow: /jj/jjcommon/js/hover_click.js\r\nDisallow: /jj/jjcommon/js/zipSearchClient.js\r\nDisallow: /jj/krcommon/js/baibai_kr_shiryoseikyu_model.js\r\nDisallow: /jj/krcommon/js/baibai_kr_shiryoseikyu_controller.js\r\nDisallow: /jj/jjcommon/js/checkbox_combo.js\r\nDisallow: /jj/krcommon/js/jj-kr-shosai-hankyoimp.js\r\nDisallow: /jj/jjcommon/lib/jquery.example.js\r\nDisallow: /jj/jjcommon/js/smp-fr-shiryoseikyu.min.js\r\nDisallow: /jj/jjcommon/js/xj1.js\r\nDisallow: /jj/jjcommon/js/menu.js\r\nDisallow: /jj/jjcommon/js/thickbox_patch.js\r\nDisallow: /jj/jjcommon/js/removeLatestBukken.js\r\nDisallow: /jj/jjcommon/css/main.css\r\nDisallow: /jj/jjcommon/lib/jquery.ajaxQueue.js\r\nDisallow: /jj/common/parts/krShosaiRecommend01/\r\nDisallow: /jj/jjcommon/css/jj-fr_detail.css\r\nDisallow: /jj/jjcommon/lib/jquery.scrollTo.js\r\nDisallow: /jj/jjcommon/lib/jquery.popupwindow.js\r\nDisallow: /jj/jjcommon/js/swap_photo.js\r\nDisallow: /jj/jjcommon/lib/suumo-modal.js\r\nDisallow: /jj/jjcommon/lib/imgscroller.js\r\nDisallow: /jj/jjcommon/lib/jquery.inputips.js\r\nDisallow: /jj/jjcommon/lib/jquery.simplemodal.js\r\nDisallow: /jj/jjcommon/js/chintai_shiryo_controller.js\r\nDisallow: /jj/jjcommon/css/print.css\r\nDisallow: /jj/jjcommon/chintai/js/onloadCallTeBeacon.js\r\nDisallow: /jj/jjcommon/sc/edit_param2.js\r\nDisallow: /jj/jjcommon/css/global.css\r\nDisallow: /jj/krcommon/js/jj-kr-shosai-recommend.js\r\nDisallow: /jj/jjcommon/css/global_attic.css\r\nDisallow: /jj/common/parts/JJ901FI309/\r\nDisallow: /jj/jjcommon/css/thickbox_patch.css\r\nDisallow: /jj/jjcommon/lib/thickbox.css\r\nDisallow: /sp/chintai/api/bukken/count/\r\nDisallow: /sp/chintai/api/bukken/ninkido/hankyoCount/\r\nDisallow: /sp/chintai/map/bukken/points/\r\nDisallow: /sp/chintai/*/bukkencountlist/\r\nDisallow: /library/*/?*from=suumo\r\nDisallow: /chintai/*/city/?sc%5B%5D=\r\nDisallow: /chintai/*/city/?*sc[]=\r\nDisallow: /*?*sort=\r\nDisallow: /library/areaarticle/\r\nDisallow: /*?cinm=\r\nDisallow: /*&cinm=\r\nDisallow: /sp/apiforward/\r\nDisallow: /ikkodate/*.html?*sc=\r\nDisallow: /*?*snetid=\r\nUser-agent: Googlebot-Mobile\r\nAllow: /mb/\r\nUser-agent: Google-Extended\r\nAllow: /\r\nUser-agent: Googlebot\r\nDisallow: /edit/rewrite/\r\nDisallow: /edit/include\r\nDisallow: /edit/ssi\r\nDisallow: /edit/ssi_include\r\nDisallow: /mb/chintai/shosai/MO301FD0015/\r\nDisallow: /edit/error/error.html\r\nDisallow: /jj/jjcommon/js/kuchikomi_link.js\r\nDisallow: /ms/shinchiku/brand_list/*/\r\nDisallow: /mb/\r\nDisallow: /jj/kaisha/top/JJ052FA001/\r\nDisallow: /jj/chintai/common/JJ901FI396/\r\nDisallow: /jj/chintai/common/FR901FK150/\r\nDisallow: /jj/common/parts/JJ901FI402/\r\nDisallow: /jj/chintai/common/JJ901FI394/\r\nDisallow: /jj/chintai/common/JJ901FJ440/\r\nDisallow: /jj/chintai/shiryou/FR400FG001/\r\nDisallow: /jj/chintai/shiryou/FR400FG002/\r\nDisallow: /jj/chintai/shosai/FR301FD006/\r\nDisallow: /jj/bukken/shiryou/JJ010FJ010/\r\nDisallow: /jj/common/parts/JJ901FI396/\r\nDisallow: /sp/bridge/request/\r\nDisallow: /sp/sp/\r\nDisallow: /jj/chintai/common/FR301FK030/\r\nDisallow: /jj/fudousan/shosai/FR351FD002/\r\nDisallow: /jj/fudousan/common/FR351FK100/\r\nDisallow: /jj/bukken/shosai/JJ011FD102/\r\nDisallow: /jj/bukken/ichiran/JJ012FC003/\r\nDisallow: /jj/bukken/shosai/JJ012FD030/\r\nDisallow: /jj/bukken/shosai/JJ012FD033/\r\nDisallow: /jj/kaisha/shosai/parts/JJ050FI007/\r\nDisallow: /jj/common/parts/JJ901FI306/\r\nDisallow: /jj/common/parts/JJ901FI394/\r\nDisallow: /jj/common/parts/JJ901FJ440/excute/\r\nDisallow: /jj/kaisha/kensaku/JJ951FB002/\r\nDisallow: /jj/common/parts/krInputFormRecommend01/\r\nDisallow: /jj/bukken/shiryou/JJ010FG500/\r\nDisallow: /display/\r\nDisallow: /sp/ikkodate/lp/\r\nDisallow: /jj/chintai/common/FR301FK002/\r\nDisallow: /sp/chintai/personalize/bukken/pickup/\r\nDisallow: /jj/chintai/parts/FR301FI004/\r\nDisallow: /jj/common/parts/JJ901FJ901/\r\nDisallow: /jj/common/parts/JJ901FI372/\r\nDisallow: /jj/common/parts/JJ901FI382/\r\nDisallow: /jj/common/parts/JJ901FI313/\r\nDisallow: /edit/assets/suumo/js/bk-zen-top.js\r\nDisallow: /chintai/bc_*/printout/\r\nDisallow: /chintai/*/__JJ_FR301FC001\r\nDisallow: /chintai/kaisha/kc_*/smkz1n01.html\r\nDisallow: /chintai/*/__JJ_FR301FC005\r\nDisallow: /chintai/*/__JJ_FR301FC002\r\nDisallow: /chintai/kaisha/kc_*/smkz1r02.html\r\nDisallow: /chintai/*/__JJ_FR301FB002\r\nDisallow: /chintai/*/__JJ_FR351FC001\r\nDisallow: /chintai/bc_*/tenpo/[object%20HTMLParagraphElement]\r\nDisallow: /chintai/__JJ_FR301FD001\r\nDisallow: /chintai/*/__JJ_FR301FB001\r\nDisallow: /chintai/*/__JJ_FR351FD001\r\nDisallow: /ms/shinchiku/*/ek_*/null\r\nDisallow: /baikyaku/*/ek_*/jisseki/\r\nDisallow: /baikyaku/*/en_*/jisseki/\r\nDisallow: /baikyaku/*/ek_*/$\r\nDisallow: /baikyaku/*/ek_*/kibousha/\r\nDisallow: /baikyaku/*/en_*/$\r\nDisallow: /baikyaku/*/en_*/kibousha/\r\nDisallow: /remodel/blog/entries_access_ranking_module\r\nDisallow: /chumon/tn_*/an_*/ts_*/$\r\nDisallow: /chumon/tn_*/ts_*/$\r\nDisallow: /chumon/*/ts_*/$\r\nDisallow: /chumon/tn_*/an_*/ts_*/ITn02.html\r\nDisallow: /chumon/theme/ts_*/tn_*/an_*/$\r\nDisallow: /chumon/tn_*/ts_*/ITn02.html\r\nDisallow: /chumon/tn_*/dn_*/ts_*/$\r\nDisallow: /chumon/*/ts_*/ITn02.html\r\nDisallow: /chumon/tn_*/dn_*/ts_*/ITn02.html\r\nDisallow: /chumon/theme/ts_*/tn_*/an_*/ITn02.html\r\nDisallow: /article/oyakudachi/rrpOyakApi.php\r\nDisallow: /journal/404error/\r\nDisallow: /sp/matomete/\r\nDisallow: /map/chintai/\r\nDisallow: /ms/shinchiku/hokkaido/tokushu/M1YS0001/\r\nDisallow: /ms/shinchiku/tohoku/tokushu/M2YS0001/\r\nDisallow: /ms/shinchiku/kanto/tokushu/M3YS0001/\r\nDisallow: /ms/shinchiku/tokai/tokushu/M5YS0001/\r\nDisallow: /ms/shinchiku/kansai/tokushu/M6YS0001/\r\nDisallow: /ms/shinchiku/chugoku/tokushu/M8YS0001/\r\nDisallow: /ms/shinchiku/kyushu/tokushu/M9YS0001/\r\nDisallow: /edit/assets/suumo/js/ch-case_list_company.js\r\nDisallow: /edit/assets/suumo/js/ch-company_detail.js\r\nDisallow: /edit/assets/suumo/js/ch-company_list.js\r\nDisallow: /edit/assets/suumo_sp/js/ch-case_list_company.js\r\nDisallow: /edit/assets/suumo_sp/js/ch-company_detail.js\r\nDisallow: /*?rnekTmp=\r\nDisallow: /*?*&rnekTmp=\r\nDisallow: /*?rnTmp=\r\nDisallow: /*?*&rnTmp=\r\nDisallow: /jj/bukken/ichiran/JJ010FJ001/\r\nDisallow: /jj/log/parts/JJ700FI002/\r\nDisallow: /jj/bukken/ichiran/JJ012FC001/\r\nDisallow: /jj/common/parts/JJ901FJ430/excute\r\nDisallow: /jj/jjcommon/sc/catalyst.js\r\nDisallow: /jj/jjcommon/sc/s_code.js\r\nDisallow: /jj/common/parts/JJ901FI307/\r\nDisallow: /jj/jjcommon/vos/vos.js\r\nDisallow: /jj/jjcommon/js/send-beacon.js\r\nDisallow: /jj/log/common/JJ700FK003/\r\nDisallow: /jj/common/parts/JJ901FI311/\r\nDisallow: /jj/common/parts/JJ901FI301/\r\nDisallow: /jj/jjcommon/js/dropdown.js\r\nDisallow: /jj/jjcommon/lib/jquery.bgiframe.min.js\r\nDisallow: /jj/jjcommon/js/add_mylist.js\r\nDisallow: /jj/jjcommon/js/check_railroad.js\r\nDisallow: /jj/jjcommon/js/check_station.js\r\nDisallow: /jj/jjcommon/js/autocomplete_station.js\r\nDisallow: /jj/jjcommon/lib/jquery.autocomplete.js\r\nDisallow: /jj/jjcommon/js/validate_default.js\r\nDisallow: /jj/jjcommon/css/dropdown.css\r\nDisallow: /jj/jjcommon/lib/jquery.validate.js\r\nDisallow: /jj/bukken/shosai/JJ012FD016/\r\nDisallow: /jj/jjcommon/js/onloadCallTpvBeacon.js\r\nDisallow: /jj/jjcommon/lib/jquery.autocomplete.css\r\nDisallow: /jj/jjcommon/js/browserBackCheck.js\r\nDisallow: /jj/krcommon/js/baibai_kr_shosai_common_model.js\r\nDisallow: /jj/krcommon/js/baibai_kr_shosai_loan_model.js\r\nDisallow: /jj/krcommon/js/baibai_kr_shosai_loan_controller.js\r\nDisallow: /jj/krcommon/css/common.css\r\nDisallow: /jj/krcommon/js/baibai_kr_common_model.js\r\nDisallow: /jj/common/function/JJ901FL118/\r\nDisallow: /jj/krcommon/css/cm_global_new_s.css\r\nDisallow: /jj/krcommon/css/x2_common_kr.css\r\nDisallow: /jj/krcommon/js/baibai_kr_shosai_recommend.js\r\nDisallow: /jj/jjcommon/js/thickbox_kr_patch.js\r\nDisallow: /jj/jjcommon/js/thickbox_kr.js\r\nDisallow: /jj/jjcommon/lib/rollover.js\r\nDisallow: /jj/jjcommon/js/checkall_checkbox.js\r\nDisallow: /jj/jjcommon/js/hover_click.js\r\nDisallow: /jj/jjcommon/js/zipSearchClient.js\r\nDisallow: /jj/krcommon/js/baibai_kr_shiryoseikyu_model.js\r\nDisallow: /jj/krcommon/js/baibai_kr_shiryoseikyu_controller.js\r\nDisallow: /jj/jjcommon/js/checkbox_combo.js\r\nDisallow: /jj/krcommon/js/jj-kr-shosai-hankyoimp.js\r\nDisallow: /jj/jjcommon/lib/jquery.example.js\r\nDisallow: /jj/jjcommon/js/smp-fr-shiryoseikyu.min.js\r\nDisallow: /jj/jjcommon/js/xj1.js\r\nDisallow: /jj/jjcommon/js/menu.js\r\nDisallow: /jj/jjcommon/js/thickbox_patch.js\r\nDisallow: /jj/jjcommon/js/removeLatestBukken.js\r\nDisallow: /jj/jjcommon/css/main.css\r\nDisallow: /jj/jjcommon/lib/jquery.ajaxQueue.js\r\nDisallow: /jj/common/parts/krShosaiRecommend01/\r\nDisallow: /jj/jjcommon/css/jj-fr_detail.css\r\nDisallow: /jj/jjcommon/lib/jquery.scrollTo.js\r\nDisallow: /jj/jjcommon/lib/jquery.popupwindow.js\r\nDisallow: /jj/jjcommon/js/swap_photo.js\r\nDisallow: /jj/jjcommon/lib/suumo-modal.js\r\nDisallow: /jj/jjcommon/lib/imgscroller.js\r\nDisallow: /jj/jjcommon/lib/jquery.inputips.js\r\nDisallow: /jj/jjcommon/lib/jquery.simplemodal.js\r\nDisallow: /jj/jjcommon/js/chintai_shiryo_controller.js\r\nDisallow: /jj/jjcommon/css/print.css\r\nDisallow: /jj/jjcommon/chintai/js/onloadCallTeBeacon.js\r\nDisallow: /jj/jjcommon/sc/edit_param2.js\r\nDisallow: /jj/jjcommon/css/global.css\r\nDisallow: /jj/krcommon/js/jj-kr-shosai-recommend.js\r\nDisallow: /jj/jjcommon/css/global_attic.css\r\nDisallow: /jj/common/parts/JJ901FI309/\r\nDisallow: /jj/jjcommon/css/thickbox_patch.css\r\nDisallow: /jj/jjcommon/lib/thickbox.css\r\nDisallow: /sp/chintai/api/bukken/count/\r\nDisallow: /sp/chintai/api/bukken/ninkido/hankyoCount/\r\nDisallow: /sp/chintai/map/bukken/points/\r\nDisallow: /sp/chintai/*/bukkencountlist/\r\nDisallow: /library/*/?*from=suumo\r\nDisallow: /chintai/*/city/?sc%5B%5D=\r\nDisallow: /chintai/*/city/?*sc[]=\r\nDisallow: /*?*sort=\r\nDisallow: /library/areaarticle/\r\nDisallow: /*?cinm=\r\nDisallow: /*&cinm=\r\nDisallow: /sp/apiforward/\r\nDisallow: /ikkodate/*.html?*sc=\r\nDisallow: /*?*snetid=\r\nAllow: /journal/\r\nUser-agent: bingbot\r\nCrawl-delay: 30\r\nAllow: /journal/\r\nUser-agent: msnbot\r\nAllow: /journal/\r\nUser-agent: Crowsnest\r\nAllow: /journal/\r\nUser-agent: Twitterbot\r\nAllow: /journal/\r\n",
+  "www.athome.co.jp": "User-agent: Sogou web spider\nDisallow: /\n\nUser-agent: Googlebot\nDisallow: /freedial\nDisallow: /rcomd\nDisallow: /smp/ajax_recommendcondition/\nDisallow: /async_backend/contents/\nDisallow: /*/ajax/\nDisallow: /threeprcomd/\nDisallow: /smp/ajax_gethistory/\nDisallow: /smp/ajax_getlistlink/\nDisallow: /psl/\nDisallow: /smt/psl/\nDisallow: /index/count\nDisallow: /inquiry/bukken/input/\nDisallow: /panoramalog/\nDisallow: /mansion/shinchiku/api/\nDisallow: /mansion/shinchiku/inc/\nDisallow: /ajax/\nDisallow: /default/list/recentbukkenlist\nDisallow: /osusume/\nDisallow: /to_ca/innermap/\nDisallow: /estate/estatebuyinfo/\nDisallow: /Haht_atweb/hsrun.exe/\nDisallow: /homepage/estate/\nDisallow: /smp/homepage/estate/\nDisallow: /buy/homepage/estate/\nDisallow: /smp/buy/homepage/estate/\nDisallow: /mansion/shinchiku/cs/\nDisallow: /clasoa_mansion/rd/recommend/\nDisallow: /clasoa_mansion/api/\nDisallow: /clasoa_mansion/inc/\nDisallow: /clasoa_mansion/search/\nDisallow: /clasoa_mansion/train/\nDisallow: /clasoa_mansion/daily_feature/17122201.html\nDisallow: /assess/parts*\nDisallow: /mansion/shinchiku/*/list/map/\nDisallow: /chintai/theme/hitori_sikirei0/\nDisallow: /buyall/\nDisallow: /town-library/search\nDisallow: /town-library/form\nDisallow: /town-library/*/?page\nDisallow: /town-library/town-matching/\nDisallow: /town-library/town-matching/passeport/*\nDisallow: /town-library/town-matching/question/*\nDisallow: /town-library/town-matching/tag/*\nDisallow: /town-library/town-matching/error/\nDisallow: /town-library/town-matching/source/\nAllow: /town-library/town-matching/tokyo/\nDisallow: /contents/tag/\nDisallow: /estate/staff_088610_0000127862/\nDisallow: /custom-built/inquiry/\nDisallow: /mansion/shinchiku/request/\nDisallow: /mansion/shinchiku/mr-reserve/\nDisallow: /souba_info/\nDisallow: /smp/chintai/\nDisallow: /smp/mansion/\nDisallow: /smp/kodate/\nDisallow: /smp/tochi/\nDisallow: /amp/bldg-library/\nDisallow: /custom-built/*/*condition=\nDisallow: /custom-built/*/*pref=\nDisallow: /kodate/*/?basic=\nDisallow: /mansion/*/?basic=\nDisallow: /tochi/*/?basic=\nDisallow: /csite-bff/\nDisallow: /renewal/GetSellLivingRankingPropertyListService.php\nDisallow: /ScrollCtl/\nDisallow: /simple_favorite/\nDisallow: /smp/ajax_sethistory/\nDisallow: /getnewarrival\nDisallow: /TownContents/estateListService/\n\nUser-agent: bingbot\nCrawl-delay: 5\nDisallow: /freedial\nDisallow: /rcomd\nDisallow: /smp/ajax_recommendcondition/\nDisallow: /async_backend/contents/\nDisallow: /*/ajax/\nDisallow: /threeprcomd/\nDisallow: /smp/ajax_gethistory/\nDisallow: /smp/ajax_getlistlink/\nDisallow: /psl/\nDisallow: /smt/psl/\nDisallow: /index/count\nDisallow: /inquiry/bukken/input/\nDisallow: /panoramalog/\nDisallow: /town-library/town-matching/\nDisallow: /town-library/town-matching/passeport/*\nDisallow: /town-library/town-matching/question/*\nDisallow: /town-library/town-matching/tag/*\nDisallow: /town-library/town-matching/error/\nDisallow: /town-library/town-matching/source/\nAllow: /town-library/town-matching/tokyo/\nDisallow: /estate/staff_088610_0000127862/\nDisallow: /custom-built/inquiry/\nDisallow: /mansion/shinchiku/request/\nDisallow: /mansion/shinchiku/mr-reserve/\nDisallow: /souba_info/\nDisallow: /smp/chintai/\nDisallow: /smp/mansion/\nDisallow: /smp/kodate/\nDisallow: /smp/tochi/\nDisallow: /amp/bldg-library/\nDisallow: /custom-built/*/*condition=\nDisallow: /custom-built/*/*pref=\nDisallow: /kodate/*/?basic=\nDisallow: /mansion/*/?basic=\nDisallow: /tochi/*/?basic=\n\nUser-agent: MJ12bot\nDisallow: /\n\nUser-agent: Baiduspider\nCrawl-delay: 10\n\nSitemap:https://www.athome.co.jp/bldg-library/sitemap_index.xml\nSitemap:https://www.athome.co.jp/sitemap_01_chintai_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_05_mansion_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_06_mansion_chuko_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_07_kodate_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_08_kodate_shinchiku_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_09_kodate_chuko_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_10_tochi_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_11_chintai_theme_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_16_mansion_chuko_theme_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_17_kodate_theme_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_18_kodate_shinchiku_theme_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_19_kodate_chuko_theme_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_20_tochi_theme_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_21_chintai_theme_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_22_kodate_ranking_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_32_rent_store_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_33_rent_office_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_31_rent_parking_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_34_rent_tochi_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_41_rent_souko_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_35_rent_other_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_36_buy_store_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_37_buy_office_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_38_buy_other_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_39_estate_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_39_estate_theme_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_90_fudosan_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_91_allocate_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_hub.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_24_mansion_ownerchange_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_25_kodate_chuko_reform_renovation_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_23_mansion_chuko_reform_renovation_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_04_chintai_kodate_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap_42_forstudents_index.xml.gz\nSitemap:https://www.athome.co.jp/sitemap01_00001.xml.gz\nSitemap:https://www.athome.co.jp/sitemap02_00001.xml.gz\nSitemap:https://www.athome.co.jp/sitemap03_00001.xml.gz \nSitemap:https://www.athome.co.jp/sitemap05_00001.xml.gz",
+  "www.chintai.net": "User-agent: *\nDisallow: /info/\nDisallow: /display/\n\nUser-agent: *\nDisallow: /common/api/qr/createQrcode/\nDisallow: /api/\nDisallow: /peya/\nDisallow: /tracking/\nDisallow: /pbc/index2.html\nDisallow: /news/*/embed/\nDisallow: /contact/?inqContents1=\nDisallow: /shop/*/?bk4log=\nDisallow: /list/?b=\nDisallow: /list/?b=/list/?e=\nDisallow: /list/?g=\nDisallow: /list/?o2&ue=\nDisallow: /list/?rt=\nDisallow: /list/?ue=\nDisallow: /list/?w=\nDisallow: /rent/detail/?prefKey=\nDisallow: /detail/*/?sidesFlg=1\nDisallow: /detail/*/?vm=\nDisallow: /detail/*/?bld=\n\nUser-agent: MauiBot\nDisallow: /\n\nSitemap: https://www.chintai.net/xml/sitemap.xml\nSitemap: https://www.chintai.net/xml/sitemap_detail.xml\nSitemap: https://www.chintai.net/xml/sitemap_bld_true.xml\nSitemap: https://www.chintai.net/xml/sitemap_list.xml\nSitemap: https://www.chintai.net/news/sitemap.xml\nSitemap: https://www.chintai.net/sitemap_faq2_chintai_net.xml\n",
+  "www.homes.co.jp": "User-agent: *\nSitemap: https://www.homes.co.jp/sitemap-bukken-room-chintai.xml\nSitemap: https://www.homes.co.jp/sitemap-bukken-detail-mansion-shinchiku-bunjou.xml\nSitemap: https://www.homes.co.jp/sitemap-bukken-detail-mansion-shinchiku-sale.xml\nSitemap: https://www.homes.co.jp/sitemap-bukken-detail-mansion-chuko.xml\nSitemap: https://www.homes.co.jp/sitemap-bukken-detail-kodate-shinchiku-bunjou.xml\nSitemap: https://www.homes.co.jp/sitemap-bukken-detail-kodate-shinchiku-sale.xml\nSitemap: https://www.homes.co.jp/sitemap-bukken-detail-kodate-chuko.xml\nSitemap: https://www.homes.co.jp/sitemap-bukken-detail-tochi-bunjou.xml\nSitemap: https://www.homes.co.jp/sitemap-bukken-detail-tochi-sale.xml\nSitemap: https://www.homes.co.jp/sitemap-bukken-detail-chintai.xml\nSitemap: https://www.homes.co.jp/sitemap.xml\nSitemap: https://www.homes.co.jp/sitemap-chintai-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-chintai-kodate-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-chintai-parking-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-chintai-tochi-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-chintai-tempo-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-chintai-office-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-chintai-soko-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-chintai-other-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-chintai-commute-station-rank.xml\nSitemap: https://www.homes.co.jp/sitemap-mansion-chuko-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-kodate-chuko-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-kodate-shinchiku-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-mansion-shinchiku-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-kodate-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-mansion-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-tochi-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-tempo-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-office-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-soko-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-other-town-list.xml\nSitemap: https://www.homes.co.jp/sitemap-chintai-theme.xml\nSitemap: https://www.homes.co.jp/sitemap-mansion-chuko-theme.xml\nSitemap: https://www.homes.co.jp/sitemap-kodate-chuko-theme.xml\nSitemap: https://www.homes.co.jp/sitemap-kodate-shinchiku-theme.xml\nSitemap: https://www.homes.co.jp/sitemap-mansion-shinchiku-theme.xml\nSitemap: https://www.homes.co.jp/sitemap-tochi-theme.xml\nSitemap: https://www.homes.co.jp/sitemap-words.xml\nSitemap: https://www.homes.co.jp/sitemap-contents-edit.xml\nSitemap: https://www.homes.co.jp/sitemap-ranking.xml\nSitemap: https://www.homes.co.jp/sitemap-college.xml\nSitemap: https://www.homes.co.jp/sitemap-landmark-chintai-list.xml\nSitemap: https://www.homes.co.jp/sitemap-map-chintai.xml\nSitemap: https://www.homes.co.jp/sitemap-realtor-search.xml\nSitemap: https://www.homes.co.jp/sitemap-realtor-detail.xml\nSitemap: https://www.homes.co.jp/smp/realtor/sitemap-realtor-detail.xml\nSitemap: https://www.homes.co.jp/smp/realtor/sitemap-realtor-search.xml\nSitemap: https://www.homes.co.jp/machimusubi/sitemap.xml\nSitemap: https://www.homes.co.jp/sitemap-ltag-chintai-bukken-list-index.xml\nSitemap: https://www.homes.co.jp/iezukuri/sitemap.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-kaitori-city.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-kaitori-pref.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-kaitori-mcity.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-city.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-pref.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-mcity.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-mansion-city.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-tochi-city.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-kodate-city.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-toushi-city.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-soko-city.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-realtor-map.xml\nSitemap: https://www.homes.co.jp/satei/sitemap-realtor.xml\nSitemap: https://www.homes.co.jp/satei/media/sitemap.xml\nSitemap: https://www.homes.co.jp/satei/sitemap.xml\nSitemap: https://www.homes.co.jp/archive/sitemap.xml.gz\nSitemap: https://www.homes.co.jp/archive/sitemap/index-detail-building.xml.gz\nSitemap: https://www.homes.co.jp/archive/sitemap/index-detail-building-gallery.xml.gz\nSitemap: https://www.homes.co.jp/archive/sitemap/index-detail-unit-with-building-image.xml.gz\nDisallow: /kksearch\nDisallow: /inquire/bukken/chintai/b-\nDisallow: /inquire/visit/input1/chintai/b-\nDisallow: /inquire/bukken/mansion/b-\nDisallow: /inquire/visit/input/mansion/b-\nDisallow: /inquire/bukken/kodate/b-\nDisallow: /inquire/visit/input/kodate/b-\nDisallow: /inquire/visit/kodate/b-\nDisallow: /revsearch\nDisallow: /app.php\nDisallow: /app_dev.php\nDisallow: /*from_dsp=\nDisallow: /smp/app.php\nDisallow: /smp/app_dev.php\nDisallow: /archive/b-*/review/\nDisallow: /archive/b-*/photo/comment/edit/\nDisallow: /archive/b-*/free/comment/edit/\nDisallow: /archive/b-*/u-*/photo/comment/edit/\nDisallow: /archive/b-*/summary/edit/\nDisallow: /archive/b-*/u-*/summary/edit/\nDisallow: /archive/b-*/equipment/edit/\nDisallow: /archive/b-*/u-*/equipment/edit/\nDisallow: /archive/report/\nDisallow: /archive/fetch/\nDisallow: /cont/qa/\nDisallow: /movie\nAllow: /ai-homeskun/$\nDisallow: /ai-homeskun/\nDisallow: /satei/*/*-city/*-town/\nDisallow: /satei/*/*/*-city/*-town/\nDisallow: /satei/*/town-list/\nDisallow: /satei/*/*/town-list/\nDisallow: /loan-simulation-input/delete/\nDisallow: /iezukuri/*?o=\nDisallow: /iezukuri/*&o=\nDisallow: /iezukuri/inquire\nDisallow: /iezukuri/catalogs?pref=*&city=*&feature_id=*\nDisallow: /iezukuri/catalogs?pref=*&city=*&maker_category_id=*\nDisallow: /iezukuri/catalogs?pref=*&city=*&building_price_greater_than=*&building_price_less_than=*\nDisallow: /iezukuri/images?pref=*&style_id=*&feature_id=*&image_type_id=*\nDisallow: /chintai/b-*/tour/\n\nUser-agent: bingbot\nDisallow: /iezukuri/*\nDisallow: /iezukuri/makers/*/voices\nDisallow: /iezukuri/makers/*/members\nDisallow: /iezukuri/makers/*/features\nDisallow: /iezukuri/makers/*/catalogs\nDisallow: /iezukuri/makers/*/practices\nDisallow: /iezukuri/makers/*/visits\nDisallow: /iezukuri/makers/*/staffs\nAllow: /iezukuri/makers/*\n",
+  "www.oakhouse.jp": "User-agent: *\nSitemap: https://www.oakhouse.jp/sitemap.xml\n\nDisallow: *p=\nDisallow: *?fid=\nDisallow: */booster/",
+  "www.ur-net.go.jp": "User-agent: *\r\nDisallow: /chintai/*/result/?skcs=\r\nDisallow: /chintai/*/result/?line=\r\nDisallow: /chintai/*/result/?station=\r\nDisallow: /chintai/*/result/?station_nm=\r\nSitemap: https://www.ur-net.go.jp/chintai/sitemap.xml\r\n"
+ }
+}

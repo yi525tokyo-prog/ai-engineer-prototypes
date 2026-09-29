@@ -6,8 +6,8 @@ generates competing strategies, picks one, does the machine-executable work, ask
 bounded real-world actions, verifies outcomes, and changes strategy when the evidence changes.
 
 ```
-OBSERVE → MODEL WORLD STATE → GENERATE ROUTES → EVALUATE ROUTES → SELECT PLAN
-        → DECOMPOSE → EXECUTE → VERIFY → UPDATE WORLD → FULL RE-EVALUATION → REPLAN
+OBSERVE → MODEL WORLD STATE → ACQUIRE (what don't I know?) → GENERATE ROUTES → EVALUATE ROUTES
+        → SELECT PLAN → DECOMPOSE → EXECUTE → VERIFY → UPDATE WORLD → FULL RE-EVALUATION → REPLAN
 ```
 
 The loop is plain, explicit code in [`regent/core/loop.py`](regent/core/loop.py). No agent
@@ -70,6 +70,39 @@ All of this is exercised end to end by the test suite, against PostgreSQL and re
 17. **Cockpit UI.** The panels are NOW, BEST ROUTE, WHY, EXECUTING, BLOCKED BY YOU,
     ALTERNATIVES, CHANGES, WORLD and MISSION, plus constitution, system and simulation controls.
     It is not a chat window.
+
+18. **World acquisition.** Regent gets the world it needs from the public web. Told only
+    「住居を安定させたい」 ("I want to stabilize my housing"), with nothing seeded, it:
+    - reads live rent markets and picks areas
+    - navigates from portal entry pages to the listings, obeying robots.txt and recording
+      blocks
+    - extracts **claims**, each with its source, URL, cached page, time, TTL and confidence
+    - resolves identical rooms across portals
+    - keeps conflicting values as competing hypotheses
+    - funnels ~1,300 units down to 8 for deep research: operator page, geocode, public
+      station/rail/facility data, move-in
+    - competes housing strategies, including not signing yet, on that evidence
+
+    See [World acquisition](docs/ARCHITECTURE.md#world-acquisition-regentacquisition) and the
+    [benchmark report](docs/benchmarks/housing-live.md).
+
+## World acquisition
+
+```bash
+# the unseen-query benchmark: fresh DB, only the mission sentence, live web
+REGENT_DATABASE_URL=postgresql+psycopg://regent:regent@localhost:5432/regent_bench \
+  python scripts/housing_benchmark.py --ticks 6 --out docs/benchmarks/housing-live.md
+```
+
+API endpoints:
+- `/api/acquisition/overview`: funnel, sources and access status, candidates with beliefs
+- `/api/acquisition/entities/{id}`: every claim per attribute with URL, time and confidence;
+  the hypotheses, conflicts, identity decisions and enrichment jobs
+- `/api/acquisition/requests`, `/sources` and `/documents`
+- `POST /api/acquisition/run`
+
+The cockpit shows these in the **World acquisition** panel. Clicking a candidate opens its
+claims.
 
 ## The case study (seeded)
 

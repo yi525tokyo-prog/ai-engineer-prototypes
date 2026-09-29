@@ -114,6 +114,11 @@ class EntityResolution:
             self.db.add(AcqLink(id=new_id("lnk"), mention_id=mention.id, entity_id=se.id, probability=round(sp, 4),
                                 decision=("merged" if se is ent else ("ambiguous" if sp >= self.ambiguous_at else "rejected")),
                                 features=sd))
+        if decision != "merged":
+            # the creation itself is a decision too: "no candidate was close enough"
+            self.db.add(AcqLink(id=new_id("lnk"), mention_id=mention.id, entity_id=ent.id, probability=1.0,
+                                decision="new", features={"candidates": len(scored), "best_p": round(p, 4),
+                                                          "block": store_key}))
         mention.entity_id = ent.id
         mention.resolution = {"decision": decision, "probability": round(p, 4),
                               "candidates": [{"entity_id": se.id, "p": round(sp, 4)} for sp, se, _ in scored[:3]]}

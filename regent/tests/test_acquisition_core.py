@@ -180,3 +180,29 @@ def test_access_denied_and_captcha_walls_are_recorded_not_bypassed(db):
     assert db.get(AcqSource, "wall.example").blocked == 2
     # nothing from a blocked page is cached as content
     assert all(not r.cache_path for r in db.scalars(select(AcqDocument).where(AcqDocument.host == "wall.example")))
+
+
+def test_address_granularity_and_station_subsets_are_not_conflicts(db):
+    t0 = utcnow()
+    store = ClaimStore(db, HousingAdapter().policy(), now=t0)
+    b = _entity(db, "building")
+    _claim(store, b, "address", "東京都世田谷区上馬2", "a.example", t0)
+    _claim(store, b, "address", "東京都世田谷区上馬2丁目10-8", "b.example", t0)
+    _claim(store, b, "name", "カーザ・エッチェルサ世田谷", "a.example", t0)
+    _claim(store, b, "name", "カ-ザ・エッチェルサ世田谷", "b.example", t0)
+    _claim(store, b, "stations", [{"station": "三軒茶屋", "walk_min": 9}, {"station": "駒沢大学", "walk_min": 14}],
+           "a.example", t0)
+    _claim(store, b, "stations", [{"station": "三軒茶屋", "walk_min": 10}], "b.example", t0)
+    db.flush()
+    bel = store.refresh(b)
+    assert not bel["address"]["conflict"] and bel["address"]["value"] == "東京都世田谷区上馬2丁目10-8"
+    assert not bel["name"]["conflict"]
+    st = bel["stations"]
+    assert not st["conflict"] and {s["station"] for s in st["value"]} == {"三軒茶屋", "駒沢大学"}
+    # a genuinely different street number, or a walk time 6 minutes apart, *is* a conflict
+    _claim(store, b, "address", "東京都世田谷区上馬2丁目3-1", "c.example", t0)
+    _claim(store, b, "stations", [{"station": "三軒茶屋", "walk_min": 16}], "c.example", t0)
+    db.flush()
+    bel = store.refresh(b)
+    assert bel["address"]["conflict"] and bel["stations"]["conflict"]
+    assert bel["stations"]["disputes"][0]["item"] == "三軒茶屋"
