@@ -143,3 +143,40 @@ def test_acquisition_api_exposes_hypotheses_with_provenance(db, web, live_server
     assert rent["belief"]["ttl_s"] == 24 * 3600 and d["parent"] is not None
     assert d["resolution_links"], "identity decisions are exposed"
     assert httpx.get(f"{live_server}/api/acquisition/entities/nope").status_code == 404
+
+
+def test_time_sensitive_claims_expire_and_are_rechecked_once(db, web, monkeypatch):
+    from datetime import timedelta
+
+    from regent.acquisition import domain as D
+    from regent.acquisition.tables import AcqJob
+    from regent.ids import utcnow
+
+    service.run_action("discover", mission_id="m1", params={"region": "東京都", "household": 1, "max_areas": 1})
+    adapter = D.adapters()["housing"]
+    db.expire_all()
+    pending = service.mission_state(db, "m1", adapter)["shortlist_pending_enrichment"]
+    assert pending
+    service.run_action("enrich", mission_id="m1", params={"entity_ids": pending})
+    db.expire_all()
+    st = service.mission_state(db, "m1", adapter)
+    assert st["shortlist_pending_enrichment"] == [] and st["stale_shortlisted"] == []
+    t7 = utcnow() + timedelta(hours=7)            # past availability's 6 h TTL, inside rent's 24 h
+    monkeypatch.setattr(service, "CLOCK", lambda: t7)
+    stale = service.mission_state(db, "m1", adapter)["stale_shortlisted"]
+    assert stale, "availability claims older than 6 h must be flagged"
+    out = service.run_action("recheck", mission_id="m1", params={"entity_ids": stale})
+    db.expire_all()
+    jobs = db.scalars(select(AcqJob).where(AcqJob.kind == "recheck", AcqJob.request_id == out["request_id"])).all()
+    assert jobs and all(abs((j.created_at - t7).total_seconds()) < 5 for j in jobs)
+    for j in jobs:
+        if j.status == "done" and j.result.get("re_observed"):
+            e = db.get(AcqEntity, j.entity_id)
+            assert e.beliefs["availability"]["fresh"], "a re-observed claim is fresh again"
+    # rechecked within the hour: not rechecked again (no loop), whether or not the source answered
+    assert service.mission_state(db, "m1", adapter)["stale_shortlisted"] == []
+    t9 = t7 + timedelta(hours=2)
+    monkeypatch.setattr(service, "CLOCK", lambda: t9)
+    still = service.mission_state(db, "m1", adapter)["stale_shortlisted"]
+    refreshed = {j.entity_id for j in jobs if j.status == "done" and j.result.get("re_observed")}
+    assert set(still) <= set(stale) and not (set(still) & refreshed)

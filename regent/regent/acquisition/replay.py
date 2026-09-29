@@ -8,7 +8,7 @@ resolution and funnel code on real pages without network access.
 
 Recorded pages are *not* edited except that ``<script>``/``<style>``/``<svg>``
 bodies and comments are removed to keep fixtures small (the extractor strips
-them anyway). URLs that were never recorded answer 404; blocked responses are
+them anyway). URLs that were never recorded answer 503; blocked responses are
 replayed with their original status.
 """
 
@@ -47,7 +47,9 @@ class ReplayTransport(httpx.BaseTransport):
             return httpx.Response(200 if txt is not None else 404, text=txt or "", request=request)
         p = self.pages.get(url)
         if p is None:
-            return httpx.Response(404, text="<html><body>not recorded</body></html>", request=request,
+            # 503, not 404: a URL that was never recorded says nothing about the listing (a 404
+            # would read as "listing ended" to a recheck)
+            return httpx.Response(503, text="<html><body>not recorded</body></html>", request=request,
                                   headers={"content-type": "text/html"})
         body = gzip.decompress((self.root / p["file"]).read_bytes()) if p.get("file") else b""
         return httpx.Response(p.get("status", 200), content=body, request=request,

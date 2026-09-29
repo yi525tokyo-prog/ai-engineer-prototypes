@@ -214,6 +214,7 @@ def main() -> None:
     a = ap.parse_args()
     if not os.environ.get("REGENT_DATABASE_URL"):
         sys.exit("set REGENT_DATABASE_URL to a dedicated database (it is reset)")
+    Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     ticks = None if a.report_only else run(a.ticks, a.pages, a.resume)
     if ticks is not None and a.recheck_after_hours:
         ticks += advance_and_recheck(a.recheck_after_hours, 4)

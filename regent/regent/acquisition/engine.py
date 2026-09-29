@@ -54,6 +54,9 @@ class AcquisitionEngine:
         self.max_pages = max_pages
         self.deadline = time.time() + deadline_s
         self.started = now or utcnow()
+        # an injected clock (tests, simulated TTL expiry) must stamp *everything* this run
+        # observes -- documents, claims and jobs -- or re-observed claims would look old
+        self._clock = now
         self.stats: dict[str, Any] = {"pages": 0, "pages_ok": 0, "blocked": 0, "robots_disallowed": 0, "errors": 0,
                                       "mentions": 0, "claims": 0, "by_host": {}, "render_browser": 0}
 
@@ -86,6 +89,8 @@ class AcquisitionEngine:
         self._last_static = None
         doc = self.fetcher.fetch(url, purpose=purpose, kind=kind, render=render, content_check=check,
                                  on_static=lambda d: setattr(self, "_last_static", d))
+        if self._clock is not None and not doc.from_cache:
+            doc.fetched_at = self._clock
         if not doc.from_cache:
             self.stats["pages"] += 1
         host = urlparse(url).netloc
@@ -254,7 +259,8 @@ class AcquisitionEngine:
             if dup is not None and not s.params.get("force"):
                 continue
             j = AcqJob(id=new_id("job"), request_id=self.request.id, entity_id=s.entity_id, kind=s.kind,
-                       params=s.params, reason=s.reason, priority=s.priority, due_at=due_at, status="pending")
+                       params=s.params, reason=s.reason, priority=s.priority, due_at=due_at, status="pending",
+                       created_at=self.claims.now())
             self.db.add(j)
             out.append(j)
         self.db.flush()
@@ -275,7 +281,7 @@ class AcquisitionEngine:
                 j.status = j.result.pop("_status", "done")
             except Exception as e:  # a failing job never fails the request
                 j.status, j.error = "failed", f"{type(e).__name__}: {e}"[:400]
-            j.finished_at = utcnow()
+            j.finished_at = self.claims.now()
             tally[f"{j.kind}:{j.status}"] = tally.get(f"{j.kind}:{j.status}", 0) + 1
             self.db.flush()
         self.refresh_dirty()
