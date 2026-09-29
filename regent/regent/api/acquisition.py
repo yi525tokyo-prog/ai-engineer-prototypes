@@ -62,6 +62,8 @@ def _entity_row(db: Session, e: AcqEntity, parents: dict[str, AcqEntity] | None 
     if e.parent_id and p is None:
         p = db.get(AcqEntity, e.parent_id)
     b, pb = e.beliefs or {}, (p.beliefs if p else {}) or {}
+    if e.entity_type == "building":
+        b, pb = {}, e.beliefs or {}
     return {"id": e.id, "type": e.entity_type, "label": e.label, "stage": e.stage, "score": round(e.score or 0, 4),
             "score_detail": e.score_detail, "sources": e.source_hosts, "mentions": e.mention_count,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None,

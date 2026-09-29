@@ -26,6 +26,36 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 MISSION = "住居を安定させたい"
 
 
+def advance_and_recheck(hours: float, ticks: int) -> list[dict]:
+    """Simulate time passing for the acquisition layer only (claims age past their TTL); the
+    re-observation itself is live. The loop must notice staleness on its own."""
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
+    from regent import db as dbm
+    from regent.acquisition import service
+    from regent.core.loop import RegentLoop
+    from regent.db import Mission
+    from regent.ids import utcnow
+
+    service.CLOCK = lambda: utcnow() + timedelta(hours=hours)
+    s = dbm.session()
+    m = s.scalars(select(Mission)).first()
+    out = []
+    t0 = time.time()
+    for _ in range(ticks):
+        r = RegentLoop(s).tick(m.id)
+        out.append({"tick": r.tick, "status": r.status, "idle": r.idle, "progress": r.progress,
+                    "seconds": round(time.time() - t0), "phases": r.phases, "clock_offset_h": hours})
+        print(f"[+{hours}h] tick {r.tick}: status={r.status} progress={r.progress} idle={r.idle}", flush=True)
+        if r.idle:
+            break
+    s.close()
+    service.CLOCK = None
+    return out
+
+
 def run(ticks: int, pages: int, resume: bool) -> list[dict]:
     from sqlalchemy import select
 
@@ -163,8 +193,11 @@ def report(ticks: list[dict] | None) -> str:
         for t in ticks:
             ph = {p["phase"]: p for p in t["phases"]}
             acq = ph.get("acquire", {})
-            L.append(f"- tick {t['tick']} (+{t['seconds']}s): status {t['status']}; acquire ops "
-                     f"{acq.get('operations', [])}; selected {ph.get('select', {}).get('selected')}")
+            clock = f" [acquisition clock +{t['clock_offset_h']}h, simulated]" if t.get("clock_offset_h") else ""
+            L.append(f"- tick {t['tick']} (+{t['seconds']}s){clock}: status {t['status']}; acquire "
+                     f"{acq.get('operations', [])}; ran before planning {acq.get('executed_before_planning', [])}; "
+                     f"generated {ph.get('generate', {}).get('created', [])}; "
+                     f"selected {ph.get('select', {}).get('selected')} ({ph.get('select', {}).get('kind')})")
     s.close()
     return "\n".join(L) + "\n"
 
@@ -176,10 +209,17 @@ def main() -> None:
     ap.add_argument("--out", default="docs/benchmarks/housing-live.md")
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--report-only", action="store_true")
+    ap.add_argument("--recheck-after-hours", type=float, default=0.0,
+                    help="then advance the acquisition clock this far (e.g. 7 > availability TTL 6h) and keep ticking")
     a = ap.parse_args()
     if not os.environ.get("REGENT_DATABASE_URL"):
         sys.exit("set REGENT_DATABASE_URL to a dedicated database (it is reset)")
     ticks = None if a.report_only else run(a.ticks, a.pages, a.resume)
+    if ticks is not None and a.recheck_after_hours:
+        ticks += advance_and_recheck(a.recheck_after_hours, 4)
+    if ticks is not None:
+        Path(a.out).with_suffix(".ticks.json").write_text(json.dumps(ticks, ensure_ascii=False, default=str,
+                                                                       indent=1))
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(report(ticks))

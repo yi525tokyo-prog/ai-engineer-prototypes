@@ -171,13 +171,17 @@ def test_access_denied_and_captcha_walls_are_recorded_not_bypassed(db):
             return httpx.Response(404)
         if req.url.path == "/denied":
             return httpx.Response(405, text="Not allowed")
+        if req.url.path == "/challenge":
+            return httpx.Response(202, text="")
         return httpx.Response(200, text='<html><body><div class="g-recaptcha"></div>Verify you are human</body></html>')
 
     f = _fetcher(db, handler)
     d1 = f.fetch("https://wall.example/denied", purpose="listing")
     d2 = f.fetch("https://wall.example/check", purpose="listing")
+    d3 = f.fetch("https://wall.example/challenge", purpose="listing")
     assert d1.blocked["type"] == "access_denied" and d2.blocked["type"] == "captcha"
-    assert db.get(AcqSource, "wall.example").blocked == 2
+    assert d3.blocked["type"] == "challenge"
+    assert db.get(AcqSource, "wall.example").blocked == 3
     # nothing from a blocked page is cached as content
     assert all(not r.cache_path for r in db.scalars(select(AcqDocument).where(AcqDocument.host == "wall.example")))
 

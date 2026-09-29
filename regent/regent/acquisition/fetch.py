@@ -254,6 +254,9 @@ class Fetcher:
         if r.status_code in (401, 403, 405, 429, 451):
             blocked = {"type": "rate_limit" if r.status_code == 429 else "access_denied",
                        "detail": f"HTTP {r.status_code}"}
+        elif r.status_code == 202 and len(html.strip()) < 2000:
+            # bot-management interstitial (empty 202 that expects JavaScript): an access control
+            blocked = {"type": "challenge", "detail": "HTTP 202 bot challenge"}
         else:
             blocked = _page_blocker(html, final, r.status_code)
         return self._record(url, final, host, purpose, r.status_code, html, "static", blocked=blocked)
