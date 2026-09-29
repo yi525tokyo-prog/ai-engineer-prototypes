@@ -13,7 +13,6 @@ interrupt, or the mission's success criteria are met.
 
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -87,6 +86,16 @@ class RegentLoop:
         facts, present = world.fact_map()
         resumed = [hi for hi in self.interrupts.check_resume_conditions(facts, present) if hi.mission_id == m.id]
         pending = self._runnable_count(m)
+        if not pending and not external and not resumed and m.tick_count > 0 and not force:
+            from regent.acquisition.domain import for_mission
+
+            if for_mission(m.tags or []):
+                from regent.acquisition import service
+
+                try:
+                    pending = len(service.needs(self.db, m, world))   # e.g. a TTL expired since last tick
+                except Exception:
+                    pending = 0
         if not force and not external and not resumed and not pending and m.tick_count > 0:
             rep.idle, rep.status = True, m.status
             return rep
@@ -101,6 +110,16 @@ class RegentLoop:
         snap = self._snapshot_if_changed(m, world)
         rep.phase("model", event_seq=world.event_seq, snapshot=snap.id, entities=len(world.entities),
                   facts=len(world.facts), runway_months=world.runway_months())
+
+        # 2b. ACQUIRE: what don't I know that blocks a decision? -----------
+        from regent.acquisition.domain import for_mission
+
+        if for_mission(m.tags or []):
+            m.phase = "acquire"
+            acq = self._acquisition_needs(m, world)
+            if acq["created"]:
+                rep.progress = True
+            rep.phase("acquire", needs=acq["needs"], operations=acq["created"])
 
         # 3. GENERATE ROUTES -------------------------------------------------
         m.phase = "generate"
@@ -244,6 +263,38 @@ class RegentLoop:
         if last is not None and last.event_seq == world.event_seq:
             return last
         return take_snapshot(self.db, reason=f"{m.id} tick {m.tick_count}")
+
+    def _acquisition_needs(self, m: Mission, world: WorldView) -> dict[str, Any]:
+        """Turn information needs into acquisition operations (AUTO: read-only public web)."""
+        from regent.acquisition import service
+        from regent.ids import new_id
+
+        try:
+            needs = service.needs(self.db, m, world)
+        except Exception as e:  # acquisition must never break the loop
+            return {"needs": [{"error": f"{type(e).__name__}: {e}"[:200]}], "created": []}
+        created = []
+        busy = {o.action for o in self.db.scalars(select(Operation).where(
+            Operation.mission_id == m.id, Operation.tool == "acquire",
+            Operation.status.in_(("pending", "running", "unverified", "waiting_human"))))}
+        for n in needs:
+            if n["action"] in busy:
+                continue
+            inputs = {"domain": n["domain"], **n["params"]}
+            op = Operation(id=new_id("op"), mission_id=m.id, route_id=None, key=f"acquire.{n['action']}.{m.tick_count}",
+                           goal=f"{n['action'].title()} ({n['domain']}): {n['reason']}", kind="acquire",
+                           executor="search", tool="acquire", action=n["action"], required_authority="AUTO",
+                           status="pending", inputs=inputs, outputs={}, timeout_s=1500,
+                           retry_policy={"max_attempts": 1, "fallback": [], "fallback_index": -1},
+                           verification={"method": "schema", "required_keys": ["request_id", "funnel"]},
+                           cost_estimate={"minutes": 5}, depends_on=[], resolves=[], emits={}, sequence=-1,
+                           priority=float(n.get("priority", 2.0)), attempt_log=[], evidence_ids=[])
+            self.db.add(op)
+            busy.add(n["action"])
+            created.append(f"{op.key}: {n['reason']}")
+        self.db.flush()
+        return {"needs": [{k: v for k, v in n.items() if k in ("domain", "action", "reason", "state")} for n in needs],
+                "created": created}
 
     def _capability_acquisition(self, m: Mission, evals) -> list[str]:
         if "capability_acquisition" in (m.tags or []):

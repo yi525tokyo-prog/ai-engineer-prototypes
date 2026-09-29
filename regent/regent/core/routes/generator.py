@@ -96,10 +96,16 @@ class RouteGenerator:
 
     @staticmethod
     def _world_signature(world: WorldView) -> str:
-        ents = sorted(f"{e.id}:{e.kind}:{e.attrs.get('status', '')}" for e in world.entities.values()
-                      if e.kind in ("contract", "service", "project", "place", "commitment", "message", "event"))
+        ents = sorted(f"{e.id}:{e.kind}:{e.attrs.get('status', '')}:{e.attrs.get('stage', '')}"
+                      for e in world.entities.values()
+                      if e.kind in ("contract", "service", "project", "place", "commitment", "message", "event", "unit"))
         caps = sorted(f"{c.id}:{c.status}" for c in world.capabilities.values())
-        return str(hash("|".join(ents + caps)))
+        from regent.acquisition.domain import adapters
+
+        prefixes = tuple(f"{a}." for a in adapters())
+        dom = sorted(f"{k}={f.value!r}"[:200] for k, f in world.facts.items() if k.startswith(prefixes)
+                     and not k.endswith(("acquisition_request", ".sources")))
+        return str(hash("|".join(ents + caps + dom)))
 
     # ----------------------------------------------------------------- run
 

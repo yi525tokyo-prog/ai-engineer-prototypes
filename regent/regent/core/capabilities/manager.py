@@ -30,7 +30,6 @@ from regent.schemas import (
     RouteEstimates,
     RouteProposal,
     Sensitivity,
-    Effect,
     VerificationSpec,
 )
 from regent.tools.builtin import built_tool

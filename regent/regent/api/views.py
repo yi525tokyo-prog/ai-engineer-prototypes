@@ -187,7 +187,7 @@ def cockpit(db: Session, mission_id: str) -> dict[str, Any]:
         "evidence": [e.to_dict() for e in evidence],
         "world": world_panel(db, world),
         "treasury": {"resources": [r.to_dict() for r in tr.resources()], "scarcity": tr.scarcity(),
-                     "ledger": [l.to_dict() for l in tr.ledger(15)]},
+                     "ledger": [e.to_dict() for e in tr.ledger(15)]},
         "constitution": ConstitutionModel(db).grouped(),
         "model_calls": [c.to_dict() for c in db.scalars(select(ModelCall).where(ModelCall.mission_id.in_(tree_ids))
                                                         .order_by(ModelCall.created_at.desc()).limit(15))],

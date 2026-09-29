@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -557,6 +556,8 @@ def human_tool() -> Tool:
 
 
 def default_tools() -> list[Tool]:
-    return [llm_tool(), search_tool(), browser_tool(), fs_tool(), code_tool(), github_tool(), email_tool(),
+    from regent.acquisition.tool import acquire_tool
+
+    return [acquire_tool(), llm_tool(), search_tool(), browser_tool(), fs_tool(), code_tool(), github_tool(), email_tool(),
             calendar_tool(), maps_tool(), http_tool(), commerce_tool(), analysis_tool(), payments_tool(),
             agent_tool(), human_tool()]

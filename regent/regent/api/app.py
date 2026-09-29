@@ -409,7 +409,7 @@ def revoke_grant(grant_id: str, db: Session = Depends(get_db)):
 def treasury(db: Session = Depends(get_db)):
     t = Treasury(db)
     return {"resources": [r.to_dict() for r in t.resources()], "scarcity": t.scarcity(),
-            "ledger": [l.to_dict() for l in t.ledger(100)]}
+            "ledger": [e.to_dict() for e in t.ledger(100)]}
 
 
 @app.get("/api/decisions")

@@ -159,8 +159,9 @@ class Evaluator:
     # ---------------------------------------------------------------- score
 
     def score(self, route: Route, eff: dict[str, float], w: dict[str, float], mission: Mission,
-              world: WorldView, tag_bonus: dict[str, tuple[float, str]]) -> tuple[float, dict[str, float]]:
-        balance = max(free_cash(world, mission.horizon_days), 1.0)
+              world: WorldView, tag_bonus: dict[str, tuple[float, str]],
+              money_norm: float | None = None) -> tuple[float, dict[str, float]]:
+        balance = money_norm or max(free_cash(world, mission.horizon_days), 1.0)
         p = eff.get("success_probability", 0.5)
         c = {
             "expected_value": w["expected_value"] * p * utility(eff.get("expected_upside", 0), mission.value_scale),
@@ -189,11 +190,18 @@ class Evaluator:
         w, why = self.weights(mission)
         tag_bonus = self.constitution.tag_bonuses(mission.tags or [])
         evals: list[RouteEval] = []
-        for r in routes:
-            if r.status in ("abandoned", "completed"):
-                continue
-            eff, applied = self.effective(r, facts, present, world)
-            score, comps = self.score(r, eff, w, mission, world, tag_bonus)
+        live = [r for r in routes if r.status not in ("abandoned", "completed")]
+        effs = {r.id: self.effective(r, facts, present, world) for r in live}
+        money_norm = None
+        if world.money() is None:
+            # no cash balance known: compare money costs relative to the costliest option
+            money_norm = max([e.get("money_cost", 0.0) for e, _ in effs.values()] + [1.0])
+            why = why + [{"source": "treasury", "statement": "cash balance unknown: money costs are relative to "
+                                                             f"the costliest route ({int(money_norm):,})",
+                          "effect": "relative money normalization"}]
+        for r in live:
+            eff, applied = effs[r.id]
+            score, comps = self.score(r, eff, w, mission, world, tag_bonus, money_norm)
             ev = RouteEval(route=r, effective=eff, applied=applied, score=score, components=comps)
             for b in r.blockers or []:
                 blk = Blocker.model_validate(b)

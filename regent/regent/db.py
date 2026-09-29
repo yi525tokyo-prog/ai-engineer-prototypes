@@ -499,6 +499,8 @@ def session() -> Session:
 
 
 def init_db(drop: bool = False) -> None:
+    import regent.acquisition.tables  # noqa: F401  (register acquisition tables)
+
     eng = engine()
     if eng.dialect.name == "postgresql":
         with eng.begin() as conn:

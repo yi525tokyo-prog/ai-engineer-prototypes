@@ -540,6 +540,10 @@ def propose(mission: Mission, world: World) -> list[RouteProposal]:
         if tag in tags:
             for pb in books:
                 routes.extend(pb(mission, world))
+    from regent.acquisition.domain import for_mission
+
+    for adapter in for_mission(list(tags)):
+        routes.extend(adapter.strategies(mission, world))
     if len(routes) < 3:
         routes.extend(generic_archetypes(mission, world))
     return routes
