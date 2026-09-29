@@ -45,8 +45,16 @@ LABELS: list[tuple[str, str]] = [
     (r"^(建物名|物件名)", "name"), (r"^(周辺環境|周辺施設|周辺情報)", "surroundings"),
     (r"^(総戸数)", "total_units"), (r"^(ほか初期費用)", "other_initial_cost"), (r"^(更新料)", "renewal_fee"),
 ]
-ENDED = re.compile(r"(掲載(?:を)?終了|募集(?:を)?終了|成約済|この物件は現在.*?掲載されておりません|お探しの物件は見つかりません)")
+# statements that *this* listing ended -- not help-link text such as 「問い合わせた物件が成約済みだった」
+ENDED = re.compile(r"(掲載(?:を)?終了(?:しました|いたしました|しております|となりました)|募集(?:を)?終了(?:しました|いたしました|しております|となりました)"
+                   r"|この物件は(?:既に)?成約|成約済み?(?:です|となりました|の物件です)"
+                   r"|この物件は現在.*?掲載されておりません|お探しの物件は見つかりません)")
 DETAIL_HREF = re.compile(r"(jnc_|/room/|detail|shosai|/b-\d|bukken|/house/\d|/property/|/rent/\d)", re.I)
+AGENT_LABELLED = re.compile(r"(?:取扱い?店舗|情報提供元|取引態様.{0,6}?仲介|お?問い?合わ?せ先)\s*[:：]?\s*"
+                            r"((?:株式会社|有限会社|\(株\))\s?[^\s()（）]{1,24}(?:\s[^\s()（）]{1,16}?(?:店|支店|営業所))?"
+                            r"|[^\s()（）]{1,24}(?:株式会社|有限会社)(?:\s[^\s()（）]{1,16}?(?:店|支店|営業所))?)")
+# portals publish the listing agent's e-mail domain ("問合せ先メールアドレスのドメイン名 suumo.jp / agent.jp")
+AGENT_DOMAINS = re.compile(r"問合せ先メールアドレスのドメイン名\s*((?:[\w.-]+\s*/?\s*){1,4})")
 AGENT = re.compile(r"(株式会社|有限会社|\(株\)|㈱|（株）|支店|営業所|不動産|ショップ|ハウジング|ホーム(ズ|メイト)|店$|センター$)")
 POI = re.compile(r"(スーパー|コンビニ|ドラッグストア|図書館|大学|病院|郵便局|銀行|公園|小学校|中学校|保育園|幼稚園|飲食店|ショッピング|区役所|市役所)"
                  r"[^\d]{0,24}?(\d{1,4})\s*m")
@@ -448,8 +456,19 @@ class HousingExtractor:
         links = {}
         for a in tree.xpath("//a[@href]"):
             if re.search(r"(掲載元|情報提供元|元の物件|物件はこちら)", _t(a)):
-                links["source_url"] = urljoin(doc.final_url, a.get("href"))
+                href = urljoin(doc.final_url, a.get("href"))
+                # an "original listing" link back into the same portal is not the operator's page
+                links["source_url" if urlparse(href).netloc != doc.host else "portal_source_url"] = href
                 break
+        agent = AGENT_LABELLED.search(text[:20000])
+        if agent:
+            add(claims, "listing_agent", T.norm(agent.group(1))[:60], 0.85, agent.group(0)[:120])
+        dom = AGENT_DOMAINS.search(text[:40000])
+        if dom:
+            ds = [d for d in re.findall(r"[a-z0-9][a-z0-9.-]+\.[a-z]{2,}", dom.group(1).lower())
+                  if not doc.host.endswith(d) and not d.endswith("." + doc.host.removeprefix("www."))]
+            if ds:
+                add(claims, "agent_domain", ds[0], 0.85, dom.group(0)[:120])
         return Mention(entity_type="unit", claims=claims, url=doc.final_url, parent=building, links=links,
                        raw_text=" | ".join(f"{k}={v[:40]}" for k, v in p.items())[:600],
                        key_fields={"floor": T.floor(p.get("floors", "") or ""), "layout": T.layout(p.get("layout", "")),

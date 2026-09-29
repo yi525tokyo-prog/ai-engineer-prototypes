@@ -137,7 +137,8 @@ class Executor:
 
     # ----------------------------------------------------------------- run
 
-    def run(self, mission: Mission, world: WorldView) -> ExecutionReport:
+    def run(self, mission: Mission, world: WorldView, only: set[str] | None = None) -> ExecutionReport:
+        """Run ready operations (all, or only the ids in ``only``)."""
         rep = ExecutionReport()
         facts, _ = world.fact_map()
         budget = self.treasury.api_budget_left()
@@ -146,6 +147,8 @@ class Executor:
         wctx = world_context(world)
         batch: list[tuple[Operation, str, str, dict[str, Any]]] = []
         for op in self.ready(mission):
+            if only is not None and op.id not in only:
+                continue
             if op.tool == "human":
                 op.authority_decision = {"level": "IDENTITY", "allowed": False, "needs": "identity",
                                          "reason": "operation is routed to the principal"}

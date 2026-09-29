@@ -117,9 +117,15 @@ class RegentLoop:
         if for_mission(m):
             m.phase = "acquire"
             acq = self._acquisition_needs(m, world)
+            ran = []
             if acq["created"]:
                 rep.progress = True
-            rep.phase("acquire", needs=acq["needs"], operations=acq["created"])
+            if acq["blocking"]:
+                # Nothing is known that strategies could be compared on: acquire first, then
+                # generate and evaluate routes on evidence instead of priors.
+                xr0 = self.executor.run(m, WorldView.load(self.db), only=set(acq["blocking"]))
+                ran = xr0.started
+            rep.phase("acquire", needs=acq["needs"], operations=acq["created"], executed_before_planning=ran)
 
         # 3. GENERATE ROUTES -------------------------------------------------
         m.phase = "generate"
@@ -272,8 +278,9 @@ class RegentLoop:
         try:
             needs = service.needs(self.db, m, world)
         except Exception as e:  # acquisition must never break the loop
-            return {"needs": [{"error": f"{type(e).__name__}: {e}"[:200]}], "created": []}
-        created = []
+            return {"needs": [{"error": f"{type(e).__name__}: {e}"[:200]}], "created": [], "blocking": []}
+        created: list[str] = []
+        blocking: list[str] = []
         busy = {o.action for o in self.db.scalars(select(Operation).where(
             Operation.mission_id == m.id, Operation.tool == "acquire",
             Operation.status.in_(("pending", "running", "unverified", "waiting_human"))))}
@@ -292,9 +299,11 @@ class RegentLoop:
             self.db.add(op)
             busy.add(n["action"])
             created.append(f"{op.key}: {n['reason']}")
+            if n.get("blocking"):
+                blocking.append(op.id)
         self.db.flush()
         return {"needs": [{k: v for k, v in n.items() if k in ("domain", "action", "reason", "state")} for n in needs],
-                "created": created}
+                "created": created, "blocking": blocking}
 
     def _capability_acquisition(self, m: Mission, evals) -> list[str]:
         if "capability_acquisition" in (m.tags or []):

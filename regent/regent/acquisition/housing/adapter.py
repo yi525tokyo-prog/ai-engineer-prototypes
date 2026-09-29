@@ -46,6 +46,8 @@ ATTRS: dict[str, AttrSpec] = {a.name: a for a in [
     AttrSpec("renewal_fee", "unit", "text", ttl_s=30 * D), AttrSpec("transaction_type", "unit", "text", ttl_s=7 * D),
     AttrSpec("internet", "unit", "text", ttl_s=90 * D), AttrSpec("nearby_pois", "unit", "json", ttl_s=90 * D),
     AttrSpec("housing_type", "unit", "text", ttl_s=30 * D),
+    AttrSpec("listing_agent", "unit", "text", ttl_s=30 * D), AttrSpec("agent_domain", "unit", "text", ttl_s=30 * D),
+    AttrSpec("operator_verified", "unit", "bool", ttl_s=24 * H),
     # unit -- stable
     AttrSpec("layout", "unit", "text", ttl_s=180 * D), AttrSpec("area_m2", "unit", "number", "m2", ttl_s=Y, abs_tol=0.15),
     AttrSpec("floor", "unit", "number", ttl_s=Y), AttrSpec("room_number", "unit", "text", ttl_s=Y),
@@ -159,7 +161,7 @@ class HousingAdapter(DomainAdapter):
         params = self.params_from_world(mission, world)
         needs = []
         if not state.get("discovery_done") and not state.get("discovery_running"):
-            needs.append({"action": "discover", "params": params, "priority": 3.0,
+            needs.append({"action": "discover", "params": params, "priority": 3.0, "blocking": True,
                           "reason": "no live housing options are known: cannot compare strategies without them"})
             return needs
         if state.get("shortlist_pending_enrichment"):
@@ -561,16 +563,30 @@ def housing_strategies(mission: dict[str, Any], world: dict[str, Any]) -> list[R
         stale = any(not e["attrs"].get("fresh", True) for e in top)
         conflicts = sum(len(e["attrs"].get("conflicts") or []) for e in top)
         best = top[0]
+        # Signing before the work location is known risks the wrong place. Evidence: estimated
+        # commute from the candidates to the main business hubs (share of hubs > 45 min).
+        work_known = facts.get("principal.work_location") is not None
+        hubs = [e["attrs"].get("hub_minutes") for e in top if isinstance(e["attrs"].get("hub_minutes"), dict)]
+        if work_known:
+            p_far, far_why = 0.0, "work location known"
+        elif hubs:
+            p_far = statistics.mean(sum(1 for v in h.values() if v > 45) / max(len(h), 1) for h in hubs)
+            far_why = f"work location unknown: {p_far:.0%} of major hubs are > 45 min from the candidates (estimated)"
+        else:
+            p_far, far_why = 0.5, "work location unknown and no commute evidence yet (prior 50 %)"
+        upside = round(24 * (1 - 0.6 * p_far), 2)
         routes.append(RouteProposal(
             key="housing-lease", archetype="housing_lease", tags=["long_term_stability", "commitment"],
             title=f"Lease now: {best['name']}" + (f" (+{len(top) - 1} backups)" if len(top) > 1 else ""),
             thesis=(f"Sign a standard lease. Best evidenced candidate: {best['name']} at {int(best['attrs']['monthly']):,}/month "
                     f"({best['attrs'].get('station') or '?'} {best['attrs'].get('walk_min') or '?'} min). "
                     f"Median of top {len(top)}: {int(monthly):,}/month, ~{int(initial):,} upfront."),
-            estimates=RouteEstimates(expected_upside=24, success_probability=p, time_cost_hours=20,
+            estimates=RouteEstimates(expected_upside=upside, success_probability=p, time_cost_hours=20,
                                      money_cost=initial, information_gain=0.25, reversibility=0.25, optionality=0.3,
-                                     risk=min(0.9, 0.25 + (0.1 if stale else 0) + 0.05 * conflicts), authority_cost=0.5),
-            estimate_rationale={"expected_upside": "months of stable housing a 2-year lease secures (capped at 24)",
+                                     risk=min(0.9, 0.25 + 0.2 * p_far + (0.1 if stale else 0) + 0.05 * conflicts),
+                                     authority_cost=0.5),
+            estimate_rationale={"expected_upside": "months of stable housing a 2-year lease secures (24), discounted "
+                                                   f"by the chance it is in the wrong place -- {far_why}",
                                 "success_probability": "1 - prod(1 - availability confidence x 0.75 screening) over top candidates",
                                 "money_cost": "median of deposit + key money + ~1.5 months fees/guarantor + first month"},
             sensitivities=[

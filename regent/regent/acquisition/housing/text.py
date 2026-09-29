@@ -207,10 +207,12 @@ def address_key(a: str | None) -> str:
 def move_in(s: str) -> str | None:
     if re.search(r"即(?:入居)?(?:可)?", s):
         return "immediate"
-    m = re.search(r"(\d{4})年\s*(\d{1,2})月\s*(上旬|中旬|下旬)?", s)
+    m = re.search(r"(?<!\d)(\d{4}|['’]?\d{2})年\s*(\d{1,2})月\s*(上旬|中旬|下旬)?", s)
     if m:
+        y = m.group(1).lstrip("'’")
+        y = f"20{y}" if len(y) == 2 else y
         day = {"上旬": 5, "中旬": 15, "下旬": 25}.get(m.group(3) or "", 1)
-        return f"{m.group(1)}-{int(m.group(2)):02d}-{day:02d}"
+        return f"{y}-{int(m.group(2)):02d}-{day:02d}"
     if "相談" in s:
         return "negotiable"
     return None

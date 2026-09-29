@@ -109,6 +109,11 @@ def test_loop_acquires_the_world_from_a_mission_sentence(db, services, web):
     first = reps[0]
     acq = next(p for p in first.phases if p["phase"] == "acquire")
     assert acq["operations"] and acq["needs"][0]["action"] == "discover"
+    # strategies are not compared on priors: the blocking acquisition runs before planning,
+    # so the very first generation already sees live candidates (the lease route exists)
+    assert acq["executed_before_planning"]
+    gen = next(p for p in first.phases if p["phase"] == "generate")
+    assert "housing-lease" in gen["created"]
     op = db.scalar(select(Operation).where(Operation.mission_id == m.id, Operation.tool == "acquire",
                                            Operation.action == "discover"))
     assert op.status == "succeeded" and op.outputs["funnel"]["shortlisted"] >= 1

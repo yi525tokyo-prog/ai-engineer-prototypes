@@ -28,10 +28,11 @@ import zipfile
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from lxml import etree
 
+from regent.acquisition.tables import AcqEntity
 from regent.acquisition.types import ClaimIn
 from regent.config import settings
 
@@ -187,7 +188,50 @@ class HousingEnricher:
         if source_url and job.params.get("verify", True):
             engine.schedule([self.adapter.job_spec("verify_source", job.entity_id, {"url": source_url},
                                                    "follow the original listing to the managing company", 0.9)])
+        elif job.params.get("verify", True):
+            engine.refresh_dirty()
+            u = engine.db.get(AcqEntity, job.entity_id)
+            dom = ((u.beliefs or {}).get("agent_domain") or {}).get("value") if u else None
+            if dom:
+                engine.schedule([self.adapter.job_spec("operator_page", job.entity_id, {"domain": dom},
+                                                       f"find this room on the listing agent's own site ({dom})",
+                                                       0.85)])
+                out["agent_domain"] = dom
         return out
+
+    def job_operator_page(self, engine, job) -> dict[str, Any]:
+        """The portal names the agent but does not link its page: find the room on the agent's own
+        site through web search, then verify it there. Without a search API this is recorded as an
+        explicit gap -- crawler-permitted HTML search engines are not available."""
+        dom = job.params["domain"]
+        if not settings.search_api_key:
+            return {"_status": "skipped", "reason": "needs REGENT_SEARCH_API_KEY to locate the room on "
+                                                    f"{dom} (the portal gives the agent, not its page)"}
+        from regent.connectors.services import BraveSearch
+
+        u = engine.db.get(AcqEntity, job.entity_id)
+        b = engine.db.get(AcqEntity, u.parent_id) if u is not None and u.parent_id else None
+        name = (((b.beliefs if b else {}) or {}).get("name") or {}).get("value") or ""
+        layout = (((u.beliefs if u else {}) or {}).get("layout") or {}).get("value") or ""
+        if not name:
+            return {"_status": "skipped", "reason": "no building name to search for"}
+        try:
+            hits = BraveSearch().search(f"site:{dom} {name} {layout}".strip(), 5)
+        except Exception as e:
+            return {"_status": "failed", "reason": f"search: {type(e).__name__}: {e}"[:200]}
+        hit = next((h for h in hits if urlparse(h["url"]).netloc.endswith(dom)), None)
+        if hit is None:
+            self._add(engine, job.entity_id, "operator_verified", False, 0.5,
+                      f"no page for '{name}' found on {dom}", host=dom, kind="search")
+            return {"found": False, "domain": dom}
+        doc, ents = engine.fetch_and_ingest(hit["url"], purpose="verify", kind="operator", pin=job.entity_id,
+                                            pin_min_p=0.5)
+        same = doc is not None and doc.ok and job.entity_id in [e.id for e in ents]
+        if doc is not None and doc.ok:
+            self._add(engine, job.entity_id, "operator_verified", same, 0.8,
+                      f"{'same room' if same else 'no matching room'} on {doc.final_url}", host=doc.host,
+                      kind="operator", url=doc.final_url)
+        return {"found": True, "url": hit["url"], "verified_same_unit": same}
 
     def job_verify_source(self, engine, job) -> dict[str, Any]:
         doc, ents = engine.fetch_and_ingest(job.params["url"], purpose="verify", kind="operator",

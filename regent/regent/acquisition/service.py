@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import threading
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -86,8 +87,19 @@ def needs(db: Session, mission, world) -> list[dict[str, Any]]:
     return out
 
 
+# One acquisition run at a time per process: runs of the same domain write the same entities
+# (an enrich and a recheck in one tick would otherwise deadlock on them).
+_RUN_LOCK = threading.Lock()
+
+
 def run_action(action: str, *, mission_id: str | None, params: dict[str, Any], domain: str = "housing",
                db: Session | None = None) -> dict[str, Any]:
+    with _RUN_LOCK:
+        return _run_action(action, mission_id=mission_id, params=params, domain=domain, db=db)
+
+
+def _run_action(action: str, *, mission_id: str | None, params: dict[str, Any], domain: str,
+                db: Session | None) -> dict[str, Any]:
     own = db is None
     s = db or dbm.session()
     try:

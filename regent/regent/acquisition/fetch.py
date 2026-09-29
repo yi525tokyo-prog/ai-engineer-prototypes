@@ -190,7 +190,8 @@ class Fetcher:
         static HTML carries the content; if not (and render='auto'), render in a browser."""
         host = urlparse(url).netloc
         src = self.source(host, kind)
-        cached = self._cached(url)
+        # a recheck/verification exists to re-observe the source: never answer it from cache
+        cached = None if purpose in ("recheck", "verify") else self._cached(url)
         if cached is not None:
             return cached
         if not self.allowed(url):
