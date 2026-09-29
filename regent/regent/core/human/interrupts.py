@@ -26,9 +26,12 @@ from regent.db import HumanInterrupt, Operation
 from regent.ids import new_id, utcnow
 from regent.schemas import Blocked, Condition
 
+PAGE_CHECK_INTERVAL_S = 5.0
+_last_page_check: dict[str, float] = {}
+
 BLOCKER_ACTIONS: dict[str, tuple[str, str, int]] = {
     # type: (kind, required action template, estimated seconds)
-    "captcha": ("identity", "Open {url} and complete the verification challenge", 20),
+    "captcha": ("identity", "Complete the human-verification challenge on {site}", 20),
     "login": ("identity", "Sign in at {url} (Regent does not hold this credential)", 45),
     "biometric": ("identity", "Complete the biometric / passkey confirmation at {url}", 20),
     "signature": ("identity", "Sign the document at {url}", 60),
@@ -81,6 +84,10 @@ class HumanInterruptManager:
     def from_blocker(self, op: Operation, blocker: Blocked) -> HumanInterrupt:
         kind, tpl, secs = BLOCKER_ACTIONS.get(blocker.type, ("identity", "Resolve blocker at {url}: {detail}", 60))
         url = blocker.url or (op.inputs or {}).get("url") or ""
+        from urllib.parse import urlparse
+
+        pu = urlparse(url)
+        site = f"{pu.netloc}{pu.path}" if pu.netloc else url
         resume: dict[str, Any] = {"type": "response"}
         if op.tool == "browser" and url:
             # Resume when the page no longer shows the blocker (the human cleared it).
@@ -88,7 +95,7 @@ class HumanInterruptManager:
         return self.raise_interrupt(
             op, mission_id=op.mission_id, kind=kind,
             reason=f"{blocker.detail or blocker.type} while executing '{op.goal}'",
-            required_action=tpl.format(url=url, detail=blocker.detail), estimated_time_seconds=secs,
+            required_action=tpl.format(url=url, site=site, detail=blocker.detail), estimated_time_seconds=secs,
             resume_condition=resume,
             response_schema={"done": {"type": "boolean", "label": "Done"}},
             context={"url": url, "blocker": blocker.model_dump()},
@@ -179,6 +186,11 @@ class HumanInterruptManager:
                     resolved.append(self.resolve(hi.id, {"observed": rc}, resolution="condition_observed",
                                                  source="regent:resume_condition"))
             elif t == "page_state" and self.services is not None:
+                import time
+
+                if time.time() - _last_page_check.get(hi.id, 0.0) < PAGE_CHECK_INTERVAL_S:
+                    continue
+                _last_page_check[hi.id] = time.time()
                 if self._page_cleared(rc):
                     resolved.append(self.resolve(hi.id, {"observed": rc}, resolution="condition_observed",
                                                  source="regent:resume_condition"))

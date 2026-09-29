@@ -1,0 +1,235 @@
+{
+  "$defs": {
+    "CostEstimate": {
+      "properties": {
+        "money": {
+          "default": 0.0,
+          "title": "Money",
+          "type": "number"
+        },
+        "api_usd": {
+          "default": 0.0,
+          "title": "Api Usd",
+          "type": "number"
+        },
+        "minutes": {
+          "default": 0.0,
+          "title": "Minutes",
+          "type": "number"
+        },
+        "attention_s": {
+          "default": 0.0,
+          "title": "Attention S",
+          "type": "number"
+        }
+      },
+      "title": "CostEstimate",
+      "type": "object"
+    },
+    "FallbackSpec": {
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "inputs": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inputs"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool",
+        "action"
+      ],
+      "title": "FallbackSpec",
+      "type": "object"
+    },
+    "RetryPolicy": {
+      "properties": {
+        "max_attempts": {
+          "default": 2,
+          "title": "Max Attempts",
+          "type": "integer"
+        },
+        "backoff_s": {
+          "default": 0.0,
+          "title": "Backoff S",
+          "type": "number"
+        },
+        "fallback": {
+          "items": {
+            "$ref": "#/$defs/FallbackSpec"
+          },
+          "title": "Fallback",
+          "type": "array"
+        }
+      },
+      "title": "RetryPolicy",
+      "type": "object"
+    },
+    "VerificationSpec": {
+      "properties": {
+        "method": {
+          "default": "schema",
+          "enum": [
+            "none",
+            "schema",
+            "predicate",
+            "state_check",
+            "model",
+            "human_confirmed"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "required_keys": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Keys",
+          "type": "array"
+        },
+        "predicate": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Predicate"
+        },
+        "check": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Check"
+        }
+      },
+      "title": "VerificationSpec",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "key": {
+      "title": "Key",
+      "type": "string"
+    },
+    "goal": {
+      "title": "Goal",
+      "type": "string"
+    },
+    "tool": {
+      "title": "Tool",
+      "type": "string"
+    },
+    "action": {
+      "title": "Action",
+      "type": "string"
+    },
+    "inputs": {
+      "additionalProperties": true,
+      "title": "Inputs",
+      "type": "object"
+    },
+    "kind": {
+      "default": "step",
+      "enum": [
+        "step",
+        "probe",
+        "acquire"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "depends_on": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Depends On",
+      "type": "array"
+    },
+    "resolves": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Resolves",
+      "type": "array"
+    },
+    "emits": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "output path -> fact key",
+      "title": "Emits",
+      "type": "object"
+    },
+    "verification": {
+      "$ref": "#/$defs/VerificationSpec"
+    },
+    "timeout_s": {
+      "default": 60.0,
+      "title": "Timeout S",
+      "type": "number"
+    },
+    "retry": {
+      "$ref": "#/$defs/RetryPolicy"
+    },
+    "cost_estimate": {
+      "$ref": "#/$defs/CostEstimate"
+    },
+    "authority": {
+      "anyOf": [
+        {
+          "enum": [
+            "AUTO",
+            "COMMIT",
+            "IDENTITY"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Authority"
+    }
+  },
+  "required": [
+    "key",
+    "goal",
+    "tool",
+    "action"
+  ],
+  "title": "OperationSpec",
+  "type": "object"
+}

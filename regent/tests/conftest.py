@@ -45,6 +45,9 @@ config.reload_settings()
 
 from regent import db as dbm  # noqa: E402
 from regent.runtime import get_services, set_services  # noqa: E402
+from regent.core.human import interrupts as _interrupts  # noqa: E402
+
+_interrupts.PAGE_CHECK_INTERVAL_S = 0.0  # tests resume immediately
 
 
 @pytest.fixture()
@@ -57,8 +60,14 @@ def workspace(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def db(workspace):
-    dbm.configure(DB_URL)
-    dbm.init_db(drop=True)
+    # Wait for any loop run the API scheduled as a background task (previous test) before
+    # dropping tables underneath it.
+    from regent.api import app as appmod
+
+    time.sleep(0.05)
+    with appmod._run_lock:
+        dbm.configure(DB_URL)
+        dbm.init_db(drop=True)
     set_services(None)
     s = dbm.session()
     try:

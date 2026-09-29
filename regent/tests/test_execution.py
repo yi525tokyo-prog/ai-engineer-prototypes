@@ -40,6 +40,7 @@ def test_failed_tool_reroutes_via_fallback_and_learns_skill(db, services):
                                                "balance": 5, "limit": 5})
     from regent.connectors.services import LocalSearchIndex
 
+    db.commit()  # connectors write through their own transactions
     LocalSearchIndex().index("https://x/1", "python contract", "remote python contract work")
     op = _op(db, m, "search", "web", {"query": "python contract"},
              verification={"method": "schema", "required_keys": ["results"]})
@@ -84,6 +85,7 @@ def test_verification_methods(db, services):
     assert v.verify(send).verdict == "fail"
     from regent.connectors.services import LocalMailbox
 
+    db.commit()  # connectors write through their own transactions
     real = LocalMailbox().send(to=["x"], subject="s", body="b")
     send.outputs = {"message_id": real["id"]}
     assert v.verify(send).verdict == "pass"

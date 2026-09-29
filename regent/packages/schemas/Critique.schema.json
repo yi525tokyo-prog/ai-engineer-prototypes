@@ -1,0 +1,38 @@
+{
+  "properties": {
+    "route_key": {
+      "title": "Route Key",
+      "type": "string"
+    },
+    "provider": {
+      "title": "Provider",
+      "type": "string"
+    },
+    "issues": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Issues",
+      "type": "array"
+    },
+    "adjustments": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "field -> suggested value",
+      "title": "Adjustments",
+      "type": "object"
+    },
+    "confidence": {
+      "default": 0.5,
+      "title": "Confidence",
+      "type": "number"
+    }
+  },
+  "required": [
+    "route_key",
+    "provider"
+  ],
+  "title": "Critique",
+  "type": "object"
+}

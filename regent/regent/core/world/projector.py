@@ -25,7 +25,7 @@ from regent.db import (
     Skill,
     Snapshot,
 )
-from regent.ids import new_id, utcnow
+from regent.ids import iso, new_id, utcnow
 
 ENTITY_KINDS = {
     "person", "organization", "place", "account", "service", "project", "goal",
@@ -150,7 +150,7 @@ def h_email_received(db, ev):
     attrs = {
         "subject": p.get("subject", ""),
         "body": p.get("body", ""),
-        "received_at": p.get("received_at") or (ev.created_at.isoformat() if ev.created_at else None),
+        "received_at": p.get("received_at") or iso(ev.created_at),
         "channel": p.get("channel", "email"),
         "requires_reply": p.get("requires_reply", True),
         "answered": False,
@@ -162,7 +162,8 @@ def h_email_received(db, ev):
     _add_relation(db, ev, mid, "sent_by", sid)
     for rel in p.get("related_to", []) or []:
         _add_relation(db, ev, mid, "related_to", rel)
-    _set_fact(db, ev, f"message.{mid}.answered", False)
+    if attrs["requires_reply"]:
+        _set_fact(db, ev, f"message.{mid}.answered", False)
 
 
 def h_message_sent(db, ev):

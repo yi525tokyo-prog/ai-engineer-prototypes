@@ -144,7 +144,7 @@ def test_seeded_case_study_end_to_end(db, services, live_server):
                                                                   HumanInterrupt.mission_id == root.id))]
     assert len(open_hi) == 1
     hi = open_hi[0]
-    assert hi.kind == "identity" and "/sim/portal/kinoshita" in hi.required_action
+    assert hi.kind == "identity" and "/sim/portal/kinoshita" in hi.required_action and hi.context["url"].endswith("/sim/portal/kinoshita")
     assert hi.resume_condition["type"] == "page_state"
     assert root.status == "waiting_human"
     # the portal probe was prioritised because it can flip the selection
@@ -194,3 +194,29 @@ def test_seeded_case_study_end_to_end(db, services, live_server):
     assert c["best_route"]["key"] == "pursue-contract_northbridge"
     assert c["changes"][0]["kind"] == "plan_changed"
     assert c["blocked_by_you"] == []
+
+
+def test_second_replan_uses_built_capability(db, services, live_server):
+    """World keeps changing: the new incumbent's offer is withdrawn -> invalidated -> the
+    runner-up (which needs the tool Regent built earlier) takes over and uses it."""
+    scenario.seed(db, live_server)
+    loop = RegentLoop(db, services)
+    loop.run_all()
+    httpx.post(f"{live_server}/sim/portal/kinoshita/verify", data={"code": scenario.PORTAL_CODE})
+    loop.run_all()
+    scenario.apply_script(db, "northbridge_withdraws")
+    loop.run_all()
+    db.expire_all()
+    root = db.get(Mission, scenario.ROOT_MISSION)
+    nb = db.scalar(select(Route).where(Route.key == "pursue-contract_northbridge"))
+    assert nb.status == "invalidated" and "offer withdrawn" in nb.invalidated_reason
+    assert db.get(Route, root.selected_route_id).key == "bridge-service_codemarket"
+    inv = db.scalar(select(Operation).where(Operation.key == "service_codemarket.invoice"))
+    assert inv.status == "succeeded" and inv.outputs["total"] > 0
+    kinds = [d.kind for d in db.scalars(select(Decision).where(Decision.mission_id == root.id)
+                                        .order_by(Decision.created_at))]
+    assert kinds.count("plan_changed") == 2
+    scenario.apply_script(db, "aoi_confirms_desk")
+    loop.run_all()
+    db.expire_all()
+    assert db.get(Mission, scenario.WORK_MISSION).status == "completed"

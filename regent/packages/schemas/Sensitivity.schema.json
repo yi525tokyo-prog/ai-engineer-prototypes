@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "Effect": {
+      "properties": {
+        "set": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Set"
+        },
+        "mul": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mul"
+        },
+        "add": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Add"
+        },
+        "from_fact": {
+          "default": false,
+          "title": "From Fact",
+          "type": "boolean"
+        }
+      },
+      "title": "Effect",
+      "type": "object"
+    }
+  },
+  "description": "How a route's estimates respond to a fact about the world.",
+  "properties": {
+    "fact": {
+      "title": "Fact",
+      "type": "string"
+    },
+    "op": {
+      "default": "eq",
+      "enum": [
+        "eq",
+        "ne",
+        "lt",
+        "gt",
+        "le",
+        "ge",
+        "in",
+        "exists",
+        "missing",
+        "truthy",
+        "falsy"
+      ],
+      "title": "Op",
+      "type": "string"
+    },
+    "value": {
+      "default": null,
+      "title": "Value"
+    },
+    "effects": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Effect"
+      },
+      "title": "Effects",
+      "type": "object"
+    },
+    "rationale": {
+      "default": "",
+      "title": "Rationale",
+      "type": "string"
+    }
+  },
+  "required": [
+    "fact"
+  ],
+  "title": "Sensitivity",
+  "type": "object"
+}

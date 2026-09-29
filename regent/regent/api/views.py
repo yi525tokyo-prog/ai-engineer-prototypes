@@ -204,7 +204,8 @@ def world_panel(db: Session, world: WorldView) -> dict[str, Any]:
              if not f.key.startswith("tool.")]
     return {
         "entities": sorted(ents, key=lambda e: (kinds.index(e["kind"]), e["id"])),
-        "unanswered": [{"id": m.id, "subject": m.attrs.get("subject"), "from": m.attrs.get("from"),
+        "unanswered": [{"id": m.id, "subject": m.attrs.get("subject"),
+                        "from": (world.entities.get(m.attrs.get("from") or "") or m).name if m.attrs.get("from") in world.entities else m.attrs.get("from"),
                         "deadline": m.attrs.get("deadline")} for m in world.unanswered_messages()],
         "facts": facts[:60],
         "capabilities": [c.to_dict() for c in db.scalars(select(Capability).order_by(Capability.status, Capability.id))],
@@ -225,6 +226,8 @@ def _tree_ids(graph: MissionGraph, mid: str) -> list[str]:
 def _compact_diff(d: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for table, ch in d.items():
+        if table == "facts":
+            ch = {k: [x for x in v if not str(x.get("key", "")).startswith("tool.")] for k, v in ch.items()}
         out[table] = {
             "added": [x.get("key") or x.get("id") for x in ch["added"]][:20],
             "removed": [x.get("key") or x.get("id") for x in ch["removed"]][:20],

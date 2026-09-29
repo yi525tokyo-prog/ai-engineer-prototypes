@@ -462,7 +462,7 @@ _lock = threading.RLock()
 
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
-        eng = create_engine(url, connect_args={"check_same_thread": False})
+        eng = create_engine(url, connect_args={"check_same_thread": False, "timeout": 15})
 
         @event.listens_for(eng, "connect")
         def _pragma(dbapi_conn, _):  # pragma: no cover - sqlite only

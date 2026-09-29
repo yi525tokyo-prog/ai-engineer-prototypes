@@ -65,7 +65,7 @@ def test_blocker_becomes_bounded_interrupt_and_resume(db, services):
     hi = hm.from_blocker(op, Blocked(type="captcha", detail="CAPTCHA detected", url="http://portal"))
     assert op.status == "waiting_human"
     assert hi.kind == "identity"
-    assert "http://portal" in hi.required_action
+    assert "portal" in hi.required_action and hi.context["url"] == "http://portal"
     assert hi.estimated_time_seconds <= 60
     assert hi.blocking_operation.startswith("browser.run")
     assert hi.resume_condition == {"type": "page_state", "url": "http://portal", "blocker_absent": "captcha"}

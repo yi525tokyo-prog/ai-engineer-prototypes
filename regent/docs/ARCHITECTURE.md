@@ -1,0 +1,191 @@
+# Regent architecture
+
+## Roles
+
+The **principal** (the human) owns values, hard constraints, permissions, identity and final
+overrides. **Regent** owns operational strategy: planning, route generation, resource
+allocation, tool and model selection, execution, verification, replanning and capability
+acquisition. The principal is also a *callable real-world interface*. They are asked only for
+bounded actions software cannot perform, never for the next step.
+
+## The loop (`regent/core/loop.py`)
+
+`RegentLoop.tick(mission)` runs one pass. Each phase is a named block in the code and is
+recorded in `mission.attrs.last_tick`, which the cockpit shows.
+
+| Phase | What happens | Code |
+|---|---|---|
+| observe | New events since the mission last looked; resume conditions of open interrupts are checked (e.g. the page no longer shows a CAPTCHA) | `observe/events.py`, `human/interrupts.py` |
+| model | `WorldView` is loaded from projections; a snapshot is taken if anything changed | `world/state.py`, `world/projector.py` |
+| generate | If the world's structural signature changed (or no route is alive), every available provider proposes routes; proposals are merged and criticized | `routes/generator.py` |
+| evaluate | Effective estimates, blockers, hard constraints, score components, ranking, decision-relevant uncertainties | `evaluate/evaluator.py` |
+| select | Hysteresis selection; a decision is recorded with its snapshot | `planner/planner.py`, `replan/replanner.py` |
+| decompose | Operations for the selected route; value-of-information probes across live routes; capability-acquisition sub-missions for the top two routes | `planner/planner.py`, `capabilities/manager.py` |
+| execute | Authority, affordability and learned-skill shortcuts, then concurrent tool calls with retries/fallbacks; blockers become interrupts | `executor/executor.py` |
+| verify | Declared verification → evidence → facts (cited to the evidence) | `verify/verifier.py` |
+| update_world | Consequences: message answered, capability registered, skill extracted | `replan/replanner.py` |
+| replan | Full re-evaluation of *every* route against the updated world; a switch records which evidence moved which estimate | `replan/replanner.py` |
+
+`run_all()` drives every active mission, including ones spawned during the pass, until
+quiescent. The API runs it in a background worker (`BackgroundLoop`) and immediately after any
+write (new event, interrupt response, override).
+
+Mission status is derived rather than set by hand:
+
+- `completed`: the success criteria hold.
+- `active`: operations are runnable.
+- `waiting_human`: only interrupts remain.
+- `monitoring`: nothing to do until the world changes.
+
+## Data model (PostgreSQL; SQLite fallback)
+
+- **Event store** (`events`): append-only, with a sequence number, type, payload, source,
+  mission and domain. All meaningful changes are events: world facts, messages, resource
+  changes, grants, constitution updates, capability changes, skill publications, and loop
+  activity (`route_selected`, `plan_changed`, `tool_failed`, …).
+- **Projections**: `entities` (21 kinds, from person to human_interrupt), `relations`
+  (`member_of`, `owns`, `depends_on`, `blocked_by`, …), `facts` (key/value, confidence, evidence
+  id), `resources`, `ledger`, `constitution`, `authority_grants`, `capabilities`, `skills`,
+  `global_facts`. `projector.rebuild()` wipes and replays them, optionally from a `snapshot`.
+  Tests assert that a rebuilt world equals the live one.
+- **Operational state**: `missions`, `routes`, `route_scores` (score history per tick),
+  `operations`, `human_interrupts`, `evidence`, `decisions`, `model_calls`, `built_tools`. These
+  rows are mutated in place, but every mutation also emits an event and, for strategy, a
+  `decision`. History is therefore complete, but only the *world* is replayable. Replaying
+  operational state would re-execute side effects, which is deliberately not done.
+- **Memory** (`memory`): pgvector `vector(256)` embeddings on PostgreSQL. The default embedder is
+  a deterministic feature hasher; a provider embedding model can replace it without a schema
+  change.
+
+A graph database was not introduced. Relations are first-class rows, and the queries needed
+(neighbours, typed edges) are cheap in SQL.
+
+## Routes
+
+A `RouteProposal` (`regent/schemas.py`, exported to `packages/schemas`) carries:
+
+- thesis
+- estimates: upside, P(success), time, money, information gain, reversibility, optionality,
+  risk, authority cost
+- rationale for the estimates
+- sensitivities
+- blockers
+- required capabilities
+- dependencies
+- uncertainties
+- concrete operations
+
+A **sensitivity** is how a route states its dependence on an unknown fact:
+`{fact, op, value, effects: {field: {mul|add|set|from_fact}}, rationale}`. It is the bridge
+between evidence and strategy. It makes replanning deterministic and explainable, and it is
+what the value-of-information calculation perturbs.
+
+### Scoring (`evaluate/evaluator.py`)
+
+```
+score =  w_ev · p · U(upside / value_scale)          U concave above 1 ("enough")
+       + w_info · info + w_opt · optionality + w_rev · reversibility
+       − w_time · min(hours/40, 1.5) − w_money · min(cost / free_cash, 1.5)
+       − w_risk · risk − w_auth · authority_cost + Σ constitution tag bonuses
+```
+
+- `free_cash` is the cash balance minus commitments due within max(horizon, 30 days).
+- Weights are the base weights × constitution multipliers (items can be scoped to mission tags)
+  × scarcity. Scarcity comes from the treasury: under one month of runway, money pressure is 1.0.
+- Hard constraints invalidate a route. Capability blockers make it unselectable until the
+  capability is acquired.
+- Selection margin is `SWITCH_MARGIN = 0.03`.
+
+### Multiple providers
+
+`ProviderRegistry.all_available()` generates and criticizes routes. Each provider's estimates are
+stored under `route.estimate_sources[provider]`. The combined estimate is a weighted mean, and
+spread above 25% becomes an explicit uncertainty. Critique adjustments are recorded as a
+low-weight source (0.3). They are never applied as truth. Evidence (via sensitivities) always
+outranks model opinion.
+
+The local strategist (`models/local.py`, `models/playbooks.py`) generates routes from entity
+attributes: contracts, marketplaces, monetizable projects, negotiable commitments and
+workplaces. Generic archetypes (direct, information-first, delegate, defer) guarantee at least
+three routes for any objective. It is weaker than a frontier model, but it makes the system run
+with zero credentials and makes the tests deterministic.
+
+## Authority
+
+| Level | Examples | Behaviour |
+|---|---|---|
+| AUTO | research, analysis, drafts, local files, tests, private calendar holds | Run |
+| COMMIT | send, invite, purchase, POST, browser click/type/upload | Run if a standing grant matches (`fnmatch` scope + constraints); else a bounded approve/deny interrupt ("Always allow" creates a grant) |
+| IDENTITY | CAPTCHA, login, biometric, signature, payment entry, physical action | Always a human interrupt |
+
+Operation specs may *raise* their authority level but never lower it. Unknown tool actions are
+treated as COMMIT.
+
+## Human interrupts
+
+`{kind, reason, required_action, estimated_time_seconds, blocking_operation, resume_condition,
+response_schema, context}`.
+
+Resume conditions:
+
+- `response`: wait for the principal's answer.
+- `fact`: a world fact appears.
+- `page_state`: the blocker is gone from the page. Checked by HTTP, throttled to once per 5 s.
+
+On resolution, one of three things happens:
+
+- A blocked browser operation is re-run.
+- An authorization marks the operation approved once.
+- A human-routed operation is verified from the principal's response.
+
+The principal's time is spent from the `attention` resource.
+
+## Capability acquisition
+
+`CapabilityManager.open_acquisition()` creates a child mission tagged `capability_acquisition`.
+Its routes are built from the nine acquisition strategies:
+
+1. existing tool
+2. alternative service
+3. better model
+4. activate or build a connector (a bounded credential action)
+5. browser automation
+6. generate code
+7. manual human action
+8. purchase
+9. avoid the dependency
+
+The normal evaluator picks among them. The `generate_code` path (`code.build_tool`) asks a
+provider for a tool (the local strategist has vetted templates), writes it to the workspace,
+runs its tests, and registers it in the tool registry. It is persisted in `built_tools` and
+reloaded on restart.
+
+## Global brain and skills
+
+Every row has a `domain`: private, shared or global. `LocalGlobalBrain.publish_fact` and
+`publish_skill` pass through `PrivacyFilter`:
+
+- Publishing is refused for emails, phone numbers, amounts, and names of private entities.
+- Skills are generalized by replacing those values with placeholders.
+
+`RemoteGlobalBrain` is the synchronization interface (`REGENT_GLOBAL_BRAIN_URL`); it sends only
+the global domain.
+
+`SkillExtractor` turns attempt → failure → reroute → success into a skill. The skill holds the
+pattern, preconditions, procedure (including the human step), failure modes, verification,
+confidence and provenance. Before running an operation, the executor applies a learned reroute
+when the same failure mode still holds.
+
+## Current limits
+
+- **Local strategist.** Without API keys, route generation is playbook-based. The remote
+  providers are implemented against the same schema but were not exercised here (no keys in
+  this environment).
+- **Local connector backends.** Mail, calendar, maps and commerce persist locally; the real
+  backends are credential-gated interfaces.
+- **Loop worker.** The background loop is in-process and single-worker, which is enough locally.
+  A multi-worker deployment would need a job queue with row-level locking on missions.
+- **Route merging** is by key. Semantically equivalent routes from different providers with
+  different keys are not yet clustered.
+- **Uncertainty modelling** uses branch enumeration over the declared sensitivity values, not
+  full probability distributions.
