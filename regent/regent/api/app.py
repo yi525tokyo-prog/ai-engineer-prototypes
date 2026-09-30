@@ -76,6 +76,9 @@ async def lifespan(app: FastAPI):
     s = dbm.session()
     try:
         get_services().tools.load_built(s)
+        from regent.software.capability import load_all
+
+        load_all(s, get_services())
     finally:
         s.close()
     if settings.background_loop:
@@ -92,6 +95,10 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 from regent.api.acquisition import router as acquisition_router  # noqa: E402
 
 app.include_router(acquisition_router)
+
+from regent.api.software import router as software_router  # noqa: E402
+
+app.include_router(software_router)
 
 
 # ------------------------------------------------------------------ system

@@ -1,0 +1,399 @@
+"""World acquisition for software needs: find the subject, read it, inventory what could answer.
+
+``resolve``   -- from a subject's *name* to the live deployments that are it: probe the hostnames
+                 such a product would plausibly use (name variants x common TLDs x hosting
+                 platforms' default domains), keep the ones that present themselves under that
+                 name, follow redirects to the canonical host, fingerprint each (platform,
+                 analytics already present, API the app calls, public commitments), and read the
+                 app's API endpoints with GET only. Every observation is stored as a claim with
+                 the document it came from.
+``inventory`` -- which sources could answer the need's questions: the product's own public
+                 endpoints (field meanings proposed by the reasoning worker, each backed by a
+                 verbatim quote Regent checks), platform connectors the fingerprint makes
+                 applicable (and what access each needs), capabilities Regent already has for the
+                 same need, and the commitments that constrain what may be built.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from typing import Any
+from urllib.parse import urljoin, urlparse
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from regent.acquisition.claims import ClaimStore
+from regent.acquisition.fetch import Fetcher
+from regent.acquisition.tables import AcqEntity
+from regent.acquisition.types import AttrSpec, ClaimIn, FreshnessPolicy
+from regent.ids import new_id
+from regent.software import capability as K
+from regent.software import connectors as C
+from regent.software import principal, probe
+from regent.software.need import signature
+from regent.software.reasoner import Reasoner, ReasonerUnavailable, get_reasoner
+
+DAY = 86400.0
+ATTRS = {a.name: a for a in [
+    AttrSpec("title", "deployment", "text", ttl_s=7 * DAY),
+    AttrSpec("names_subject", "deployment", "number", ttl_s=7 * DAY, abs_tol=0.05),
+    AttrSpec("platforms", "deployment", "json", ttl_s=7 * DAY),
+    AttrSpec("analytics", "deployment", "json", ttl_s=DAY),
+    AttrSpec("promises", "deployment", "json", ttl_s=7 * DAY),
+    AttrSpec("csp_connect", "deployment", "json", ttl_s=7 * DAY),
+    AttrSpec("owner_evidence", "deployment", "text", ttl_s=30 * DAY),
+    AttrSpec("status", "endpoint", "number", ttl_s=DAY),
+    AttrSpec("content_type", "endpoint", "text", ttl_s=DAY),
+    AttrSpec("json_shape", "endpoint", "json", ttl_s=DAY),
+    AttrSpec("sample", "endpoint", "json", ttl_s=3600, material=False),
+    AttrSpec("used_by_code_with", "endpoint", "json", ttl_s=7 * DAY),
+]}
+POLICY = FreshnessPolicy(ATTRS)
+MAX_ENDPOINTS = 24
+
+
+def _entity(db: Session, etype: str, label: str, request_id: str, **features: Any) -> AcqEntity:
+    e = db.scalar(select(AcqEntity).where(AcqEntity.domain == "software", AcqEntity.entity_type == etype,
+                                          AcqEntity.block_key == label[:200]))
+    if e is None:
+        e = AcqEntity(id=new_id("swe"), domain="software", entity_type=etype, label=label[:300], block_key=label[:200],
+                      features=features, beliefs={}, stage="discovered", request_id=request_id, source_hosts=[])
+        db.add(e)
+        db.flush()
+    else:
+        e.features = {**(e.features or {}), **features}
+    return e
+
+
+def _claim(store: ClaimStore, e: AcqEntity, attr: str, value: Any, doc, evidence: str = "", conf: float = 0.9) -> None:
+    store.add(e.id, ClaimIn(attr, value, confidence=conf, evidence=evidence[:500], extractor="software.probe"),
+              source_host=doc.host, source_kind="operator", url=doc.final_url, document_id=doc.id)
+
+
+# ------------------------------------------------------------------ resolve
+
+def resolve(db: Session, need: dict[str, Any], *, request_id: str, transport=None, log=None,
+            max_probes: int = 90) -> dict[str, Any]:
+    log = log or (lambda *a, **k: None)
+    fetcher = Fetcher(db, request_id=request_id, transport=transport, allow_browser=False, min_interval_s=0.3)
+    store = ClaimStore(db, POLICY)
+    country = (need.get("principal") or {}).get("country")
+    out: dict[str, Any] = {"subjects": [], "principal": principal.evidence()}
+    try:
+        for subj in need.get("subjects", []):
+            if subj.get("kind") not in ("product", "website", "organization", "dataset", "other"):
+                out["subjects"].append({"name": subj["name"], "kind": subj.get("kind"), "skipped":
+                                        "not a software subject: resolved by other acquisition"})
+                continue
+            out["subjects"].append(_resolve_one(db, fetcher, store, subj, request_id, country, log, max_probes))
+    finally:
+        fetcher.close()
+    db.flush()
+    return out
+
+
+def _resolve_one(db, fetcher, store, subj, request_id, country, log, max_probes) -> dict[str, Any]:
+    name = subj["name"]
+    urls = probe.candidate_urls(name, country=country, accounts=principal.accounts())[:max_probes]
+    log("resolve", f"probing {len(urls)} hostnames a product called '{name}' could live at")
+    tried, matches = [], {}
+    for u in urls:
+        doc = fetcher.fetch(u, purpose="resolve", kind="operator", render="static")
+        row = {"url": u, "status": doc.status, "final": doc.final_url,
+               "outcome": "no such site" if doc.status == 0 else (f"HTTP {doc.status}" if not doc.ok else "")}
+        if doc.ok:
+            title = re.search(r"<title[^>]*>(.*?)</title>", doc.html, re.S | re.I)
+            t = re.sub(r"\s+", " ", title.group(1)).strip() if title else ""
+            score = probe.names_subject(name, t, doc.text)
+            row.update(title=t[:120], names_subject=score)
+            host = urlparse(doc.final_url).netloc
+            if score >= 0.7:
+                row["outcome"] = f"presents itself as {name}"
+                prev = matches.get(host)
+                if prev is None or score > prev["score"]:
+                    matches[host] = {"doc": doc, "score": score, "via": [u] + (prev["via"] if prev else [])}
+                else:
+                    prev["via"].append(u)
+            else:
+                row["outcome"] = "live site, but not this subject"
+        tried.append(row)
+    deployments = []
+    # the same site served under several hostnames (custom domain + platform default) is one
+    # deployment with aliases: prefer the hostname that is not a platform default
+    groups: dict[str, list[str]] = {}
+    for host, m in matches.items():
+        body = m["doc"].html
+        for h in matches:
+            body = body.replace(h, "")
+        body = re.sub(r"\s+", " ", re.sub(r"<(?:link|meta)[^>]*(?:canonical|og:url)[^>]*>", "", body))
+        groups.setdefault(body[:20000], []).append(host)
+    for hosts in groups.values():
+        hosts.sort(key=lambda h: (h.endswith(probe.PLATFORM_SUBDOMAINS), -matches[h]["score"], len(h)))
+        main = matches[hosts[0]]
+        main["aliases"] = hosts[1:]
+        d = _read_deployment(db, fetcher, store, name, hosts[0], main, request_id, log)
+        d["aliases"] = hosts[1:]
+        deployments.append(d)
+    product = _entity(db, "product", name, request_id, kind=subj.get("kind"))
+    product.stage = "resolved" if deployments else "unresolved"
+    for d in deployments:
+        d["entity"].parent_id = product.id
+    log("resolve", f"'{name}': {len(deployments)} deployment(s) found from {len(tried)} probes: "
+                   + ", ".join(d["host"] for d in deployments))
+    return {"name": name, "kind": subj.get("kind"), "product_entity": product.id, "probes": len(tried),
+            "probe_log": tried, "deployments": [{k: v for k, v in d.items() if k != "entity"} for d in deployments]}
+
+
+def _read_deployment(db, fetcher, store, name, host, m, request_id, log) -> dict[str, Any]:
+    doc = m["doc"]
+    fp = probe.fingerprint(doc.final_url, doc.html, doc.headers, doc.text)
+    # the app's own scripts carry the API it talks to
+    code = doc.html
+    for src in [s for s in fp["scripts"] if urlparse(s).netloc == host][:5]:
+        d2 = fetcher.fetch(src, purpose="resolve:script", kind="operator", render="static")
+        if d2.ok:
+            code += "\n" + d2.html
+    extra = {}
+    for path in ("/llms.txt", "/manifest.json", "/manifest.webmanifest"):
+        d3 = fetcher.fetch(f"https://{host}{path}", purpose="resolve:meta", kind="operator", render="static")
+        if d3.ok and not d3.html.lstrip().startswith("<"):
+            extra[path] = d3.html[:4000]
+    if fp["manifest"] and fp["manifest"] not in [f"https://{host}{p}" for p in extra]:
+        d4 = fetcher.fetch(fp["manifest"], purpose="resolve:meta", kind="operator", render="static")
+        if d4.ok:
+            extra[urlparse(fp["manifest"]).path] = d4.html[:4000]
+    fp["endpoints"] = probe.api_endpoints(doc.final_url, code, fp["csp"])
+    fp["extra"] = extra
+    e = _entity(db, "deployment", host, request_id, url=doc.final_url)
+    e.stage = "resolved"
+    _claim(store, e, "title", fp["title"], doc, fp["title"])
+    _claim(store, e, "names_subject", m["score"], doc, fp["title"])
+    _claim(store, e, "platforms", fp["platforms"], doc, "; ".join(v for k, v in fp["evidence"].items()
+                                                                   if k.startswith("platform:")))
+    _claim(store, e, "analytics", fp["analytics"], doc,
+           "; ".join(v for k, v in fp["evidence"].items() if k.startswith("analytics:")) or
+           "no known analytics signature in the page or its scripts")
+    _claim(store, e, "promises", [p["phrase"] for p in fp["promises"]], doc,
+           " | ".join(p["context"] for p in fp["promises"])[:500])
+    _claim(store, e, "csp_connect", fp["csp_connect"], doc, "content-security-policy connect-src")
+    owners = list(dict.fromkeys(o for o in (principal.owns_host(urlparse(b).netloc) for ep in fp["endpoints"]
+                                            for b in ep["bases"]) if o))
+    if principal.owns_host(host):
+        owners.insert(0, principal.owns_host(host))
+    if owners:
+        _claim(store, e, "owner_evidence", owners[0], doc, owners[0], conf=0.6)
+    endpoints = _read_endpoints(db, fetcher, store, e, fp, request_id, log)
+    store.refresh(e)
+    log("resolve", f"{host}: platforms {fp['platforms'] or 'unknown'}; analytics {fp['analytics'] or 'none'}; "
+                   f"{len(fp['endpoints'])} API paths in code, {sum(1 for x in endpoints if x.get('json'))} readable")
+    return {"host": host, "url": doc.final_url, "entity": e, "entity_id": e.id, "via": m["via"],
+            "names_subject": m["score"], "document_id": doc.id,
+            "fingerprint": {k: v for k, v in fp.items() if k not in ("endpoints", "evidence")},
+            "fingerprint_evidence": fp["evidence"], "owner_evidence": owners[:3], "endpoints": endpoints}
+
+
+def _read_endpoints(db, fetcher, store, dep, fp, request_id, log) -> list[dict[str, Any]]:
+    out = []
+    seen = set()
+    for ep in fp["endpoints"]:
+        for base in ep["bases"][:3]:
+            url = urljoin(base + "/", ep["path"].lstrip("/"))
+            if url in seen or len(out) >= MAX_ENDPOINTS:
+                continue
+            seen.add(url)
+            doc = fetcher.fetch(url, purpose="resolve:endpoint", kind="operator", render="static")
+            ct = (doc.headers or {}).get("content-type", "")
+            row: dict[str, Any] = {"url": url, "path": ep["path"], "status": doc.status, "content_type": ct,
+                                   "writes_in_code": ep["writes"], "context": ep["context"][:2],
+                                   "document_id": doc.id}
+            if doc.status == 0:
+                continue
+            if not ("json" in ct or doc.html.lstrip()[:1] in "{[") and urlparse(url).netloc == dep.label:
+                continue          # a single-page app answering every path with its own HTML
+            data = None
+            if doc.html and ("json" in ct or doc.html.lstrip()[:1] in "{["):
+                try:
+                    data = json.loads(doc.html)
+                except ValueError:
+                    data = None
+            e = _entity(db, "endpoint", url, request_id, path=ep["path"])
+            e.parent_id = dep.id
+            _claim(store, e, "status", doc.status, doc, f"GET {url} -> {doc.status}")
+            _claim(store, e, "content_type", ct, doc, ct)
+            _claim(store, e, "used_by_code_with", ep["writes"] or ["GET"], doc, (ep["context"] or [""])[0][:300])
+            if data is not None:
+                shape = probe.json_shape(data)
+                row.update(json=True, shape=shape, sample=_trim(data))
+                _claim(store, e, "json_shape", shape, doc, doc.html[:400])
+                _claim(store, e, "sample", _trim(data), doc, doc.html[:400], conf=0.95)
+                row["same_as_index"] = False
+            store.refresh(e)
+            row["entity_id"] = e.id
+            out.append(row)
+    # an API that answers every unknown path with the same index document is not publishing
+    # those paths: mark duplicates so they are not mistaken for data sources
+    bodies: dict[str, int] = {}
+    for r in out:
+        if r.get("json"):
+            k = json.dumps(r["sample"], sort_keys=True)[:2000]
+            bodies[k] = bodies.get(k, 0) + 1
+    for r in out:
+        if r.get("json") and bodies[json.dumps(r["sample"], sort_keys=True)[:2000]] >= 3:
+            r["same_as_index"] = True
+    return out
+
+
+def _trim(data: Any, depth: int = 0) -> Any:
+    if depth > 3:
+        return "…"
+    if isinstance(data, dict):
+        return {k: _trim(v, depth + 1) for k, v in list(data.items())[:40]}
+    if isinstance(data, list):
+        return [_trim(v, depth + 1) for v in data[:3]] + ([f"… {len(data) - 3} more"] if len(data) > 3 else [])
+    if isinstance(data, str):
+        return data[:200]
+    return data
+
+
+# ---------------------------------------------------------------- inventory
+
+SEMANTICS_SCHEMA: dict[str, Any] = {
+    "type": "object", "required": ["fields", "constraints", "other_sources"],
+    "properties": {
+        "fields": {"type": "array", "items": {"type": "object", "required": [
+            "endpoint", "path", "meaning", "relation_to_need", "question", "time_semantics", "evidence", "confidence"],
+            "properties": {
+                "endpoint": {"type": "string"}, "path": {"type": "string", "description": "dotted path in the JSON"},
+                "meaning": {"type": "string"},
+                "counts": {"type": "string", "enum": ["people", "actions", "items", "money", "time", "other"]},
+                "relation_to_need": {"type": "string", "enum": ["direct", "lower_bound", "upper_bound",
+                                                                "activity_signal", "unrelated"]},
+                "question": {"type": ["string", "null"], "description": "id of the need question it bears on"},
+                "time_semantics": {"type": "string", "enum": ["cumulative", "resets_daily", "snapshot",
+                                                              "event_list", "unknown"]},
+                "timestamp_key": {"type": ["string", "null"],
+                                  "description": "for event lists: the item key holding the event time"},
+                "caveats": {"type": "array", "items": {"type": "string"}},
+                "evidence": {"type": "string", "description": "a verbatim quote (8-200 chars) from the endpoint's "
+                             "code context or response that supports this reading"},
+                "confidence": {"type": "number"}}}},
+        "constraints": {"type": "array", "items": {"type": "object", "required": ["statement", "evidence", "forbids"],
+                        "properties": {"statement": {"type": "string"},
+                                       "evidence": {"type": "string", "description": "verbatim quote of the promise"},
+                                       "forbids": {"type": "array", "items": {"type": "string", "enum": [
+                                           "adds_client_code", "third_party_tracking", "writes_to_product",
+                                           "stores_personal_data", "requires_accounts", "shows_ads"]}}}}},
+        "other_sources": {"type": "array", "items": {"type": "object", "required": ["title", "access", "question"],
+                          "properties": {"title": {"type": "string"}, "access": {"type": "string"},
+                                         "question": {"type": "string"}, "why": {"type": "string"}}}},
+    },
+}
+
+SEMANTICS_INSTRUCTIONS = """You read a live product from the outside for an operational agent. Given the principal's
+need (questions with precise definitions) and what was observed (public JSON endpoints the product's own code calls,
+with the code around each call and a sample response; the product's stated commitments; platform sources that exist
+but need the principal's access, described by their documented fields), say for each numeric or event-list field
+that could bear on the questions what it measures and how it relates to the need. For a platform source use its
+"endpoint" value (connector:<id>) and the field name as path, and quote its documentation as evidence. Be strict: a
+number that counts something other than people using this product (e.g. counts from an upstream catalogue, sizes,
+budgets, caps) is 'unrelated' even if large. Distinct paying or contributing people are a 'lower_bound' on real
+users; counts of actions are an 'activity_signal', not people. Quote evidence verbatim from the input. Also list the
+product's commitments that constrain how usage may be measured, and any other sources the principal likely holds."""
+
+
+def inventory(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, reasoner: Reasoner | None = None,
+              mission_id: str | None = None, log=None) -> dict[str, Any]:
+    log = log or (lambda *a, **k: None)
+    r = reasoner or get_reasoner()
+    deployments = [d for s in resolved.get("subjects", []) for d in s.get("deployments", [])]
+    endpoints = [ep for d in deployments for ep in d["endpoints"]
+                 if ep.get("json") and ep.get("status") == 200 and not ep.get("same_as_index")]
+    promises = [p for d in deployments for p in d["fingerprint"].get("promises", [])]
+    payload = {
+        "need": {"sentence": need.get("sentence"), "questions": need.get("questions"),
+                 "definitions_to_state": need.get("definitions_to_state")},
+        "endpoints": [{"url": ep["url"], "code_context": ep["context"], "used_with": ep["writes_in_code"] or ["GET"],
+                       "fields": ep["shape"], "sample": ep["sample"]} for ep in endpoints],
+        "commitments": promises,
+        "platform": [{"host": d["host"], "platforms": d["fingerprint"]["platforms"],
+                      "analytics_found": d["fingerprint"]["analytics"]} for d in deployments],
+        # sources that exist for this product's platform but need the principal's access
+        "platform_sources": [{"endpoint": f"connector:{conn.id}", "title": conn.title, "measures": conn.measures,
+                              "population": conn.population, "fields": conn.fields}
+                             for conn in {c.id: c for d in deployments
+                                          for c, _ in C.applicable({**d["fingerprint"], "host": d["host"]})}.values()
+                             if conn.collect is not None],
+    }
+    sem: dict[str, Any] = {"fields": [], "constraints": [], "other_sources": []}
+    meta: dict[str, Any] = {"by": "none"}
+    if endpoints or promises:
+        if r.available():
+            try:
+                ans = r.ask("field_semantics", SEMANTICS_INSTRUCTIONS, payload, SEMANTICS_SCHEMA, budget_usd=1.5,
+                            mission_id=mission_id)
+                sem = ans.output
+                meta = {"by": ans.provider, "model": ans.model, "cost_usd": ans.cost_usd, "answer_key": ans.key}
+            except ReasonerUnavailable as e:
+                meta = {"by": "none", "error": str(e)[:300]}
+        else:
+            meta = {"by": "none", "error": "no reasoning worker: field meanings unknown"}
+    haystack = json.dumps(payload, ensure_ascii=False)
+    fields = []
+    for f in sem.get("fields", []):
+        ev = (f.get("evidence") or "").strip()
+        supported = len(ev) >= 6 and (ev in haystack or _loose(ev) in _loose(haystack))
+        f = {**f, "evidence_found": supported}
+        if not supported:
+            f["confidence"] = min(float(f.get("confidence") or 0), 0.2)
+            f.setdefault("caveats", []).append("evidence quote not found in what was observed: unverified reading")
+        ep = next((e for e in endpoints if e["url"] == f.get("endpoint")), None)
+        if str(f.get("endpoint", "")).startswith("connector:"):
+            conn = C.CONNECTORS.get(f["endpoint"].split(":", 1)[1])
+            f["path_exists"] = bool(conn and f.get("path") in conn.fields)
+        else:
+            f["path_exists"] = bool(ep and _shape_has(ep["shape"], f.get("path", "")))
+        if not f["path_exists"]:
+            f["relation_to_need"] = "unrelated"
+            f.setdefault("caveats", []).append("no such field in the observed response")
+        fields.append(f)
+    constraints = []
+    for c in sem.get("constraints", []):
+        ev = (c.get("evidence") or "").strip()
+        ok = bool(ev) and (_loose(ev) in _loose(haystack) or any(_loose(ev) in _loose(p["context"]) for p in promises))
+        constraints.append({**c, "evidence_found": ok})
+    # platform connectors the fingerprints make applicable
+    platform_sources = []
+    for d in deployments:
+        fp = {**d["fingerprint"], "host": d["host"]}
+        for conn, params in C.applicable(fp):
+            forbidden = [c["statement"] for c in constraints if c["evidence_found"] and (
+                (conn.adds_client_code and {"adds_client_code", "third_party_tracking"} & set(c["forbids"])))]
+            platform_sources.append({**conn.describe(), "params": params, "host": d["host"],
+                                     "forbidden_by": forbidden})
+    existing = [{"id": c.id, "slug": c.slug, "title": c.title, "status": c.status, "coverage": c.coverage,
+                 "signature": c.signature} for c in K.find(db, signature(need))]
+    inv = {"public_fields": fields, "public_endpoints": [{k: ep[k] for k in ("url", "status", "shape")}
+                                                        for ep in endpoints],
+           "platform_sources": platform_sources, "constraints": constraints,
+           "other_sources": sem.get("other_sources", []), "existing_capabilities": existing, "semantics": meta,
+           "deployments": [{"host": d["host"], "url": d["url"], "platforms": d["fingerprint"]["platforms"],
+                            "analytics": d["fingerprint"]["analytics"], "owner_evidence": d["owner_evidence"]}
+                           for d in deployments]}
+    useful = [f for f in fields if f["relation_to_need"] != "unrelated" and f["path_exists"]]
+    log("inventory", f"{len(endpoints)} readable endpoints, {len(useful)} fields bear on the need, "
+                     f"{len(platform_sources)} platform sources, {len(constraints)} commitments, "
+                     f"{len(existing)} existing capabilities")
+    return inv
+
+
+def _loose(s: str) -> str:
+    return re.sub(r"\s+", " ", s.replace('\\"', '"')).strip().lower()
+
+
+def _shape_has(shape: dict[str, str], path: str) -> bool:
+    if path in shape:
+        return True
+    # list items may be addressed as "recent" (the list) or "recent.0.t"
+    return any(k.startswith(path + ".") for k in shape)

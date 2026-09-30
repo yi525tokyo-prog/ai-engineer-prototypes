@@ -29,6 +29,12 @@ def acquire_tool() -> Tool:
                              "geocoding, public datasets)", input_schema={"entity_ids": "list"}, **common),
         "recheck": ActionSpec("recheck", "Re-observe time-sensitive claims past their TTL",
                               input_schema={"entity_ids": "list"}, **common),
+        "analyze": ActionSpec("analyze", "Analyse the principal's sentence into explicit information needs",
+                              input_schema={"sentence": "str"}, **common),
+        "inventory": ActionSpec("inventory", "Which sources could answer the need, on what terms",
+                                input_schema={}, **common),
+        "observe": ActionSpec("observe", "Refresh capabilities past their refresh period",
+                              input_schema={"capabilities": "list"}, **common),
     }
     return Tool("acquire", "search", "World Acquisition: evidence-backed world state from the public web", actions,
                 handler, backend="live")

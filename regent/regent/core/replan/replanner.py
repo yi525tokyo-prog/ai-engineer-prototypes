@@ -50,6 +50,24 @@ class Replanner:
             r = self.db.get(Route, op.route_id)
             if r is not None:
                 r.evidence_ids = list(r.evidence_ids or []) + [evidence.id]
+        if op.status == "failed" and op.route_id and op.kind != "probe":
+            # an operation the route needs failed for good (retries and fallbacks are exhausted, or
+            # its result failed verification): the route as planned cannot deliver. Take it out of
+            # contention; re-evaluation selects the next best route instead of waiting silently.
+            r = self.db.get(Route, op.route_id)
+            if r is not None and r.status in ("alive", "selected"):
+                r.status = "failed"
+                r.invalidated_reason = f"{op.key} failed: {(op.error or 'verification failed')[:300]}"
+                m = self.db.get(Mission, op.mission_id)
+                if m is not None and m.selected_route_id == r.id:
+                    m.selected_route_id = None
+                for o in self.db.scalars(select(Operation).where(Operation.route_id == r.id,
+                                                                 Operation.status.in_(("pending", "blocked")))):
+                    o.status, o.error = "cancelled", f"route failed: {op.key}"
+                self.events.append("route_invalidated", {"route_id": r.id, "key": r.key,
+                                                         "reason": r.invalidated_reason},
+                                   source="regent", mission_id=op.mission_id)
+                notes.append(f"route {r.key} failed: {r.invalidated_reason}")
         if op.status != "succeeded":
             return notes
         out = op.outputs or {}

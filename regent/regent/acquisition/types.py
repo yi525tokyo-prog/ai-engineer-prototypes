@@ -102,6 +102,7 @@ class FetchedDocument:
     blocked: dict[str, Any] | None = None
     error: str | None = None
     from_cache: bool = False
+    headers: dict[str, str] = field(default_factory=dict)   # response headers (lower-cased names)
 
     @property
     def ok(self) -> bool:

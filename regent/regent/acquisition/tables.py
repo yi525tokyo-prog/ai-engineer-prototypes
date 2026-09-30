@@ -76,6 +76,7 @@ class AcqDocument(Base):
     bytes: Mapped[int] = mapped_column(Integer, default=0)
     cache_path: Mapped[str] = mapped_column(Text, default="")
     mentions: Mapped[int] = mapped_column(Integer, default=0)
+    headers: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     fetched_at: Mapped[datetime] = _ts()
 
 

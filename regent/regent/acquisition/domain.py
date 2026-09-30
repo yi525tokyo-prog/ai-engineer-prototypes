@@ -78,8 +78,10 @@ def register(adapter: DomainAdapter) -> DomainAdapter:
 def adapters() -> dict[str, DomainAdapter]:
     if not _ADAPTERS:
         from regent.acquisition.housing.adapter import HousingAdapter
+        from regent.software.domain import SoftwareAdapter
 
         register(HousingAdapter())
+        register(SoftwareAdapter())
     return _ADAPTERS
 
 
@@ -96,5 +98,9 @@ def for_mission(mission: Any) -> list[DomainAdapter]:
         tags = set(getattr(mission, "tags", None) or [])
         text = f"{getattr(mission, 'title', '')} {getattr(mission, 'objective', '')}"
     text = unicodedata.normalize("NFKC", text).lower()
-    return [a for a in adapters().values()
-            if set(a.tags) & tags or (text and any(k in text for k in a.keywords))]
+    matched = [a for a in adapters().values()
+               if set(a.tags) & tags or (text and any(k in text for k in a.keywords))]
+    if matched or isinstance(mission, (list, tuple, set)):
+        return matched
+    # nothing claims it by tag or wording: adapters that can find out what it needs may take it
+    return [a for a in adapters().values() if getattr(a, "claims", None) and a.claims(mission)]

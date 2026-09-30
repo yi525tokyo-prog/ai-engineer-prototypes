@@ -243,7 +243,8 @@ class Fetcher:
         html = gzip.decompress(Path(row.cache_path).read_bytes()).decode("utf-8", "ignore")
         title, text = html_to_text(html)
         return FetchedDocument(id=row.id, url=url, final_url=row.final_url, host=row.host, status=200, html=html,
-                               text=text, fetched_at=_aware(row.fetched_at), render=row.render, from_cache=True)
+                               text=text, fetched_at=_aware(row.fetched_at), render=row.render, from_cache=True,
+                               headers=row.headers or {})
 
     def _static(self, url: str, host: str, purpose: str) -> FetchedDocument:
         self._wait_turn(host)
@@ -269,7 +270,8 @@ class Fetcher:
             blocked = {"type": "challenge", "detail": "HTTP 202 bot challenge"}
         else:
             blocked = _page_blocker(html, final, r.status_code)
-        return self._record(url, final, host, purpose, r.status_code, html, "static", blocked=blocked)
+        return self._record(url, final, host, purpose, r.status_code, html, "static", blocked=blocked,
+                            headers={k.lower(): v for k, v in r.headers.items()})
 
     def _browser_fetch(self, url: str, host: str, purpose: str) -> FetchedDocument:
         self._wait_turn(host)
@@ -315,7 +317,8 @@ class Fetcher:
         return self._ctx.new_page()
 
     def _record(self, url: str, final: str, host: str, purpose: str, status: int, html: str, render: str, *,
-                blocked: dict | None = None, error: str | None = None, robots_allowed: bool = True) -> FetchedDocument:
+                blocked: dict | None = None, error: str | None = None, robots_allowed: bool = True,
+                headers: dict[str, str] | None = None) -> FetchedDocument:
         did = new_id("doc")
         path = ""
         h = hashlib.sha256(html.encode("utf-8", "ignore")).hexdigest() if html else ""
@@ -328,10 +331,11 @@ class Fetcher:
         self.db.add(AcqDocument(id=did, request_id=self.request_id, url=url, final_url=final, host=host,
                                 purpose=purpose, status=status, render=render, robots_allowed=robots_allowed,
                                 blocked=blocked, error=error, title=title[:300], content_hash=h,
-                                bytes=len(html.encode("utf-8", "ignore")) if html else 0, cache_path=path))
+                                bytes=len(html.encode("utf-8", "ignore")) if html else 0, cache_path=path,
+                                headers=headers or None))
         self.db.flush()
         return FetchedDocument(id=did, url=url, final_url=final or url, host=host, status=status, html=html, text=text,
-                               fetched_at=utcnow(), render=render, blocked=blocked, error=error)
+                               fetched_at=utcnow(), render=render, blocked=blocked, error=error, headers=headers or {})
 
     def download(self, url: str, dest: Path, *, kind: str = "public_data") -> Path | None:
         """Binary download (datasets) under the same robots/rate-limit policy."""

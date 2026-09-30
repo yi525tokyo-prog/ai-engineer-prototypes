@@ -76,12 +76,15 @@ class ReplayTransport(httpx.BaseTransport):
             # reproduce the recorded redirect: relative links must resolve against the final URL
             return httpx.Response(302, headers={"location": final}, request=request)
         body = gzip.decompress((self.root / p["file"]).read_bytes()) if p.get("file") else b""
-        return httpx.Response(p.get("status", 200), content=body, request=request,
-                              headers={"content-type": "text/html; charset=utf-8"})
+        headers = {"content-type": "text/html; charset=utf-8", **(p.get("headers") or {})}
+        headers.pop("content-encoding", None)
+        headers.pop("content-length", None)
+        headers.pop("transfer-encoding", None)
+        return httpx.Response(p.get("status", 200), content=body, request=request, headers=headers)
 
 
 def export_fixtures(db, dest: Path | str, *, request_ids: list[str] | None = None,
-                    url_filter=None) -> dict[str, int]:
+                    url_filter=None, keep_scripts: bool = False) -> dict[str, int]:
     """Write fixtures for documents fetched by the given requests (best rendering per URL)."""
     from sqlalchemy import select
 
@@ -104,10 +107,14 @@ def export_fixtures(db, dest: Path | str, *, request_ids: list[str] | None = Non
     for url, d in best.items():
         entry: dict[str, Any] = {"status": d.status, "render": d.render, "purpose": d.purpose,
                                  "fetched_at": d.fetched_at.isoformat(), "final_url": d.final_url}
+        if d.headers:
+            entry["headers"] = {k: v for k, v in d.headers.items() if k not in ("set-cookie", "date", "cf-ray",
+                                                                                 "report-to", "nel")}
         if d.cache_path and Path(d.cache_path).exists():
             html = gzip.decompress(Path(d.cache_path).read_bytes()).decode("utf-8", "ignore")
             name = f"{d.content_hash[:20]}.html.gz"
-            (dest / name).write_bytes(gzip.compress(slim(html).encode("utf-8"), 9))
+            body = html if keep_scripts else slim(html)
+            (dest / name).write_bytes(gzip.compress(body.encode("utf-8"), 9))
             entry["file"] = name
         index["pages"][url] = entry
         if d.final_url and d.final_url != url:

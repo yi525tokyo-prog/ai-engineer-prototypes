@@ -114,7 +114,10 @@ def _run_action(action: str, *, mission_id: str | None, params: dict[str, Any], 
         engine = AcquisitionEngine(s, adapter, req, transport=TRANSPORT, now=CLOCK() if CLOCK else None, **ENGINE_KW)
         status = "done"
         try:
-            if action == "discover":
+            if hasattr(adapter, "run_custom"):
+                out = adapter.run_custom(action, s, req, params, mission_id, transport=TRANSPORT)
+                req.stats = {**(req.stats or {}), "funnel": out.get("funnel", {})}
+            elif action == "discover":
                 adapter.run_discovery(engine, req)
                 engine.refresh_dirty()
                 adapter.funnel(engine, req)

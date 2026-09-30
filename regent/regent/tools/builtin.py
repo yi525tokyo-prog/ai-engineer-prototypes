@@ -557,7 +557,8 @@ def human_tool() -> Tool:
 
 def default_tools() -> list[Tool]:
     from regent.acquisition.tool import acquire_tool
+    from regent.software.tool import software_tool
 
-    return [acquire_tool(), llm_tool(), search_tool(), browser_tool(), fs_tool(), code_tool(), github_tool(), email_tool(),
+    return [acquire_tool(), software_tool(), llm_tool(), search_tool(), browser_tool(), fs_tool(), code_tool(), github_tool(), email_tool(),
             calendar_tool(), maps_tool(), http_tool(), commerce_tool(), analysis_tool(), payments_tool(),
             agent_tool(), human_tool()]

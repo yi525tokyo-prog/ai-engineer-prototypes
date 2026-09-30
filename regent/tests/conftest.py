@@ -35,6 +35,10 @@ _TMP.mkdir(parents=True, exist_ok=True)
 DB_URL = PG_URL if _pg_available() else f"sqlite:///{_TMP / 'regent_test.db'}"
 os.environ["REGENT_DATABASE_URL"] = DB_URL
 os.environ["REGENT_BACKGROUND_LOOP"] = "0"
+os.environ["REGENT_REASONER"] = "off"          # tests never call a live model; replay tests opt in
+os.environ.pop("REGENT_CODING_AGENT", None)
+for k in ("CLOUDFLARE_API_TOKEN", "STRIPE_RESTRICTED_KEY", "GOOGLE_SEARCH_CONSOLE_TOKEN", "PLAUSIBLE_API_KEY"):
+    os.environ.pop(k, None)
 for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY", "REGENT_SEARCH_API_KEY", "GITHUB_TOKEN",
           "STRIPE_API_KEY"):
     os.environ.pop(k, None)

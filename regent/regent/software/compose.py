@@ -1,0 +1,240 @@
+"""Composing a capability from verified parts.
+
+The composer turns the inventory's *field semantics* into a capability spec
+deterministically: which sources to read, one metric per field that bears on the need (its
+expression chosen from the field's time semantics, its honest form from its relation to the
+need), a headline, and -- for every core question no metric answers well -- an explicit
+"not knowable yet" entry naming the smallest action that would unlock it.
+
+The reasoning worker never writes expressions or code here: it only said what fields mean,
+and Regent checked those readings (quotes found, fields exist). Composition is Regent's.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from regent.software import capability as K
+from regent.software import connectors as C
+from regent.software import expr as X
+
+RELATION_FORM = {"direct": "estimate", "lower_bound": "lower_bound", "upper_bound": "upper_bound",
+                 "activity_signal": "activity"}
+FORM_RANK = {"exact": 5, "estimate": 4, "range": 3, "lower_bound": 2, "upper_bound": 2, "activity": 1}
+
+
+def _sid(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")[:64] or "src"
+
+
+def _source_id(endpoint: str) -> str:
+    if endpoint.startswith("connector:"):
+        return _sid(endpoint.split(":", 1)[1])
+    path = re.sub(r"^https?://[^/]+", "", endpoint)
+    return _sid(path.replace("/api/", "/")) or "api"
+
+
+def metrics_for(field: dict[str, Any], sid: str, windows: list[str]) -> list[dict[str, Any]]:
+    """Metrics a field supports, chosen from how it behaves over time."""
+    path, ts = field["path"], field.get("time_semantics")
+    ref = f"{sid}:{path}"
+    form = RELATION_FORM.get(field.get("relation_to_need"), "activity")
+    base = {"answers": field.get("question"), "form": form, "unit": "people" if form != "activity" else "events",
+            "caveats": list(dict.fromkeys(field.get("caveats") or [])),
+            "source_field": {"source": sid, "path": path, "meaning": field.get("meaning"),
+                             "confidence": field.get("confidence"), "evidence": field.get("evidence")}}
+    mid = _sid(f"{sid}_{path}")
+    out = []
+    if ts == "event_list":
+        key = field.get("timestamp_key")
+        if not key:
+            return [{**base, "id": f"{mid}_seen", "label": f"{field['meaning']}", "expr": f'distinct_items("{ref}")',
+                     "window": "all_time", "definition": f"Distinct items observed in {path}: {field['meaning']}"}]
+        for w in [w for w in windows if w not in ("all_time", "now")][:2] + ["all_time"]:
+            wexpr = "all" if w == "all_time" else w
+            out.append({**base, "id": f"{mid}_{w}", "label": f"{_short(field['meaning'])} ({w.replace('_', ' ')})",
+                        "expr": f'count_items("{ref}", "{key}", "{wexpr}")', "window": w,
+                        "definition": f"Events listed in {path} with {key} inside the window: {field['meaning']}"})
+        return out
+    if ts == "resets_daily":
+        return [{**base, "id": f"{mid}_24h", "label": f"{_short(field['meaning'])} (last 24h)",
+                 "expr": f'increase("{ref}", "24h")', "window": "24h",
+                 "definition": f"Increase of the daily counter {path} over the last 24 hours (resets counted): "
+                               f"{field['meaning']}"}]
+    window = "all_time" if ts == "cumulative" else "now"
+    if form == "lower_bound" and field.get("counts") not in (None, "people"):
+        # a count of *actions* proves only that someone acted: N payments may all be one person
+        return [{**base, "id": f"{mid}_people", "label": "People, at least", "expr": f'min(latest("{ref}"), 1)',
+                 "window": window,
+                 "definition": f"At least one real person, because {path} counts {field.get('counts')} that only "
+                               f"people perform ({field['meaning']}); the actions may all be one person's.",
+                 "caveats": base["caveats"] + [f"{path} counts {field.get('counts')}, not distinct people"]},
+                {**base, "id": mid, "form": "activity", "unit": "events", "label": _short(field["meaning"]),
+                 "expr": f'latest("{ref}")', "window": window, "definition": field["meaning"]}]
+    # cumulative totals and snapshots: the current value is the answer
+    label = {"lower_bound": "People, at least", "upper_bound": "People, at most", "estimate": "People (estimate)"}.get(
+        form) if field.get("counts") == "people" else None
+    return [{**base, "id": mid, "label": label or _short(field["meaning"]), "expr": f'latest("{ref}")',
+             "window": window, "definition": field["meaning"]}]
+
+
+def _short(s: str, n: int = 60) -> str:
+    s = re.split(r"[;(]", s or "")[0].strip()
+    return s if len(s) <= n else s[: n - 1] + "…"
+
+
+def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[str] | None = None,
+            title: str | None = None) -> dict[str, Any]:
+    """Build a capability spec from the inventory. ``include`` lists platform connector ids to
+    wire in (they stay blocked until their credential exists)."""
+    include = include or []
+    fields = [f for f in inventory.get("public_fields", []) if f.get("path_exists")
+              and f.get("relation_to_need") != "unrelated" and float(f.get("confidence") or 0) >= 0.3]
+    windows = sorted({w for q in need.get("questions", []) for w in q.get("windows", [])},
+                     key=lambda w: (X.window_s(w) or 1e12) if re.fullmatch(r"\d+[smhdw]", w or "") else 1e13)
+    sources: dict[str, dict[str, Any]] = {}
+    metrics: list[dict[str, Any]] = []
+    for f in fields:
+        ep = f["endpoint"]
+        if ep.startswith("connector:"):
+            cid = ep.split(":", 1)[1]
+            if cid not in include:
+                continue
+            sid = _sid(cid)
+            if sid not in sources:
+                ps = next((p for p in inventory.get("platform_sources", []) if p["id"] == cid), None)
+                if ps is None:
+                    continue
+                sources[sid] = {"id": sid, "connector": cid, "title": ps["title"], "params": ps["params"],
+                                "access": "credential", "credentials": ps["credentials"],
+                                "footprint": ps["footprint"], "fields": []}
+        else:
+            sid = _source_id(ep)
+            sources.setdefault(sid, {"id": sid, "connector": "http_json", "title": f"GET {ep}",
+                                     "params": {"url": ep, "fields": []}, "access": "public", "credentials": [],
+                                     "footprint": C.HTTP_JSON.footprint, "fields": []})
+            if f["path"] not in sources[sid]["params"]["fields"]:
+                sources[sid]["params"]["fields"].append(f["path"])
+        sources[sid]["fields"].append({"path": f["path"], "meaning": f.get("meaning"),
+                                       "relation": f.get("relation_to_need"), "time_semantics": f.get("time_semantics")})
+        metrics += metrics_for(f, sid, windows)
+    # both ends known for a question: the honest headline is the range between them
+    for q in need.get("questions", []):
+        lows = [m for m in metrics if m.get("answers") == q["id"] and m["form"] == "lower_bound"]
+        highs = [m for m in metrics if m.get("answers") == q["id"] and m["form"] == "upper_bound"
+                 and m["expr"].startswith("latest(")]
+        if lows and highs:
+            lo = lows[0]["expr"] if len(lows) == 1 else "max(" + ", ".join(m["expr"] for m in lows) + ")"
+            hi = highs[0]["expr"] if len(highs) == 1 else "min(" + ", ".join(m["expr"] for m in highs) + ")"
+            metrics.append({
+                "id": f"{_sid(q['id'])}_range", "label": "People, between",
+                "answers": q["id"], "form": "range", "unit": "people", "expr": lo, "expr_hi": hi,
+                "window": "now",
+                "definition": "Lower end: " + "; ".join(m["definition"] for m in lows) + " Upper end: "
+                              + "; ".join(m["definition"] for m in highs) + ". The true number is between them.",
+                "caveats": sorted({c for m in lows + highs for c in m.get("caveats", [])})[:6],
+                "source_field": {"combines": [m["id"] for m in lows + highs]}})
+    # one metric per id
+    seen, uniq = set(), []
+    for m in metrics:
+        if m["id"] not in seen:
+            seen.add(m["id"])
+            uniq.append(m)
+    metrics = uniq
+    core = [q for q in need.get("questions", []) if q.get("priority", "core") == "core"] or need.get("questions", [])
+    # headline: the most direct answer to the first core question, then its lower bounds
+    gated = {sid for sid, src in sources.items() if src["access"] == "credential"}
+
+    def needs_credential(m: dict[str, Any]) -> bool:
+        refs = X.references(m["expr"]) + (X.references(m["expr_hi"]) if m.get("expr_hi") else [])
+        return any(r.split(":", 1)[0] in gated for r in refs)
+
+    for q in core[:1]:
+        cands = sorted([m for m in metrics if m.get("answers") == q["id"]],
+                       key=lambda m: (-FORM_RANK.get(m["form"], 0), m.get("window") != "all_time"))
+        # the best answer, and the best answer readable today (so the view never opens on blanks)
+        picks = cands[:1] + [m for m in cands if not needs_credential(m)][:1]
+        for m in picks:
+            m["headline"] = True
+    unanswered = []
+    platform = {p["id"]: p for p in inventory.get("platform_sources", [])}
+    for q in need.get("questions", []):
+        now_forms = {m["form"] for m in metrics if m.get("answers") == q["id"] and not needs_credential(m)}
+        best_now = _answer_weight(now_forms)
+        if best_now >= K.FORM_WEIGHT["estimate"]:
+            continue
+        unlock = _unlock_for(q, inventory, platform, now_forms, include)
+        why = ("no source Regent can read answers this" if not now_forms else
+               "only activity signals, which are not counts of people" if now_forms <= {"activity"} else
+               "only a bound, not a count" if best_now <= K.FORM_WEIGHT["lower_bound"] else "only a partial answer")
+        if unlock and unlock["connector"] in include:
+            why += (f"; {unlock['title']} is wired in and turns this into "
+                    f"{_FORM_PHRASE.get(unlock['gives'], unlock['gives'])} "
+                    f"once {unlock['credential']} arrives")
+        unanswered.append({"question": q["id"], "question_text": q.get("question"), "why": why, "unlock": unlock,
+                           "priority": q.get("priority", "core")})
+    definitions = [f"{m['label']}: {m['definition']}" + (f" (form: {m['form'].replace('_', ' ')})")
+                   for m in metrics if m.get("headline")]
+    definitions += [f"Not counted as people: {', '.join(core[0].get('exclude') or [])}"] if core else []
+    definitions += [f"Unresolved from outside the product: {d}" for d in need.get("definitions_to_state", [])[:4]]
+    subj = ", ".join(s["name"] for s in need.get("subjects", []))
+    return {
+        "title": title or f"{subj}: {core[0]['question'] if core else need.get('sentence')}"[:120],
+        "slug": f"{subj}-{core[0]['id'] if core else 'need'}",
+        "purpose": need.get("sentence"), "subjects": [s["name"] for s in need.get("subjects", [])],
+        "sources": list(sources.values()), "metrics": metrics, "unanswered": unanswered,
+        "definitions": definitions, "refresh_s": 900 if need.get("deliverable", {}).get("refresh") == "continuous"
+        else 86400, "constraints": ["read_only", "aggregates_only", "no_client_code"]
+        + [f"respects: {c['statement']}" for c in inventory.get("constraints", []) if c.get("evidence_found")],
+        "composed_from": {"fields": len(fields), "include": include},
+    }
+
+
+_FORM_PHRASE = {"range": "a range", "activity": "an activity signal", "lower_bound": "a lower bound",
+                "upper_bound": "an upper bound", "estimate": "an estimate", "exact": "an exact count"}
+
+
+def _answer_weight(forms: set[str]) -> float:
+    w = max((K.FORM_WEIGHT.get(f, 0.0) for f in forms), default=0.0)
+    if {"lower_bound", "upper_bound"} <= forms:
+        w = max(w, K.FORM_WEIGHT["range"])
+    return w
+
+
+def _unlock_for(q: dict[str, Any], inventory: dict[str, Any], platform: dict[str, Any], now_forms: set[str],
+                include: list[str]) -> dict[str, Any] | None:
+    """The single action that improves this answer most: a connector whose field, combined with
+    what is readable today, gives the best honest form (a new upper bound next to a known lower
+    bound makes a range; another lower bound adds nothing). Forbidden sources never qualify."""
+    best = None
+    base = _answer_weight(now_forms)
+    for f in inventory.get("public_fields", []):
+        ep = str(f.get("endpoint", ""))
+        if not ep.startswith("connector:") or f.get("question") != q["id"] or not f.get("path_exists"):
+            continue
+        rel = f.get("relation_to_need")
+        if rel == "unrelated":
+            continue
+        p = platform.get(ep.split(":", 1)[1])
+        if p is None or p.get("forbidden_by"):
+            continue
+        form = RELATION_FORM.get(rel, "activity")
+        after = _answer_weight(now_forms | {form})
+        if after <= base:
+            continue
+        key = (after, p["id"] in include, -p["human_seconds"])
+        if best is None or key > best[0]:
+            host = p.get("host") or ""
+            gives = "range" if {"lower_bound", "upper_bound"} <= (now_forms | {form}) else form
+            best = (key, {"connector": p["id"], "title": p["title"], "credential": (p["credentials"] or [None])[0],
+                          "human_action": p["human_action"].format(zone=host, site=f"https://{host}/"),
+                          "seconds": p["human_seconds"], "form": form, "gives": gives, "field": f["path"]})
+    return best[1] if best else None
+
+
+def coverage_estimate(need: dict[str, Any], inventory: dict[str, Any], include: list[str]) -> float:
+    """Coverage a composed capability would reach if every included source delivered."""
+    spec = compose(need, inventory, include=include)
+    if_delivered = [{**m, "status": "ok", "value": 1} for m in spec["metrics"]]
+    return K.coverage(need, if_delivered)[0]

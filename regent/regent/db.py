@@ -500,6 +500,7 @@ def session() -> Session:
 
 def init_db(drop: bool = False) -> None:
     import regent.acquisition.tables  # noqa: F401  (register acquisition tables)
+    import regent.software.tables  # noqa: F401  (register software capability tables)
 
     eng = engine()
     if eng.dialect.name == "postgresql":
@@ -508,6 +509,24 @@ def init_db(drop: bool = False) -> None:
     if drop:
         Base.metadata.drop_all(eng)
     Base.metadata.create_all(eng)
+    _add_missing_columns(eng)
+
+
+def _add_missing_columns(eng) -> None:
+    """Additive schema evolution: columns added to a model after its table was created are
+    added as nullable columns (never dropped or altered)."""
+    from sqlalchemy import inspect
+
+    insp = inspect(eng)
+    with eng.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if not insp.has_table(table.name):
+                continue
+            have = {c["name"] for c in insp.get_columns(table.name)}
+            for col in table.columns:
+                if col.name not in have:
+                    ddl = col.type.compile(dialect=eng.dialect)
+                    conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN "{col.name}" {ddl}'))
 
 
 def session_scope() -> Iterator[Session]:

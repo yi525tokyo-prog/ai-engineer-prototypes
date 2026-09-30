@@ -74,6 +74,8 @@ class RegentLoop:
         m = self.graph.get(mission_id)
         if m is None:
             raise KeyError(mission_id)
+        self.db.flush()
+        self.db.refresh(m)                  # tools update missions from their own sessions
         rep = TickReport(mission_id=m.id, tick=m.tick_count + 1)
         if m.status in ("completed", "abandoned", "paused"):
             rep.status, rep.idle = m.status, True
@@ -116,16 +118,26 @@ class RegentLoop:
 
         if for_mission(m):
             m.phase = "acquire"
-            acq = self._acquisition_needs(m, world)
-            ran = []
-            if acq["created"]:
-                rep.progress = True
-            if acq["blocking"]:
+            needs, created, ran = [], [], []
+            for _round in range(4):
+                acq = self._acquisition_needs(m, world)
+                needs += acq["needs"]
+                created += acq["created"]
+                if not acq["blocking"]:
+                    break
                 # Nothing is known that strategies could be compared on: acquire first, then
-                # generate and evaluate routes on evidence instead of priors.
+                # generate and evaluate routes on evidence instead of priors. One answer can
+                # reveal the next blocking question (what is needed -> where is it -> what can
+                # answer it), so keep going while acquisition keeps blocking.
                 xr0 = self.executor.run(m, WorldView.load(self.db), only=set(acq["blocking"]))
-                ran = xr0.started
-            rep.phase("acquire", needs=acq["needs"], operations=acq["created"], executed_before_planning=ran)
+                ran += xr0.started
+                self.db.refresh(m)          # acquisition may have updated the mission itself
+                world = WorldView.load(self.db)
+                if not xr0.started or not for_mission(m):
+                    break
+            if created:
+                rep.progress = True
+            rep.phase("acquire", needs=needs, operations=created, executed_before_planning=ran)
 
         # 3. GENERATE ROUTES -------------------------------------------------
         m.phase = "generate"

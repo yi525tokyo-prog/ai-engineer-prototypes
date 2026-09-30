@@ -135,6 +135,7 @@ class HumanInterruptManager:
             raise KeyError(interrupt_id)
         if hi.status != "open":
             return hi
+        response = self._store_secrets(hi, dict(response or {}))
         hi.status = "resolved"
         hi.resolution = resolution
         hi.response = response
@@ -165,7 +166,9 @@ class HumanInterruptManager:
         if source == "principal" or resolution == "condition_observed":
             from regent.core.treasury.treasury import Treasury
 
-            Treasury(self.db).spend("attention", (hi.estimated_time_seconds or 0) / 60.0,
+            active = response.get("active_seconds")
+            Treasury(self.db).spend("attention", (float(active) if isinstance(active, (int, float))
+                                                  else (hi.estimated_time_seconds or 0)) / 60.0,
                                     reason=f"human interrupt: {hi.required_action[:80]}",
                                     operation_id=hi.operation_id, mission_id=hi.mission_id)
         self.events.append("human_completed_action", {"interrupt_id": hi.id, "operation_id": hi.operation_id,
@@ -173,6 +176,19 @@ class HumanInterruptManager:
                                                       "kind": hi.kind},
                            source=source, mission_id=hi.mission_id)
         return hi
+
+    def _store_secrets(self, hi: HumanInterrupt, response: dict[str, Any]) -> dict[str, Any]:
+        """Credentials go to the secret store; the world only learns that they exist."""
+        for key, spec in (hi.response_schema or {}).items():
+            if isinstance(spec, dict) and spec.get("type") == "secret" and response.get(key):
+                from regent.software import secrets
+
+                secrets.put(key, str(response[key]))
+                response[key] = "(stored in Regent's secret store; not recorded)"
+                self.events.append("fact_observed", {"key": f"credential.{key}", "value": "present",
+                                                     "confidence": 1.0, "source": "principal"},
+                                   source="principal", mission_id=hi.mission_id)
+        return response
 
     def check_resume_conditions(self, facts: dict[str, Any], present: set[str]) -> list[HumanInterrupt]:
         """Auto-resolve interrupts whose resume condition now holds."""
