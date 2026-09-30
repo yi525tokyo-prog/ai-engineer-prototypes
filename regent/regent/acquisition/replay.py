@@ -23,11 +23,20 @@ from urllib.parse import urlparse
 
 import httpx
 
-_STRIP = re.compile(r"<(script|style|svg|noscript)\b[^>]*>.*?</\1\s*>|<!--.*?-->", re.S | re.I)
+_STRIP = re.compile(r"<(style|svg|noscript)\b[^>]*>.*?</\1\s*>|<!--.*?-->", re.S | re.I)
+_SCRIPT = re.compile(r"<script\b([^>]*)>(.*?)</script\s*>", re.S | re.I)
+_DATA_SCRIPT = re.compile(r"^\s*(?:(?:window\.[\w$.\[\]'\"]+|var\s+\w+|self\.\w+)\s*=\s*)?[\{\[]", re.S)
 
 
 def slim(html: str) -> str:
-    return _STRIP.sub("", html)
+    """Drop styles, SVG and executable code; keep structured data (JSON-LD, application/json,
+    embedded app state) -- extractors read listings from those."""
+    def keep(m: re.Match) -> str:
+        attrs, body = m.group(1), m.group(2)
+        if re.search(r"application/(?:ld\+)?json|__NEXT_DATA__", attrs, re.I) or _DATA_SCRIPT.match(body):
+            return m.group(0)
+        return ""
+    return _SCRIPT.sub(keep, _STRIP.sub("", html))
 
 
 class ReplayTransport(httpx.BaseTransport):
@@ -37,6 +46,11 @@ class ReplayTransport(httpx.BaseTransport):
         self.pages: dict[str, dict[str, Any]] = idx.get("pages", {})
         self.robots: dict[str, str] = idx.get("robots", {})
         self.requests: list[str] = []
+        # sites put volatile session parameters in links (?lid=<random>): same host+path is the same page
+        self.by_path: dict[str, list[str]] = {}
+        for u in self.pages:
+            p = urlparse(u)
+            self.by_path.setdefault(f"{p.netloc}{p.path}", []).append(u)
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         url = str(request.url)
@@ -47,10 +61,20 @@ class ReplayTransport(httpx.BaseTransport):
             return httpx.Response(200 if txt is not None else 404, text=txt or "", request=request)
         p = self.pages.get(url)
         if p is None:
+            same = self.by_path.get(f"{u.netloc}{u.path}") or []
+            if same:
+                want = set(u.query.split("&"))
+                best = max(same, key=lambda x: len(want & set(urlparse(x).query.split("&"))))
+                p = self.pages[best]
+        if p is None:
             # 503, not 404: a URL that was never recorded says nothing about the listing (a 404
             # would read as "listing ended" to a recheck)
             return httpx.Response(503, text="<html><body>not recorded</body></html>", request=request,
                                   headers={"content-type": "text/html"})
+        final = p.get("final_url")
+        if final and final != url and final in self.pages:
+            # reproduce the recorded redirect: relative links must resolve against the final URL
+            return httpx.Response(302, headers={"location": final}, request=request)
         body = gzip.decompress((self.root / p["file"]).read_bytes()) if p.get("file") else b""
         return httpx.Response(p.get("status", 200), content=body, request=request,
                               headers={"content-type": "text/html; charset=utf-8"})
@@ -87,7 +111,7 @@ def export_fixtures(db, dest: Path | str, *, request_ids: list[str] | None = Non
             entry["file"] = name
         index["pages"][url] = entry
         if d.final_url and d.final_url != url:
-            index["pages"].setdefault(d.final_url, entry)
+            index["pages"].setdefault(d.final_url, {**entry, "final_url": d.final_url})
     for host in {urlparse(u).netloc for u in index["pages"]}:
         src = db.get(AcqSource, host)
         if src is not None and src.robots_txt:

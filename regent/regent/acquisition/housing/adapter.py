@@ -202,7 +202,7 @@ class HousingAdapter(DomainAdapter):
                 AcqEntity.region_id == region["id"], AcqEntity.entity_type == "unit")) or 0
             done.append({**{k: region.get(k) for k in ("id", "name", "country", "utility", "price_ref", "stay_p")},
                          "units": n, "summary": _brief_summary(summary)})
-            engine.request.plan = {**engine.request.plan, "regions_acquired": done}
+            engine.request.plan = {**engine.request.plan, "regions_acquired": list(done)}   # new object: JSON change
             engine.refresh_dirty()
             engine.checkpoint()
         self.active_pack = self.active_region = None

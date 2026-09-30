@@ -195,9 +195,16 @@ class SourceDiscovery:
         """Use the candidate: reach city listings by navigation and count extracted records."""
         e = self.engine
         doc = e.fetch(c.entry_url, purpose="discovery", kind=self.vocab.kind, render="static")
-        rid = recipe_id(self.domain, country, c.host)
         if doc is None:
             return {"host": c.host, "status": "skipped", "why": "budget"}
+        if doc.ok and urlparse(doc.final_url).netloc and urlparse(doc.final_url).netloc != c.host:
+            # the probed domain redirects (alquiler.es -> fotocasa.es): the source is the final site
+            c = Candidate(urlparse(doc.final_url).netloc, doc.final_url, c.channel,
+                          {**c.evidence, "reached_via": c.entry_url})
+            if c.host in self.registry.known_hosts():
+                return {"host": c.host, "status": "known", "why": f"already registered (reached via "
+                                                                  f"{c.evidence['reached_via']})"}
+        rid = recipe_id(self.domain, country, c.host)
         status, why = None, None
         if not doc.ok:
             status = "blocked" if doc.blocked else "rejected"

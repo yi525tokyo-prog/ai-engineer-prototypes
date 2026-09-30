@@ -19,6 +19,7 @@ from regent.acquisition.tables import AcqClaim, AcqDocument, AcqEntity, AcqReque
 from regent.acquisition.types import FetchedDocument
 
 FIX = Path(__file__).parent / "fixtures" / "web"
+FIX_GLOBAL = Path(__file__).parent / "fixtures" / "web_global"
 JP_ONLY = {"regions": [{"name": "東京都", "country": "JP"}], "household": 1, "max_areas": 1}
 
 
@@ -102,10 +103,46 @@ def test_discovery_from_entry_pages_without_any_candidate_list(db, web):
     assert "## 1." in out["brief_markdown"]
 
 
-def test_loop_acquires_the_world_from_a_mission_sentence(db, services, web):
-    """Only the mission text. The loop's ACQUIRE phase notices it knows no housing options,
-    runs discovery on the (recorded) web, projects candidates into the world and competes
-    housing strategies -- including not signing anything yet."""
+@pytest.fixture()
+def world_web(monkeypatch):
+    """Pages Regent recorded while acquiring housing across five regions on three continents."""
+    t = ReplayTransport(FIX_GLOBAL)
+    monkeypatch.setattr(service, "TRANSPORT", t)
+    monkeypatch.setattr(service, "ENGINE_KW", {"max_pages": 280, "min_interval_s": 0, "deadline_s": 900})
+    return t
+
+
+def test_geography_is_decided_not_assumed(db, world_web):
+    """Only the sentence. Regent builds a candidate world from public directories, prices it live,
+    and acquires regions in several countries -- the principal's apparent country is evidence."""
+    out = service.run_action("discover", mission_id=None,
+                             params={"mission_text": "住居を安定させたい", "household": 1, "assumptions": []})
+    db.expire_all()
+    req = db.get(AcqRequest, out["request_id"])
+    plan = req.plan
+    assert plan["principal"]["home"] == "JP" and "weak signal" in plan["principal"]["home_evidence"]
+    countries = {r["country"] for r in plan["regions"]}
+    assert len(countries - {"JP"}) >= 2, countries
+    assert plan["regions_rejected"] and all(r["reason"] for r in plan["regions_rejected"])
+    acquired = {r["country"]: r["units"] for r in plan["regions_acquired"]}
+    assert sum(1 for cc, n in acquired.items() if cc != "JP" and n >= 5) >= 2
+    # money is compared in one reference currency (ECB rates), amounts stay in their own currency
+    assert plan["ref_currency"] == "JPY" and plan["fx"]["per_eur"]["JPY"] > 0
+    cur = {c.value for c in db.scalars(select(AcqClaim).where(AcqClaim.attribute == "currency"))}
+    assert {"EUR", "NZD"} <= cur
+    # a country without a pack or seeds bootstrapped its own source from the web
+    from regent.acquisition.tables import AcqSourceRecipe
+
+    es = db.scalars(select(AcqSourceRecipe).where(AcqSourceRecipe.scope == "ES")).all()
+    assert any(r.status == "verified" and r.origin.startswith("discovered:") for r in es)
+    assert any(r.status in ("blocked", "rejected") and (r.evidence or {}).get("why") for r in es)
+    # every region's shortlist exists; three per region in multi-region mode
+    assert out["funnel"]["shortlisted"] >= 3 * len(acquired) - 3
+
+
+def test_loop_acquires_the_world_from_a_mission_sentence(db, services, world_web):
+    """Only the mission text. The ACQUIRE phase runs discovery before any strategy is compared,
+    then strategies compete across borders -- including not signing anything yet."""
     from regent.core.goals.missions import MissionGraph
     from regent.core.loop import RegentLoop
     from regent.db import Operation, Route
@@ -116,23 +153,20 @@ def test_loop_acquires_the_world_from_a_mission_sentence(db, services, web):
     first = reps[0]
     acq = next(p for p in first.phases if p["phase"] == "acquire")
     assert acq["operations"] and acq["needs"][0]["action"] == "discover"
-    # strategies are not compared on priors: the blocking acquisition runs before planning,
-    # so the very first generation already sees live candidates (the lease route exists)
     assert acq["executed_before_planning"]
-    gen = next(p for p in first.phases if p["phase"] == "generate")
-    assert "housing-lease" in gen["created"]
     op = db.scalar(select(Operation).where(Operation.mission_id == m.id, Operation.tool == "acquire",
                                            Operation.action == "discover"))
-    assert op.status == "succeeded" and op.outputs["funnel"]["shortlisted"] >= 1
+    assert op.status == "succeeded" and op.outputs["funnel"]["shortlisted"] >= 3
     from regent.core.world.state import WorldView
 
     world = WorldView.load(db)
-    units = [e for e in world.entities.values() if e.kind == "unit"]
-    assert any(e.attrs.get("stage") == "shortlisted" for e in units)
-    keys = {r.key for r in db.scalars(select(Route).where(Route.mission_id == m.id))}
-    assert {"housing-lease", "housing-monthly", "housing-share", "housing-defer"} <= keys
-    lease = db.scalar(select(Route).where(Route.mission_id == m.id, Route.key == "housing-lease"))
-    assert "Best evidenced candidate" in lease.thesis
+    regions = [e for e in world.entities.values() if e.kind == "region"]
+    assert len({e.attrs.get("country") for e in regions}) >= 3
+    routes = list(db.scalars(select(Route).where(Route.mission_id == m.id)))
+    abroad = [r for r in routes if "relocation" in (r.tags or [])]
+    home = [r for r in routes if r.key.startswith("housing-lease-jp")]
+    assert len(abroad) >= 2 and home and any(r.key == "housing-defer" for r in routes)
+    assert all(any(u["fact_key"].startswith("principal.right_to_reside.") for u in r.uncertainty) for r in abroad)
 
 
 def test_acquisition_api_exposes_hypotheses_with_provenance(db, web, live_server):
