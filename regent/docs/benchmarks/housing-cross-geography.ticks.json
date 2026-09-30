@@ -4,11 +4,11 @@
   "status": "active",
   "idle": false,
   "progress": true,
-  "seconds": 653,
+  "seconds": 665,
   "phases": [
    {
     "phase": "observe",
-    "at": "2026-09-30T08:16:52.592055+00:00",
+    "at": "2026-09-30T08:44:04.713236+00:00",
     "new_events": 1,
     "external": [
      "mission_created#1"
@@ -17,16 +17,16 @@
    },
    {
     "phase": "model",
-    "at": "2026-09-30T08:16:52.651685+00:00",
+    "at": "2026-09-30T08:44:04.789451+00:00",
     "event_seq": 1,
-    "snapshot": "snap_0debb5ffb4e0",
+    "snapshot": "snap_684f98de4257",
     "entities": 0,
     "facts": 0,
     "runway_months": null
    },
    {
     "phase": "acquire",
-    "at": "2026-09-30T08:27:06.141763+00:00",
+    "at": "2026-09-30T08:54:25.670326+00:00",
     "needs": [
      {
       "action": "discover",
@@ -44,17 +44,18 @@
      "acquire.discover.1: no live housing options are known anywhere: cannot compare strategies"
     ],
     "executed_before_planning": [
-     "op_a570bec9c316"
+     "op_ef789aba7b0a"
     ]
    },
    {
     "phase": "generate",
-    "at": "2026-09-30T08:27:06.266261+00:00",
+    "at": "2026-09-30T08:54:25.807982+00:00",
     "reason": "no live routes",
     "created": [
-     "housing-lease-jp-osaka",
      "housing-lease-jp-tokyo",
+     "housing-lease-jp-osaka",
      "housing-lease-de-berlin",
+     "housing-lease-nz-auckland",
      "housing-monthly",
      "housing-share",
      "housing-hostel",
@@ -68,50 +69,50 @@
    },
    {
     "phase": "evaluate",
-    "at": "2026-09-30T08:27:06.349368+00:00",
+    "at": "2026-09-30T08:54:25.929674+00:00",
     "ranking": [
      {
-      "route_id": "rt_1abf8f3e6aa6",
+      "route_id": "rt_d9b994763cdb",
       "key": "housing-lease-jp-osaka",
       "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+1 backups)",
-      "score": 2.4877,
+      "score": 2.5582,
       "rank": 1,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_51610c3f9584",
+      "route_id": "rt_6eac6600a71a",
       "key": "housing-share",
       "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.313,
+      "score": 2.4152,
       "rank": 2,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_b53856b7bf67",
+      "route_id": "rt_5fe28d346542",
       "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F #103",
-      "score": 1.2013,
+      "title": "Lease now in Tokyo: ハーモニーテラス北小岩XIV 1K 16.63m² 1F",
+      "score": 1.4142,
       "rank": 3,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_2b40ddd4d5ac",
+      "route_id": "rt_aa4e43e36b5b",
       "key": "housing-monthly",
       "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.1106,
+      "score": 1.3035,
       "rank": 4,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_c7ede59c15a8",
+      "route_id": "rt_87cac579b709",
       "key": "housing-defer",
       "title": "Don't commit until work location and right to stay are known",
       "score": 0.8588,
@@ -121,21 +122,31 @@
       "invalid": []
      },
      {
-      "route_id": "rt_c1b70eaf682b",
+      "route_id": "rt_1528ab4d1def",
       "key": "housing-hostel",
       "title": "Stay in hostels/hotels day by day",
-      "score": 0.6014,
+      "score": 0.6356,
       "rank": 6,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_29ae8ea0b6b6",
+      "route_id": "rt_dc9c7c7844be",
       "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": -0.1803,
+      "title": "Move to Berlin (DE) and lease: apartment (Berlin) (+1 backups)",
+      "score": 0.3672,
       "rank": 7,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_6b7bda8cbde7",
+      "key": "housing-lease-nz-auckland",
+      "title": "Move to Auckland (NZ) and lease: 1105b/8 Lakewood C, Manukau studio",
+      "score": -0.1803,
+      "rank": 8,
       "selectable": true,
       "blocked": [],
       "invalid": []
@@ -145,15 +156,20 @@
      {
       "fact": "principal.right_to_reside.JP",
       "flips_selection": true,
-      "voi": 2.528
+      "voi": 2.5597
      },
      {
       "fact": "principal.max_rent",
       "flips_selection": true,
-      "voi": 1.4766
+      "voi": 1.5083
      },
      {
       "fact": "principal.right_to_reside.DE",
+      "flips_selection": true,
+      "voi": 0.1508
+     },
+     {
+      "fact": "principal.right_to_reside.NZ",
       "flips_selection": false,
       "voi": 0.0
      },
@@ -166,15 +182,15 @@
    },
    {
     "phase": "select",
-    "at": "2026-09-30T08:27:06.349385+00:00",
+    "at": "2026-09-30T08:54:25.929694+00:00",
     "kind": "route_selected",
     "selected": "housing-lease-jp-osaka",
-    "reason": "initial selection: 'Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+1 backups)' ranks first (2.488)",
-    "decision": "dec_5e5389bde741"
+    "reason": "initial selection: 'Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+1 backups)' ranks first (2.558)",
+    "decision": "dec_f3053fbcf898"
    },
    {
     "phase": "decompose",
-    "at": "2026-09-30T08:27:06.364684+00:00",
+    "at": "2026-09-30T08:54:25.947278+00:00",
     "operations": [
      "lease.recheck (acquire.recheck, AUTO)",
      "lease.brief (fs.write, AUTO)",
@@ -185,7 +201,7 @@
    },
    {
     "phase": "execute",
-    "at": "2026-09-30T08:27:45.856975+00:00",
+    "at": "2026-09-30T08:55:09.669866+00:00",
     "started": 2,
     "interrupts": [],
     "blocked": [],
@@ -193,7 +209,7 @@
    },
    {
     "phase": "verify",
-    "at": "2026-09-30T08:27:45.874646+00:00",
+    "at": "2026-09-30T08:55:09.685436+00:00",
     "verified": [
      {
       "op": "acquire.discover.1",
@@ -214,17 +230,17 @@
    },
    {
     "phase": "update_world",
-    "at": "2026-09-30T08:27:45.874660+00:00",
+    "at": "2026-09-30T08:55:09.685447+00:00",
     "evidence": [
-     "evd_7478a2b9a8ad",
-     "evd_be797262593c",
-     "evd_ede6137cac6e"
+     "evd_1adc1788dbce",
+     "evd_62fbf230da5b",
+     "evd_33c284b31331"
     ],
     "notes": []
    },
    {
     "phase": "replan",
-    "at": "2026-09-30T08:27:45.967751+00:00",
+    "at": "2026-09-30T08:55:09.794803+00:00",
     "kind": "plan_kept",
     "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
@@ -234,30 +250,30 @@
  },
  {
   "tick": 2,
-  "status": "monitoring",
+  "status": "active",
   "idle": false,
   "progress": true,
-  "seconds": 741,
+  "seconds": 724,
   "phases": [
    {
     "phase": "observe",
-    "at": "2026-09-30T08:27:45.998102+00:00",
+    "at": "2026-09-30T08:55:09.824041+00:00",
     "new_events": 0,
     "external": [],
     "resumed_interrupts": []
    },
    {
     "phase": "model",
-    "at": "2026-09-30T08:27:46.025633+00:00",
-    "event_seq": 315,
-    "snapshot": "snap_4040293fe724",
-    "entities": 94,
+    "at": "2026-09-30T08:55:09.846608+00:00",
+    "event_seq": 310,
+    "snapshot": "snap_c8921d8a5aa2",
+    "entities": 91,
     "facts": 13,
     "runway_months": null
    },
    {
     "phase": "acquire",
-    "at": "2026-09-30T08:27:46.047600+00:00",
+    "at": "2026-09-30T08:55:09.867217+00:00",
     "needs": [
      {
       "action": "enrich",
@@ -278,12 +294,14 @@
    },
    {
     "phase": "generate",
-    "at": "2026-09-30T08:27:46.085404+00:00",
+    "at": "2026-09-30T08:55:09.904834+00:00",
     "reason": "world entities changed",
     "created": [],
     "updated": [
-     "housing-lease-jp-osaka",
      "housing-lease-jp-tokyo",
+     "housing-lease-jp-osaka",
+     "housing-lease-de-berlin",
+     "housing-lease-nz-auckland",
      "housing-monthly",
      "housing-share",
      "housing-hostel",
@@ -296,50 +314,50 @@
    },
    {
     "phase": "evaluate",
-    "at": "2026-09-30T08:27:46.184078+00:00",
+    "at": "2026-09-30T08:55:09.993513+00:00",
     "ranking": [
      {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.313,
+      "route_id": "rt_d9b994763cdb",
+      "key": "housing-lease-jp-osaka",
+      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+2 backups)",
+      "score": 3.2857,
       "rank": 1,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: アンプルールクラージュCURE 1K 28.98m² 2F",
-      "score": 1.9863,
+      "route_id": "rt_6eac6600a71a",
+      "key": "housing-share",
+      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
+      "score": 2.4152,
       "rank": 2,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_b53856b7bf67",
+      "route_id": "rt_5fe28d346542",
       "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.5082,
+      "title": "Lease now in Tokyo: ハーモニーテラス北小岩XIV 1K 16.63m² 1F",
+      "score": 2.0527,
       "rank": 3,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_2b40ddd4d5ac",
+      "route_id": "rt_aa4e43e36b5b",
       "key": "housing-monthly",
       "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.1038,
+      "score": 1.2968,
       "rank": 4,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_c7ede59c15a8",
+      "route_id": "rt_87cac579b709",
       "key": "housing-defer",
       "title": "Don't commit until work location and right to stay are known",
       "score": 0.8565,
@@ -349,21 +367,31 @@
       "invalid": []
      },
      {
-      "route_id": "rt_c1b70eaf682b",
+      "route_id": "rt_1528ab4d1def",
       "key": "housing-hostel",
       "title": "Stay in hostels/hotels day by day",
-      "score": 0.5446,
+      "score": 0.6334,
       "rank": 6,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_29ae8ea0b6b6",
+      "route_id": "rt_dc9c7c7844be",
       "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": -0.1803,
+      "title": "Move to Berlin (DE) and lease: apartment (Berlin) (+1 backups)",
+      "score": 0.3672,
       "rank": 7,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_6b7bda8cbde7",
+      "key": "housing-lease-nz-auckland",
+      "title": "Move to Auckland (NZ) and lease: 1105b/8 Lakewood C, Manukau studio",
+      "score": -0.1803,
+      "rank": 8,
       "selectable": true,
       "blocked": [],
       "invalid": []
@@ -373,15 +401,20 @@
      {
       "fact": "principal.right_to_reside.JP",
       "flips_selection": true,
-      "voi": 0.4014
+      "voi": 2.5599
      },
      {
       "fact": "principal.max_rent",
+      "flips_selection": true,
+      "voi": 1.2174
+     },
+     {
+      "fact": "principal.right_to_reside.DE",
       "flips_selection": false,
       "voi": 0.0
      },
      {
-      "fact": "principal.right_to_reside.DE",
+      "fact": "principal.right_to_reside.NZ",
       "flips_selection": false,
       "voi": 0.0
      },
@@ -394,30 +427,35 @@
    },
    {
     "phase": "select",
-    "at": "2026-09-30T08:27:46.184098+00:00",
-    "kind": "plan_changed",
-    "selected": "housing-share",
-    "reason": "'Room in a shared house (cheapest evidence: Tokyo, JP)' (2.313) now beats incumbent 'Lease now in Osaka: アンプルールクラージュCURE 1K 28.98m² 2F' (1.986) by more than 0.03",
-    "decision": "dec_fce8dd680430"
+    "at": "2026-09-30T08:55:09.993530+00:00",
+    "kind": "plan_kept",
+    "selected": "housing-lease-jp-osaka",
+    "reason": "incumbent still best",
+    "decision": null
    },
    {
     "phase": "decompose",
-    "at": "2026-09-30T08:27:46.191365+00:00",
+    "at": "2026-09-30T08:55:10.001353+00:00",
     "operations": [],
     "acquisitions": []
    },
    {
     "phase": "execute",
-    "at": "2026-09-30T08:29:13.651567+00:00",
-    "started": 1,
+    "at": "2026-09-30T08:56:08.311516+00:00",
+    "started": 2,
     "interrupts": [],
     "blocked": [],
     "authority": []
    },
    {
     "phase": "verify",
-    "at": "2026-09-30T08:29:13.657652+00:00",
+    "at": "2026-09-30T08:56:08.321285+00:00",
     "verified": [
+     {
+      "op": "lease.brief",
+      "verdict": "pass",
+      "method": "schema"
+     },
      {
       "op": "acquire.enrich.2",
       "verdict": "pass",
@@ -427,17 +465,18 @@
    },
    {
     "phase": "update_world",
-    "at": "2026-09-30T08:29:13.657666+00:00",
+    "at": "2026-09-30T08:56:08.321300+00:00",
     "evidence": [
-     "evd_37e27cc16aae"
+     "evd_21261915ec03",
+     "evd_6bc50bf046b7"
     ],
     "notes": []
    },
    {
     "phase": "replan",
-    "at": "2026-09-30T08:29:13.764065+00:00",
+    "at": "2026-09-30T08:56:08.439613+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
     "decision": null
    }
@@ -445,30 +484,30 @@
  },
  {
   "tick": 3,
-  "status": "monitoring",
+  "status": "waiting_human",
   "idle": false,
   "progress": true,
-  "seconds": 787,
+  "seconds": 765,
   "phases": [
    {
     "phase": "observe",
-    "at": "2026-09-30T08:29:13.939185+00:00",
+    "at": "2026-09-30T08:56:08.468207+00:00",
     "new_events": 0,
     "external": [],
     "resumed_interrupts": []
    },
    {
     "phase": "model",
-    "at": "2026-09-30T08:29:13.976135+00:00",
-    "event_seq": 411,
-    "snapshot": "snap_cacf1c6adea4",
-    "entities": 115,
-    "facts": 13,
+    "at": "2026-09-30T08:56:08.494265+00:00",
+    "event_seq": 404,
+    "snapshot": "snap_4b6aba080d1e",
+    "entities": 110,
+    "facts": 14,
     "runway_months": null
    },
    {
     "phase": "acquire",
-    "at": "2026-09-30T08:29:14.012587+00:00",
+    "at": "2026-09-30T08:56:08.529781+00:00",
     "needs": [
      {
       "action": "enrich",
@@ -489,10 +528,15 @@
    },
    {
     "phase": "generate",
-    "at": "2026-09-30T08:29:14.043565+00:00",
+    "at": "2026-09-30T08:56:08.569445+00:00",
     "reason": "world entities changed",
-    "created": [],
+    "created": [
+     "housing-lease-es-madrid"
+    ],
     "updated": [
+     "housing-lease-nz-auckland",
+     "housing-lease-jp-tokyo",
+     "housing-lease-de-berlin",
      "housing-monthly",
      "housing-share",
      "housing-hostel",
@@ -505,50 +549,50 @@
    },
    {
     "phase": "evaluate",
-    "at": "2026-09-30T08:29:14.125808+00:00",
+    "at": "2026-09-30T08:56:08.701046+00:00",
     "ranking": [
      {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.313,
+      "route_id": "rt_d9b994763cdb",
+      "key": "housing-lease-jp-osaka",
+      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+2 backups)",
+      "score": 3.2866,
       "rank": 1,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: アンプルールクラージュCURE 1K 28.98m² 2F",
-      "score": 1.9863,
+      "route_id": "rt_6eac6600a71a",
+      "key": "housing-share",
+      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
+      "score": 2.4165,
       "rank": 2,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_b53856b7bf67",
+      "route_id": "rt_5fe28d346542",
       "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.5082,
+      "title": "Lease now in Tokyo: ハーモニーテラス北小岩XIV 1K 16.63m² 1F",
+      "score": 2.0535,
       "rank": 3,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_2b40ddd4d5ac",
+      "route_id": "rt_aa4e43e36b5b",
       "key": "housing-monthly",
       "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.1016,
+      "score": 1.2969,
       "rank": 4,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_c7ede59c15a8",
+      "route_id": "rt_87cac579b709",
       "key": "housing-defer",
       "title": "Don't commit until work location and right to stay are known",
       "score": 0.8558,
@@ -558,21 +602,31 @@
       "invalid": []
      },
      {
-      "route_id": "rt_c1b70eaf682b",
+      "route_id": "rt_1528ab4d1def",
       "key": "housing-hostel",
       "title": "Stay in hostels/hotels day by day",
-      "score": 0.707,
+      "score": 0.6335,
       "rank": 6,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_29ae8ea0b6b6",
-      "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": -0.1803,
+      "route_id": "rt_6b7bda8cbde7",
+      "key": "housing-lease-nz-auckland",
+      "title": "Move to Auckland (NZ) and lease: Hyperfibre 2000 apartment (+1 backups)",
+      "score": 0.4271,
       "rank": 7,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_dc9c7c7844be",
+      "key": "housing-lease-de-berlin",
+      "title": "Move to Berlin (DE) and lease: apartment (Berlin) (+1 backups)",
+      "score": 0.3698,
+      "rank": 8,
       "selectable": true,
       "blocked": [],
       "invalid": []
@@ -582,10 +636,20 @@
      {
       "fact": "principal.right_to_reside.JP",
       "flips_selection": true,
-      "voi": 0.4014
+      "voi": 2.5603
      },
      {
       "fact": "principal.max_rent",
+      "flips_selection": true,
+      "voi": 1.2178
+     },
+     {
+      "fact": "principal.right_to_reside.NZ",
+      "flips_selection": false,
+      "voi": 0.0
+     },
+     {
+      "fact": "principal.right_to_reside.ES",
       "flips_selection": false,
       "voi": 0.0
      },
@@ -593,39 +657,36 @@
       "fact": "principal.right_to_reside.DE",
       "flips_selection": false,
       "voi": 0.0
-     },
-     {
-      "fact": "principal.work_location",
-      "flips_selection": false,
-      "voi": 0.0
      }
     ]
    },
    {
     "phase": "select",
-    "at": "2026-09-30T08:29:14.125824+00:00",
+    "at": "2026-09-30T08:56:08.701064+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
-    "decision": null
+    "decision": "dec_843462ccbc30"
    },
    {
     "phase": "decompose",
-    "at": "2026-09-30T08:29:14.132876+00:00",
+    "at": "2026-09-30T08:56:08.710297+00:00",
     "operations": [],
     "acquisitions": []
    },
    {
     "phase": "execute",
-    "at": "2026-09-30T08:29:59.401489+00:00",
+    "at": "2026-09-30T08:56:49.736828+00:00",
     "started": 1,
-    "interrupts": [],
+    "interrupts": [
+     "hi_87081293fed9"
+    ],
     "blocked": [],
     "authority": []
    },
    {
     "phase": "verify",
-    "at": "2026-09-30T08:29:59.407991+00:00",
+    "at": "2026-09-30T08:56:49.744547+00:00",
     "verified": [
      {
       "op": "acquire.enrich.3",
@@ -636,17 +697,17 @@
    },
    {
     "phase": "update_world",
-    "at": "2026-09-30T08:29:59.408006+00:00",
+    "at": "2026-09-30T08:56:49.744565+00:00",
     "evidence": [
-     "evd_1860d65c582b"
+     "evd_ddeabb3d11b7"
     ],
     "notes": []
    },
    {
     "phase": "replan",
-    "at": "2026-09-30T08:29:59.504032+00:00",
+    "at": "2026-09-30T08:56:49.945582+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
     "decision": null
    }
@@ -654,30 +715,30 @@
  },
  {
   "tick": 4,
-  "status": "monitoring",
+  "status": "waiting_human",
   "idle": false,
   "progress": true,
-  "seconds": 793,
+  "seconds": 770,
   "phases": [
    {
     "phase": "observe",
-    "at": "2026-09-30T08:29:59.569127+00:00",
+    "at": "2026-09-30T08:56:50.035793+00:00",
     "new_events": 0,
     "external": [],
     "resumed_interrupts": []
    },
    {
     "phase": "model",
-    "at": "2026-09-30T08:29:59.597230+00:00",
-    "event_seq": 500,
-    "snapshot": "snap_6f1a0feb5081",
-    "entities": 122,
-    "facts": 13,
+    "at": "2026-09-30T08:56:50.068069+00:00",
+    "event_seq": 496,
+    "snapshot": "snap_b2c0768a0819",
+    "entities": 114,
+    "facts": 14,
     "runway_months": null
    },
    {
     "phase": "acquire",
-    "at": "2026-09-30T08:29:59.643182+00:00",
+    "at": "2026-09-30T08:56:50.139488+00:00",
     "needs": [
      {
       "action": "enrich",
@@ -698,11 +759,13 @@
    },
    {
     "phase": "generate",
-    "at": "2026-09-30T08:29:59.675497+00:00",
+    "at": "2026-09-30T08:56:50.186924+00:00",
     "reason": "world entities changed",
     "created": [],
     "updated": [
-     "housing-lease-jp-osaka",
+     "housing-lease-nz-auckland",
+     "housing-lease-jp-tokyo",
+     "housing-lease-de-berlin",
      "housing-monthly",
      "housing-share",
      "housing-hostel",
@@ -715,74 +778,84 @@
    },
    {
     "phase": "evaluate",
-    "at": "2026-09-30T08:29:59.755929+00:00",
+    "at": "2026-09-30T08:56:50.351144+00:00",
     "ranking": [
      {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.313,
+      "route_id": "rt_d9b994763cdb",
+      "key": "housing-lease-jp-osaka",
+      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+2 backups)",
+      "score": 3.2866,
       "rank": 1,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_b53856b7bf67",
-      "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.5082,
+      "route_id": "rt_6eac6600a71a",
+      "key": "housing-share",
+      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
+      "score": 2.4165,
       "rank": 2,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_2b40ddd4d5ac",
-      "key": "housing-monthly",
-      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.1011,
+      "route_id": "rt_5fe28d346542",
+      "key": "housing-lease-jp-tokyo",
+      "title": "Lease now in Tokyo: ハーモニーテラス北小岩XIV 1K 16.63m² 1F",
+      "score": 2.0535,
       "rank": 3,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_c7ede59c15a8",
-      "key": "housing-defer",
-      "title": "Don't commit until work location and right to stay are known",
-      "score": 0.8556,
+      "route_id": "rt_aa4e43e36b5b",
+      "key": "housing-monthly",
+      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
+      "score": 1.2964,
       "rank": 4,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 6F #601",
-      "score": 0.8293,
+      "route_id": "rt_87cac579b709",
+      "key": "housing-defer",
+      "title": "Don't commit until work location and right to stay are known",
+      "score": 0.8556,
       "rank": 5,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_c1b70eaf682b",
+      "route_id": "rt_1528ab4d1def",
       "key": "housing-hostel",
       "title": "Stay in hostels/hotels day by day",
-      "score": 0.602,
+      "score": 0.647,
       "rank": 6,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_29ae8ea0b6b6",
-      "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": -0.1803,
+      "route_id": "rt_6b7bda8cbde7",
+      "key": "housing-lease-nz-auckland",
+      "title": "Move to Auckland (NZ) and lease: Hyperfibre 2000 apartment (+1 backups)",
+      "score": 0.4271,
       "rank": 7,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_dc9c7c7844be",
+      "key": "housing-lease-de-berlin",
+      "title": "Move to Berlin (DE) and lease: apartment (Berlin) (+1 backups)",
+      "score": 0.3698,
+      "rank": 8,
       "selectable": true,
       "blocked": [],
       "invalid": []
@@ -790,7 +863,22 @@
     ],
     "uncertainties": [
      {
+      "fact": "principal.right_to_reside.JP",
+      "flips_selection": true,
+      "voi": 2.5603
+     },
+     {
       "fact": "principal.max_rent",
+      "flips_selection": true,
+      "voi": 1.2178
+     },
+     {
+      "fact": "principal.right_to_reside.ES",
+      "flips_selection": false,
+      "voi": 0.0
+     },
+     {
+      "fact": "principal.right_to_reside.NZ",
       "flips_selection": false,
       "voi": 0.0
      },
@@ -798,36 +886,26 @@
       "fact": "principal.right_to_reside.DE",
       "flips_selection": false,
       "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.JP",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.work_location",
-      "flips_selection": false,
-      "voi": 0.0
      }
     ]
    },
    {
     "phase": "select",
-    "at": "2026-09-30T08:29:59.755978+00:00",
+    "at": "2026-09-30T08:56:50.351162+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
-    "decision": "dec_fd7667e23dfa"
+    "decision": null
    },
    {
     "phase": "decompose",
-    "at": "2026-09-30T08:29:59.764184+00:00",
+    "at": "2026-09-30T08:56:50.362246+00:00",
     "operations": [],
     "acquisitions": []
    },
    {
     "phase": "execute",
-    "at": "2026-09-30T08:30:05.630559+00:00",
+    "at": "2026-09-30T08:56:54.919303+00:00",
     "started": 1,
     "interrupts": [],
     "blocked": [],
@@ -835,7 +913,7 @@
    },
    {
     "phase": "verify",
-    "at": "2026-09-30T08:30:05.634756+00:00",
+    "at": "2026-09-30T08:56:54.924007+00:00",
     "verified": [
      {
       "op": "acquire.enrich.4",
@@ -846,17 +924,17 @@
    },
    {
     "phase": "update_world",
-    "at": "2026-09-30T08:30:05.634766+00:00",
+    "at": "2026-09-30T08:56:54.924021+00:00",
     "evidence": [
-     "evd_f7a845394f7c"
+     "evd_8fd221327f87"
     ],
     "notes": []
    },
    {
     "phase": "replan",
-    "at": "2026-09-30T08:30:05.805335+00:00",
+    "at": "2026-09-30T08:56:55.079521+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
     "decision": null
    }
@@ -864,30 +942,30 @@
  },
  {
   "tick": 5,
-  "status": "monitoring",
+  "status": "waiting_human",
   "idle": false,
   "progress": true,
-  "seconds": 797,
+  "seconds": 775,
   "phases": [
    {
     "phase": "observe",
-    "at": "2026-09-30T08:30:05.873480+00:00",
+    "at": "2026-09-30T08:56:55.159620+00:00",
     "new_events": 0,
     "external": [],
     "resumed_interrupts": []
    },
    {
     "phase": "model",
-    "at": "2026-09-30T08:30:05.904140+00:00",
-    "event_seq": 589,
-    "snapshot": "snap_48b827132c49",
-    "entities": 130,
-    "facts": 13,
+    "at": "2026-09-30T08:56:55.185256+00:00",
+    "event_seq": 583,
+    "snapshot": "snap_fff148d49527",
+    "entities": 118,
+    "facts": 14,
     "runway_months": null
    },
    {
     "phase": "acquire",
-    "at": "2026-09-30T08:30:05.941152+00:00",
+    "at": "2026-09-30T08:56:55.224285+00:00",
     "needs": [
      {
       "action": "enrich",
@@ -908,13 +986,13 @@
    },
    {
     "phase": "generate",
-    "at": "2026-09-30T08:30:05.977825+00:00",
+    "at": "2026-09-30T08:56:55.255465+00:00",
     "reason": "world entities changed",
-    "created": [
-     "housing-lease-es-madrid"
-    ],
+    "created": [],
     "updated": [
-     "housing-lease-jp-osaka",
+     "housing-lease-nz-auckland",
+     "housing-lease-es-madrid",
+     "housing-lease-jp-tokyo",
      "housing-monthly",
      "housing-share",
      "housing-hostel",
@@ -927,50 +1005,50 @@
    },
    {
     "phase": "evaluate",
-    "at": "2026-09-30T08:30:06.085086+00:00",
+    "at": "2026-09-30T08:56:55.382983+00:00",
     "ranking": [
      {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.5002,
+      "route_id": "rt_d9b994763cdb",
+      "key": "housing-lease-jp-osaka",
+      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+2 backups)",
+      "score": 3.2618,
       "rank": 1,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_b53856b7bf67",
-      "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.7563,
+      "route_id": "rt_6eac6600a71a",
+      "key": "housing-share",
+      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
+      "score": 2.3806,
       "rank": 2,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_2b40ddd4d5ac",
-      "key": "housing-monthly",
-      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.4492,
+      "route_id": "rt_5fe28d346542",
+      "key": "housing-lease-jp-tokyo",
+      "title": "Lease now in Tokyo: ハーモニーテラス北小岩XIV 1K 16.63m² 1F",
+      "score": 2.0318,
       "rank": 3,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 6F #601",
-      "score": 0.9609,
+      "route_id": "rt_aa4e43e36b5b",
+      "key": "housing-monthly",
+      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
+      "score": 1.2307,
       "rank": 4,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_c7ede59c15a8",
+      "route_id": "rt_87cac579b709",
       "key": "housing-defer",
       "title": "Don't commit until work location and right to stay are known",
       "score": 0.8556,
@@ -980,30 +1058,30 @@
       "invalid": []
      },
      {
-      "route_id": "rt_c1b70eaf682b",
+      "route_id": "rt_1528ab4d1def",
       "key": "housing-hostel",
-      "title": "Stay in hostels/hotels day by day (live prices: Berlin, DE)",
-      "score": 0.3094,
+      "title": "Stay in hostels/hotels day by day",
+      "score": 0.5896,
       "rank": 6,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_29ae8ea0b6b6",
-      "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": 0.1772,
+      "route_id": "rt_6b7bda8cbde7",
+      "key": "housing-lease-nz-auckland",
+      "title": "Move to Auckland (NZ) and lease: Hyperfibre 2000 apartment (+1 backups)",
+      "score": 0.3749,
       "rank": 7,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_f3436fd80341",
-      "key": "housing-lease-es-madrid",
-      "title": "Move to Madrid (ES) and lease: Pricing apartment",
-      "score": 0.1593,
+      "route_id": "rt_dc9c7c7844be",
+      "key": "housing-lease-de-berlin",
+      "title": "Move to Berlin (DE) and lease: apartment (Berlin) (+1 backups)",
+      "score": 0.2983,
       "rank": 8,
       "selectable": true,
       "blocked": [],
@@ -1012,7 +1090,17 @@
     ],
     "uncertainties": [
      {
+      "fact": "principal.right_to_reside.JP",
+      "flips_selection": true,
+      "voi": 2.5492
+     },
+     {
       "fact": "principal.max_rent",
+      "flips_selection": true,
+      "voi": 1.2068
+     },
+     {
+      "fact": "principal.right_to_reside.ES",
       "flips_selection": false,
       "voi": 0.0
      },
@@ -1022,17 +1110,7 @@
       "voi": 0.0
      },
      {
-      "fact": "principal.right_to_reside.JP",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.ES",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.work_location",
+      "fact": "principal.right_to_reside.NZ",
       "flips_selection": false,
       "voi": 0.0
      }
@@ -1040,21 +1118,21 @@
    },
    {
     "phase": "select",
-    "at": "2026-09-30T08:30:06.085102+00:00",
+    "at": "2026-09-30T08:56:55.383002+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
-    "decision": "dec_adae87027e84"
+    "decision": null
    },
    {
     "phase": "decompose",
-    "at": "2026-09-30T08:30:06.092918+00:00",
+    "at": "2026-09-30T08:56:55.393676+00:00",
     "operations": [],
     "acquisitions": []
    },
    {
     "phase": "execute",
-    "at": "2026-09-30T08:30:09.036153+00:00",
+    "at": "2026-09-30T08:56:59.833629+00:00",
     "started": 1,
     "interrupts": [],
     "blocked": [],
@@ -1062,7 +1140,7 @@
    },
    {
     "phase": "verify",
-    "at": "2026-09-30T08:30:09.040626+00:00",
+    "at": "2026-09-30T08:56:59.839003+00:00",
     "verified": [
      {
       "op": "acquire.enrich.5",
@@ -1073,17 +1151,17 @@
    },
    {
     "phase": "update_world",
-    "at": "2026-09-30T08:30:09.040640+00:00",
+    "at": "2026-09-30T08:56:59.839018+00:00",
     "evidence": [
-     "evd_002c01de1a03"
+     "evd_6dab25a37c1a"
     ],
     "notes": []
    },
    {
     "phase": "replan",
-    "at": "2026-09-30T08:30:09.184015+00:00",
+    "at": "2026-09-30T08:56:59.996600+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
     "decision": null
    }
@@ -1091,30 +1169,30 @@
  },
  {
   "tick": 6,
-  "status": "monitoring",
+  "status": "waiting_human",
   "idle": false,
   "progress": true,
-  "seconds": 802,
+  "seconds": 779,
   "phases": [
    {
     "phase": "observe",
-    "at": "2026-09-30T08:30:09.255173+00:00",
+    "at": "2026-09-30T08:57:00.081632+00:00",
     "new_events": 0,
     "external": [],
     "resumed_interrupts": []
    },
    {
     "phase": "model",
-    "at": "2026-09-30T08:30:09.284318+00:00",
-    "event_seq": 675,
-    "snapshot": "snap_c68bb07c33cb",
-    "entities": 134,
-    "facts": 13,
+    "at": "2026-09-30T08:57:00.109687+00:00",
+    "event_seq": 670,
+    "snapshot": "snap_45368f5a4d27",
+    "entities": 121,
+    "facts": 14,
     "runway_months": null
    },
    {
     "phase": "acquire",
-    "at": "2026-09-30T08:30:09.321423+00:00",
+    "at": "2026-09-30T08:57:00.152827+00:00",
     "needs": [
      {
       "action": "enrich",
@@ -1135,11 +1213,13 @@
    },
    {
     "phase": "generate",
-    "at": "2026-09-30T08:30:09.356425+00:00",
+    "at": "2026-09-30T08:57:00.201975+00:00",
     "reason": "world entities changed",
     "created": [],
     "updated": [
-     "housing-lease-jp-osaka",
+     "housing-lease-nz-auckland",
+     "housing-lease-es-madrid",
+     "housing-lease-jp-tokyo",
      "housing-monthly",
      "housing-share",
      "housing-hostel",
@@ -1152,50 +1232,50 @@
    },
    {
     "phase": "evaluate",
-    "at": "2026-09-30T08:30:09.458253+00:00",
+    "at": "2026-09-30T08:57:00.352019+00:00",
     "ranking": [
      {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.5002,
+      "route_id": "rt_d9b994763cdb",
+      "key": "housing-lease-jp-osaka",
+      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+2 backups)",
+      "score": 3.2618,
       "rank": 1,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_b53856b7bf67",
-      "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.7563,
+      "route_id": "rt_6eac6600a71a",
+      "key": "housing-share",
+      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
+      "score": 2.3806,
       "rank": 2,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_2b40ddd4d5ac",
-      "key": "housing-monthly",
-      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.4492,
+      "route_id": "rt_5fe28d346542",
+      "key": "housing-lease-jp-tokyo",
+      "title": "Lease now in Tokyo: ハーモニーテラス北小岩XIV 1K 16.63m² 1F",
+      "score": 2.0318,
       "rank": 3,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 6F #601",
-      "score": 0.9609,
+      "route_id": "rt_aa4e43e36b5b",
+      "key": "housing-monthly",
+      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
+      "score": 1.2307,
       "rank": 4,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_c7ede59c15a8",
+      "route_id": "rt_87cac579b709",
       "key": "housing-defer",
       "title": "Don't commit until work location and right to stay are known",
       "score": 0.8556,
@@ -1205,30 +1285,30 @@
       "invalid": []
      },
      {
-      "route_id": "rt_c1b70eaf682b",
+      "route_id": "rt_1528ab4d1def",
       "key": "housing-hostel",
-      "title": "Stay in hostels/hotels day by day (live prices: Berlin, DE)",
-      "score": 0.3094,
+      "title": "Stay in hostels/hotels day by day",
+      "score": 0.5896,
       "rank": 6,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_29ae8ea0b6b6",
-      "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": 0.1772,
+      "route_id": "rt_6b7bda8cbde7",
+      "key": "housing-lease-nz-auckland",
+      "title": "Move to Auckland (NZ) and lease: Hyperfibre 2000 apartment (+1 backups)",
+      "score": 0.3749,
       "rank": 7,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_f3436fd80341",
-      "key": "housing-lease-es-madrid",
-      "title": "Move to Madrid (ES) and lease: Pricing apartment",
-      "score": 0.1593,
+      "route_id": "rt_dc9c7c7844be",
+      "key": "housing-lease-de-berlin",
+      "title": "Move to Berlin (DE) and lease: apartment (Berlin) (+1 backups)",
+      "score": 0.2983,
       "rank": 8,
       "selectable": true,
       "blocked": [],
@@ -1237,9 +1317,14 @@
     ],
     "uncertainties": [
      {
+      "fact": "principal.right_to_reside.JP",
+      "flips_selection": true,
+      "voi": 2.5492
+     },
+     {
       "fact": "principal.max_rent",
-      "flips_selection": false,
-      "voi": 0.0
+      "flips_selection": true,
+      "voi": 1.2068
      },
      {
       "fact": "principal.right_to_reside.DE",
@@ -1247,7 +1332,7 @@
       "voi": 0.0
      },
      {
-      "fact": "principal.right_to_reside.JP",
+      "fact": "principal.right_to_reside.NZ",
       "flips_selection": false,
       "voi": 0.0
      },
@@ -1255,31 +1340,26 @@
       "fact": "principal.right_to_reside.ES",
       "flips_selection": false,
       "voi": 0.0
-     },
-     {
-      "fact": "principal.work_location",
-      "flips_selection": false,
-      "voi": 0.0
      }
     ]
    },
    {
     "phase": "select",
-    "at": "2026-09-30T08:30:09.458267+00:00",
+    "at": "2026-09-30T08:57:00.352044+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
     "decision": null
    },
    {
     "phase": "decompose",
-    "at": "2026-09-30T08:30:09.466250+00:00",
+    "at": "2026-09-30T08:57:00.364461+00:00",
     "operations": [],
     "acquisitions": []
    },
    {
     "phase": "execute",
-    "at": "2026-09-30T08:30:14.111366+00:00",
+    "at": "2026-09-30T08:57:03.273925+00:00",
     "started": 1,
     "interrupts": [],
     "blocked": [],
@@ -1287,7 +1367,7 @@
    },
    {
     "phase": "verify",
-    "at": "2026-09-30T08:30:14.117717+00:00",
+    "at": "2026-09-30T08:57:03.278832+00:00",
     "verified": [
      {
       "op": "acquire.enrich.6",
@@ -1298,17 +1378,17 @@
    },
    {
     "phase": "update_world",
-    "at": "2026-09-30T08:30:14.117731+00:00",
+    "at": "2026-09-30T08:57:03.278843+00:00",
     "evidence": [
-     "evd_7a55a5703a92"
+     "evd_501a3d3ccf08"
     ],
     "notes": []
    },
    {
     "phase": "replan",
-    "at": "2026-09-30T08:30:14.228826+00:00",
+    "at": "2026-09-30T08:57:03.394963+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
     "decision": null
    }
@@ -1316,30 +1396,30 @@
  },
  {
   "tick": 7,
-  "status": "monitoring",
+  "status": "waiting_human",
   "idle": false,
   "progress": true,
-  "seconds": 805,
+  "seconds": 781,
   "phases": [
    {
     "phase": "observe",
-    "at": "2026-09-30T08:30:14.293696+00:00",
+    "at": "2026-09-30T08:57:03.466359+00:00",
     "new_events": 0,
     "external": [],
     "resumed_interrupts": []
    },
    {
     "phase": "model",
-    "at": "2026-09-30T08:30:14.322225+00:00",
-    "event_seq": 761,
-    "snapshot": "snap_2957e26a4e21",
-    "entities": 135,
-    "facts": 13,
+    "at": "2026-09-30T08:57:03.488928+00:00",
+    "event_seq": 757,
+    "snapshot": "snap_da533eec0b49",
+    "entities": 122,
+    "facts": 14,
     "runway_months": null
    },
    {
     "phase": "acquire",
-    "at": "2026-09-30T08:30:14.359153+00:00",
+    "at": "2026-09-30T08:57:03.524209+00:00",
     "needs": [
      {
       "action": "enrich",
@@ -1360,11 +1440,13 @@
    },
    {
     "phase": "generate",
-    "at": "2026-09-30T08:30:14.389843+00:00",
+    "at": "2026-09-30T08:57:03.550633+00:00",
     "reason": "world entities changed",
     "created": [],
     "updated": [
-     "housing-lease-jp-osaka",
+     "housing-lease-nz-auckland",
+     "housing-lease-es-madrid",
+     "housing-lease-jp-tokyo",
      "housing-monthly",
      "housing-share",
      "housing-hostel",
@@ -1377,50 +1459,50 @@
    },
    {
     "phase": "evaluate",
-    "at": "2026-09-30T08:30:14.491580+00:00",
+    "at": "2026-09-30T08:57:03.651415+00:00",
     "ranking": [
      {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.5002,
+      "route_id": "rt_d9b994763cdb",
+      "key": "housing-lease-jp-osaka",
+      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+2 backups)",
+      "score": 3.2618,
       "rank": 1,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_b53856b7bf67",
-      "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.7563,
+      "route_id": "rt_6eac6600a71a",
+      "key": "housing-share",
+      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
+      "score": 2.3806,
       "rank": 2,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_2b40ddd4d5ac",
-      "key": "housing-monthly",
-      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.4492,
+      "route_id": "rt_5fe28d346542",
+      "key": "housing-lease-jp-tokyo",
+      "title": "Lease now in Tokyo: ハーモニーテラス北小岩XIV 1K 16.63m² 1F",
+      "score": 2.0318,
       "rank": 3,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 6F #601",
-      "score": 0.9609,
+      "route_id": "rt_aa4e43e36b5b",
+      "key": "housing-monthly",
+      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
+      "score": 1.2307,
       "rank": 4,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_c7ede59c15a8",
+      "route_id": "rt_87cac579b709",
       "key": "housing-defer",
       "title": "Don't commit until work location and right to stay are known",
       "score": 0.8556,
@@ -1430,30 +1512,30 @@
       "invalid": []
      },
      {
-      "route_id": "rt_c1b70eaf682b",
+      "route_id": "rt_1528ab4d1def",
       "key": "housing-hostel",
-      "title": "Stay in hostels/hotels day by day (live prices: Berlin, DE)",
-      "score": 0.3094,
+      "title": "Stay in hostels/hotels day by day",
+      "score": 0.5896,
       "rank": 6,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_29ae8ea0b6b6",
-      "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": 0.1772,
+      "route_id": "rt_6b7bda8cbde7",
+      "key": "housing-lease-nz-auckland",
+      "title": "Move to Auckland (NZ) and lease: Hyperfibre 2000 apartment (+1 backups)",
+      "score": 0.3749,
       "rank": 7,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_f3436fd80341",
-      "key": "housing-lease-es-madrid",
-      "title": "Move to Madrid (ES) and lease: Pricing apartment",
-      "score": 0.1593,
+      "route_id": "rt_dc9c7c7844be",
+      "key": "housing-lease-de-berlin",
+      "title": "Move to Berlin (DE) and lease: apartment (Berlin) (+1 backups)",
+      "score": 0.2983,
       "rank": 8,
       "selectable": true,
       "blocked": [],
@@ -1462,9 +1544,14 @@
     ],
     "uncertainties": [
      {
+      "fact": "principal.right_to_reside.JP",
+      "flips_selection": true,
+      "voi": 2.5492
+     },
+     {
       "fact": "principal.max_rent",
-      "flips_selection": false,
-      "voi": 0.0
+      "flips_selection": true,
+      "voi": 1.2068
      },
      {
       "fact": "principal.right_to_reside.DE",
@@ -1472,7 +1559,7 @@
       "voi": 0.0
      },
      {
-      "fact": "principal.right_to_reside.JP",
+      "fact": "principal.right_to_reside.NZ",
       "flips_selection": false,
       "voi": 0.0
      },
@@ -1480,31 +1567,26 @@
       "fact": "principal.right_to_reside.ES",
       "flips_selection": false,
       "voi": 0.0
-     },
-     {
-      "fact": "principal.work_location",
-      "flips_selection": false,
-      "voi": 0.0
      }
     ]
    },
    {
     "phase": "select",
-    "at": "2026-09-30T08:30:14.491595+00:00",
+    "at": "2026-09-30T08:57:03.651430+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
     "decision": null
    },
    {
     "phase": "decompose",
-    "at": "2026-09-30T08:30:14.498925+00:00",
+    "at": "2026-09-30T08:57:03.658020+00:00",
     "operations": [],
     "acquisitions": []
    },
    {
     "phase": "execute",
-    "at": "2026-09-30T08:30:17.564389+00:00",
+    "at": "2026-09-30T08:57:05.145753+00:00",
     "started": 1,
     "interrupts": [],
     "blocked": [],
@@ -1512,7 +1594,7 @@
    },
    {
     "phase": "verify",
-    "at": "2026-09-30T08:30:17.570523+00:00",
+    "at": "2026-09-30T08:57:05.150632+00:00",
     "verified": [
      {
       "op": "acquire.enrich.7",
@@ -1523,17 +1605,17 @@
    },
    {
     "phase": "update_world",
-    "at": "2026-09-30T08:30:17.570536+00:00",
+    "at": "2026-09-30T08:57:05.150643+00:00",
     "evidence": [
-     "evd_225a4a4ee77d"
+     "evd_04395425721a"
     ],
     "notes": []
    },
    {
     "phase": "replan",
-    "at": "2026-09-30T08:30:17.679745+00:00",
+    "at": "2026-09-30T08:57:05.272477+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
     "decision": null
    }
@@ -1541,34 +1623,42 @@
  },
  {
   "tick": 8,
-  "status": "monitoring",
+  "status": "waiting_human",
+  "idle": true,
+  "progress": false,
+  "seconds": 781,
+  "phases": []
+ },
+ {
+  "tick": 8,
+  "status": "waiting_human",
   "idle": false,
   "progress": true,
-  "seconds": 807,
+  "seconds": 54,
   "phases": [
    {
     "phase": "observe",
-    "at": "2026-09-30T08:30:17.747707+00:00",
+    "at": "2026-09-30T08:57:05.418569+00:00",
     "new_events": 0,
     "external": [],
     "resumed_interrupts": []
    },
    {
     "phase": "model",
-    "at": "2026-09-30T08:30:17.777923+00:00",
-    "event_seq": 847,
-    "snapshot": "snap_723a2a4c66b9",
-    "entities": 136,
-    "facts": 13,
+    "at": "2026-09-30T08:57:05.449943+00:00",
+    "event_seq": 844,
+    "snapshot": "snap_a082a74ebe56",
+    "entities": 122,
+    "facts": 14,
     "runway_months": null
    },
    {
     "phase": "acquire",
-    "at": "2026-09-30T08:30:17.813809+00:00",
+    "at": "2026-09-30T08:57:05.509666+00:00",
     "needs": [
      {
-      "action": "enrich",
-      "reason": "shortlisted candidates lack verification, location and move-in facts needed to evaluate them",
+      "action": "recheck",
+      "reason": "time-sensitive claims (availability/rent) are past their TTL",
       "domain": "housing",
       "state": {
        "requests": 9,
@@ -1579,17 +1669,232 @@
      }
     ],
     "operations": [
-     "acquire.enrich.8: shortlisted candidates lack verification, location and move-in facts needed to evaluate them"
+     "acquire.recheck.8: time-sensitive claims (availability/rent) are past their TTL"
     ],
     "executed_before_planning": []
    },
    {
     "phase": "generate",
-    "at": "2026-09-30T08:30:17.843923+00:00",
+    "at": "2026-09-30T08:57:05.523139+00:00",
+    "skipped": true,
+    "live_routes": 9
+   },
+   {
+    "phase": "evaluate",
+    "at": "2026-09-30T08:57:05.657696+00:00",
+    "ranking": [
+     {
+      "route_id": "rt_d9b994763cdb",
+      "key": "housing-lease-jp-osaka",
+      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+2 backups)",
+      "score": 3.2618,
+      "rank": 1,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_6eac6600a71a",
+      "key": "housing-share",
+      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
+      "score": 2.3806,
+      "rank": 2,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_5fe28d346542",
+      "key": "housing-lease-jp-tokyo",
+      "title": "Lease now in Tokyo: ハーモニーテラス北小岩XIV 1K 16.63m² 1F",
+      "score": 2.0318,
+      "rank": 3,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_aa4e43e36b5b",
+      "key": "housing-monthly",
+      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
+      "score": 1.2307,
+      "rank": 4,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_87cac579b709",
+      "key": "housing-defer",
+      "title": "Don't commit until work location and right to stay are known",
+      "score": 0.8556,
+      "rank": 5,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_1528ab4d1def",
+      "key": "housing-hostel",
+      "title": "Stay in hostels/hotels day by day",
+      "score": 0.5896,
+      "rank": 6,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_6b7bda8cbde7",
+      "key": "housing-lease-nz-auckland",
+      "title": "Move to Auckland (NZ) and lease: Hyperfibre 2000 apartment (+1 backups)",
+      "score": 0.3749,
+      "rank": 7,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_dc9c7c7844be",
+      "key": "housing-lease-de-berlin",
+      "title": "Move to Berlin (DE) and lease: apartment (Berlin) (+1 backups)",
+      "score": 0.2983,
+      "rank": 8,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     }
+    ],
+    "uncertainties": [
+     {
+      "fact": "principal.right_to_reside.JP",
+      "flips_selection": true,
+      "voi": 2.5492
+     },
+     {
+      "fact": "principal.max_rent",
+      "flips_selection": true,
+      "voi": 1.2068
+     },
+     {
+      "fact": "principal.right_to_reside.DE",
+      "flips_selection": false,
+      "voi": 0.0
+     },
+     {
+      "fact": "principal.right_to_reside.NZ",
+      "flips_selection": false,
+      "voi": 0.0
+     },
+     {
+      "fact": "principal.right_to_reside.ES",
+      "flips_selection": false,
+      "voi": 0.0
+     }
+    ]
+   },
+   {
+    "phase": "select",
+    "at": "2026-09-30T08:57:05.657714+00:00",
+    "kind": "plan_kept",
+    "selected": "housing-lease-jp-osaka",
+    "reason": "incumbent still best",
+    "decision": null
+   },
+   {
+    "phase": "decompose",
+    "at": "2026-09-30T08:57:05.669733+00:00",
+    "operations": [],
+    "acquisitions": []
+   },
+   {
+    "phase": "execute",
+    "at": "2026-09-30T08:57:59.108281+00:00",
+    "started": 1,
+    "interrupts": [],
+    "blocked": [],
+    "authority": []
+   },
+   {
+    "phase": "verify",
+    "at": "2026-09-30T08:57:59.115103+00:00",
+    "verified": [
+     {
+      "op": "acquire.recheck.8",
+      "verdict": "pass",
+      "method": "schema"
+     }
+    ]
+   },
+   {
+    "phase": "update_world",
+    "at": "2026-09-30T08:57:59.115116+00:00",
+    "evidence": [
+     "evd_8cdb03725bbc"
+    ],
+    "notes": []
+   },
+   {
+    "phase": "replan",
+    "at": "2026-09-30T08:57:59.276589+00:00",
+    "kind": "plan_kept",
+    "selected": "housing-lease-jp-osaka",
+    "reason": "incumbent still best",
+    "decision": null
+   }
+  ],
+  "clock_offset_h": 7.0
+ },
+ {
+  "tick": 9,
+  "status": "waiting_human",
+  "idle": false,
+  "progress": true,
+  "seconds": 80,
+  "phases": [
+   {
+    "phase": "observe",
+    "at": "2026-09-30T08:57:59.347844+00:00",
+    "new_events": 0,
+    "external": [],
+    "resumed_interrupts": []
+   },
+   {
+    "phase": "model",
+    "at": "2026-09-30T08:57:59.377638+00:00",
+    "event_seq": 922,
+    "snapshot": "snap_462d37f14360",
+    "entities": 140,
+    "facts": 14,
+    "runway_months": null
+   },
+   {
+    "phase": "acquire",
+    "at": "2026-09-30T08:57:59.424605+00:00",
+    "needs": [
+     {
+      "action": "enrich",
+      "reason": "shortlisted candidates lack verification, location and move-in facts needed to evaluate them",
+      "domain": "housing",
+      "state": {
+       "requests": 10,
+       "discovery_done": true,
+       "discovery_running": false,
+       "shortlisted": 15
+      }
+     }
+    ],
+    "operations": [
+     "acquire.enrich.9: shortlisted candidates lack verification, location and move-in facts needed to evaluate them"
+    ],
+    "executed_before_planning": []
+   },
+   {
+    "phase": "generate",
+    "at": "2026-09-30T08:57:59.462257+00:00",
     "reason": "world entities changed",
     "created": [],
     "updated": [
-     "housing-lease-jp-osaka",
+     "housing-lease-nz-auckland",
      "housing-monthly",
      "housing-share",
      "housing-hostel",
@@ -1602,50 +1907,50 @@
    },
    {
     "phase": "evaluate",
-    "at": "2026-09-30T08:30:17.939736+00:00",
+    "at": "2026-09-30T08:57:59.625113+00:00",
     "ranking": [
      {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.5002,
+      "route_id": "rt_d9b994763cdb",
+      "key": "housing-lease-jp-osaka",
+      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+2 backups)",
+      "score": 3.2618,
       "rank": 1,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_b53856b7bf67",
-      "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.7563,
+      "route_id": "rt_6eac6600a71a",
+      "key": "housing-share",
+      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
+      "score": 2.3806,
       "rank": 2,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_2b40ddd4d5ac",
-      "key": "housing-monthly",
-      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.4492,
+      "route_id": "rt_5fe28d346542",
+      "key": "housing-lease-jp-tokyo",
+      "title": "Lease now in Tokyo: ハーモニーテラス北小岩XIV 1K 16.63m² 1F",
+      "score": 2.0318,
       "rank": 3,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 6F #601",
-      "score": 0.9609,
+      "route_id": "rt_aa4e43e36b5b",
+      "key": "housing-monthly",
+      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
+      "score": 1.2307,
       "rank": 4,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_c7ede59c15a8",
+      "route_id": "rt_87cac579b709",
       "key": "housing-defer",
       "title": "Don't commit until work location and right to stay are known",
       "score": 0.8556,
@@ -1655,30 +1960,30 @@
       "invalid": []
      },
      {
-      "route_id": "rt_c1b70eaf682b",
+      "route_id": "rt_1528ab4d1def",
       "key": "housing-hostel",
-      "title": "Stay in hostels/hotels day by day (live prices: Berlin, DE)",
-      "score": 0.3094,
+      "title": "Stay in hostels/hotels day by day",
+      "score": 0.687,
       "rank": 6,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_29ae8ea0b6b6",
+      "route_id": "rt_dc9c7c7844be",
       "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": 0.1772,
+      "title": "Move to Berlin (DE) and lease: apartment (Berlin) (+1 backups)",
+      "score": 0.2983,
       "rank": 7,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_f3436fd80341",
-      "key": "housing-lease-es-madrid",
-      "title": "Move to Madrid (ES) and lease: Pricing apartment",
-      "score": 0.1593,
+      "route_id": "rt_6b7bda8cbde7",
+      "key": "housing-lease-nz-auckland",
+      "title": "Move to Auckland (NZ) and lease: Hyperfibre 2000 apartment",
+      "score": 0.0255,
       "rank": 8,
       "selectable": true,
       "blocked": [],
@@ -1687,9 +1992,14 @@
     ],
     "uncertainties": [
      {
+      "fact": "principal.right_to_reside.JP",
+      "flips_selection": true,
+      "voi": 2.5492
+     },
+     {
       "fact": "principal.max_rent",
-      "flips_selection": false,
-      "voi": 0.0
+      "flips_selection": true,
+      "voi": 1.2068
      },
      {
       "fact": "principal.right_to_reside.DE",
@@ -1697,7 +2007,7 @@
       "voi": 0.0
      },
      {
-      "fact": "principal.right_to_reside.JP",
+      "fact": "principal.right_to_reside.NZ",
       "flips_selection": false,
       "voi": 0.0
      },
@@ -1705,31 +2015,26 @@
       "fact": "principal.right_to_reside.ES",
       "flips_selection": false,
       "voi": 0.0
-     },
-     {
-      "fact": "principal.work_location",
-      "flips_selection": false,
-      "voi": 0.0
      }
     ]
    },
    {
     "phase": "select",
-    "at": "2026-09-30T08:30:17.939754+00:00",
+    "at": "2026-09-30T08:57:59.625130+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
-    "decision": null
+    "decision": "dec_1a03476e8311"
    },
    {
     "phase": "decompose",
-    "at": "2026-09-30T08:30:17.946769+00:00",
+    "at": "2026-09-30T08:57:59.635403+00:00",
     "operations": [],
     "acquisitions": []
    },
    {
     "phase": "execute",
-    "at": "2026-09-30T08:30:19.664527+00:00",
+    "at": "2026-09-30T08:58:25.484414+00:00",
     "started": 1,
     "interrupts": [],
     "blocked": [],
@@ -1737,239 +2042,8 @@
    },
    {
     "phase": "verify",
-    "at": "2026-09-30T08:30:19.671150+00:00",
+    "at": "2026-09-30T08:58:25.489900+00:00",
     "verified": [
-     {
-      "op": "acquire.enrich.8",
-      "verdict": "pass",
-      "method": "schema"
-     }
-    ]
-   },
-   {
-    "phase": "update_world",
-    "at": "2026-09-30T08:30:19.671166+00:00",
-    "evidence": [
-     "evd_763f34a35efd"
-    ],
-    "notes": []
-   },
-   {
-    "phase": "replan",
-    "at": "2026-09-30T08:30:19.831828+00:00",
-    "kind": "plan_kept",
-    "selected": "housing-share",
-    "reason": "incumbent still best",
-    "decision": null
-   }
-  ]
- },
- {
-  "tick": 9,
-  "status": "monitoring",
-  "idle": false,
-  "progress": true,
-  "seconds": 53,
-  "phases": [
-   {
-    "phase": "observe",
-    "at": "2026-09-30T08:30:19.934811+00:00",
-    "new_events": 0,
-    "external": [],
-    "resumed_interrupts": []
-   },
-   {
-    "phase": "model",
-    "at": "2026-09-30T08:30:19.974202+00:00",
-    "event_seq": 933,
-    "snapshot": "snap_b1a53ff1b869",
-    "entities": 136,
-    "facts": 13,
-    "runway_months": null
-   },
-   {
-    "phase": "acquire",
-    "at": "2026-09-30T08:30:20.024889+00:00",
-    "needs": [
-     {
-      "action": "enrich",
-      "reason": "shortlisted candidates lack verification, location and move-in facts needed to evaluate them",
-      "domain": "housing",
-      "state": {
-       "requests": 10,
-       "discovery_done": true,
-       "discovery_running": false,
-       "shortlisted": 15
-      }
-     },
-     {
-      "action": "recheck",
-      "reason": "time-sensitive claims (availability/rent) are past their TTL",
-      "domain": "housing",
-      "state": {
-       "requests": 10,
-       "discovery_done": true,
-       "discovery_running": false,
-       "shortlisted": 15
-      }
-     }
-    ],
-    "operations": [
-     "acquire.enrich.9: shortlisted candidates lack verification, location and move-in facts needed to evaluate them",
-     "acquire.recheck.9: time-sensitive claims (availability/rent) are past their TTL"
-    ],
-    "executed_before_planning": []
-   },
-   {
-    "phase": "generate",
-    "at": "2026-09-30T08:30:20.038777+00:00",
-    "skipped": true,
-    "live_routes": 8
-   },
-   {
-    "phase": "evaluate",
-    "at": "2026-09-30T08:30:20.148099+00:00",
-    "ranking": [
-     {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.5002,
-      "rank": 1,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_b53856b7bf67",
-      "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.7563,
-      "rank": 2,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_2b40ddd4d5ac",
-      "key": "housing-monthly",
-      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.4492,
-      "rank": 3,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 6F #601",
-      "score": 0.9609,
-      "rank": 4,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_c7ede59c15a8",
-      "key": "housing-defer",
-      "title": "Don't commit until work location and right to stay are known",
-      "score": 0.8556,
-      "rank": 5,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_c1b70eaf682b",
-      "key": "housing-hostel",
-      "title": "Stay in hostels/hotels day by day (live prices: Berlin, DE)",
-      "score": 0.3094,
-      "rank": 6,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_29ae8ea0b6b6",
-      "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": 0.1772,
-      "rank": 7,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_f3436fd80341",
-      "key": "housing-lease-es-madrid",
-      "title": "Move to Madrid (ES) and lease: Pricing apartment",
-      "score": 0.1593,
-      "rank": 8,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     }
-    ],
-    "uncertainties": [
-     {
-      "fact": "principal.max_rent",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.DE",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.JP",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.ES",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.work_location",
-      "flips_selection": false,
-      "voi": 0.0
-     }
-    ]
-   },
-   {
-    "phase": "select",
-    "at": "2026-09-30T08:30:20.148121+00:00",
-    "kind": "plan_kept",
-    "selected": "housing-share",
-    "reason": "incumbent still best",
-    "decision": null
-   },
-   {
-    "phase": "decompose",
-    "at": "2026-09-30T08:30:20.157190+00:00",
-    "operations": [],
-    "acquisitions": []
-   },
-   {
-    "phase": "execute",
-    "at": "2026-09-30T08:31:12.654101+00:00",
-    "started": 2,
-    "interrupts": [],
-    "blocked": [],
-    "authority": []
-   },
-   {
-    "phase": "verify",
-    "at": "2026-09-30T08:31:12.663702+00:00",
-    "verified": [
-     {
-      "op": "acquire.recheck.9",
-      "verdict": "pass",
-      "method": "schema"
-     },
      {
       "op": "acquire.enrich.9",
       "verdict": "pass",
@@ -1979,18 +2053,17 @@
    },
    {
     "phase": "update_world",
-    "at": "2026-09-30T08:31:12.663717+00:00",
+    "at": "2026-09-30T08:58:25.489921+00:00",
     "evidence": [
-     "evd_0df6a6dcba46",
-     "evd_54592122948d"
+     "evd_e14ae1ac9e23"
     ],
     "notes": []
    },
    {
     "phase": "replan",
-    "at": "2026-09-30T08:31:12.795276+00:00",
+    "at": "2026-09-30T08:58:25.657196+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
     "decision": null
    }
@@ -1999,37 +2072,37 @@
  },
  {
   "tick": 10,
-  "status": "monitoring",
+  "status": "waiting_human",
   "idle": false,
   "progress": true,
-  "seconds": 78,
+  "seconds": 105,
   "phases": [
    {
     "phase": "observe",
-    "at": "2026-09-30T08:31:12.871153+00:00",
+    "at": "2026-09-30T08:58:25.749698+00:00",
     "new_events": 0,
     "external": [],
     "resumed_interrupts": []
    },
    {
     "phase": "model",
-    "at": "2026-09-30T08:31:12.897620+00:00",
-    "event_seq": 1106,
-    "snapshot": "snap_fc4b80b2eaa0",
-    "entities": 137,
-    "facts": 13,
+    "at": "2026-09-30T08:58:25.780258+00:00",
+    "event_seq": 1001,
+    "snapshot": "snap_d12204636902",
+    "entities": 141,
+    "facts": 14,
     "runway_months": null
    },
    {
     "phase": "acquire",
-    "at": "2026-09-30T08:31:12.936449+00:00",
+    "at": "2026-09-30T08:58:25.828580+00:00",
     "needs": [
      {
       "action": "enrich",
       "reason": "shortlisted candidates lack verification, location and move-in facts needed to evaluate them",
       "domain": "housing",
       "state": {
-       "requests": 12,
+       "requests": 11,
        "discovery_done": true,
        "discovery_running": false,
        "shortlisted": 15
@@ -2040,7 +2113,7 @@
       "reason": "time-sensitive claims (availability/rent) are past their TTL",
       "domain": "housing",
       "state": {
-       "requests": 12,
+       "requests": 11,
        "discovery_done": true,
        "discovery_running": false,
        "shortlisted": 15
@@ -2055,11 +2128,11 @@
    },
    {
     "phase": "generate",
-    "at": "2026-09-30T08:31:12.970587+00:00",
+    "at": "2026-09-30T08:58:25.863270+00:00",
     "reason": "world entities changed",
     "created": [],
     "updated": [
-     "housing-lease-jp-osaka",
+     "housing-lease-nz-auckland",
      "housing-monthly",
      "housing-share",
      "housing-hostel",
@@ -2072,50 +2145,50 @@
    },
    {
     "phase": "evaluate",
-    "at": "2026-09-30T08:31:13.091388+00:00",
+    "at": "2026-09-30T08:58:25.991790+00:00",
     "ranking": [
      {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.5002,
+      "route_id": "rt_d9b994763cdb",
+      "key": "housing-lease-jp-osaka",
+      "title": "Lease now in Osaka: 泉北茶山台二丁 お気に入り 1DK 35.0m² 9F #903 (+2 backups)",
+      "score": 3.2618,
       "rank": 1,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_b53856b7bf67",
-      "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.7563,
+      "route_id": "rt_6eac6600a71a",
+      "key": "housing-share",
+      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
+      "score": 2.3806,
       "rank": 2,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: お電話の方はこちら 1DK 35.0m² 6F #601 (+1 backups)",
-      "score": 1.7489,
+      "route_id": "rt_5fe28d346542",
+      "key": "housing-lease-jp-tokyo",
+      "title": "Lease now in Tokyo: ハーモニーテラス北小岩XIV 1K 16.63m² 1F",
+      "score": 2.0318,
       "rank": 3,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_2b40ddd4d5ac",
+      "route_id": "rt_aa4e43e36b5b",
       "key": "housing-monthly",
       "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.4492,
+      "score": 1.2307,
       "rank": 4,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_c7ede59c15a8",
+      "route_id": "rt_87cac579b709",
       "key": "housing-defer",
       "title": "Don't commit until work location and right to stay are known",
       "score": 0.8556,
@@ -2125,30 +2198,30 @@
       "invalid": []
      },
      {
-      "route_id": "rt_c1b70eaf682b",
+      "route_id": "rt_1528ab4d1def",
       "key": "housing-hostel",
-      "title": "Stay in hostels/hotels day by day (live prices: Berlin, DE)",
-      "score": 0.3094,
+      "title": "Stay in hostels/hotels day by day",
+      "score": 0.687,
       "rank": 6,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_29ae8ea0b6b6",
+      "route_id": "rt_dc9c7c7844be",
       "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": 0.1772,
+      "title": "Move to Berlin (DE) and lease: apartment (Berlin) (+1 backups)",
+      "score": 0.2983,
       "rank": 7,
       "selectable": true,
       "blocked": [],
       "invalid": []
      },
      {
-      "route_id": "rt_f3436fd80341",
-      "key": "housing-lease-es-madrid",
-      "title": "Move to Madrid (ES) and lease: Pricing apartment",
-      "score": 0.1593,
+      "route_id": "rt_6b7bda8cbde7",
+      "key": "housing-lease-nz-auckland",
+      "title": "Move to Auckland (NZ) and lease: Hyperfibre 2000 apartment",
+      "score": 0.0255,
       "rank": 8,
       "selectable": true,
       "blocked": [],
@@ -2157,9 +2230,14 @@
     ],
     "uncertainties": [
      {
+      "fact": "principal.right_to_reside.JP",
+      "flips_selection": true,
+      "voi": 2.5492
+     },
+     {
       "fact": "principal.max_rent",
-      "flips_selection": false,
-      "voi": 0.0
+      "flips_selection": true,
+      "voi": 1.2068
      },
      {
       "fact": "principal.right_to_reside.DE",
@@ -2167,7 +2245,7 @@
       "voi": 0.0
      },
      {
-      "fact": "principal.right_to_reside.JP",
+      "fact": "principal.right_to_reside.NZ",
       "flips_selection": false,
       "voi": 0.0
      },
@@ -2175,31 +2253,26 @@
       "fact": "principal.right_to_reside.ES",
       "flips_selection": false,
       "voi": 0.0
-     },
-     {
-      "fact": "principal.work_location",
-      "flips_selection": false,
-      "voi": 0.0
      }
     ]
    },
    {
     "phase": "select",
-    "at": "2026-09-30T08:31:13.091404+00:00",
+    "at": "2026-09-30T08:58:25.991809+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
-    "decision": "dec_7184fb4f54e2"
+    "decision": null
    },
    {
     "phase": "decompose",
-    "at": "2026-09-30T08:31:13.099229+00:00",
+    "at": "2026-09-30T08:58:26.002416+00:00",
     "operations": [],
     "acquisitions": []
    },
    {
     "phase": "execute",
-    "at": "2026-09-30T08:31:37.319126+00:00",
+    "at": "2026-09-30T08:58:50.392144+00:00",
     "started": 2,
     "interrupts": [],
     "blocked": [],
@@ -2207,15 +2280,15 @@
    },
    {
     "phase": "verify",
-    "at": "2026-09-30T08:31:37.328519+00:00",
+    "at": "2026-09-30T08:58:50.401462+00:00",
     "verified": [
      {
-      "op": "acquire.recheck.10",
+      "op": "acquire.enrich.10",
       "verdict": "pass",
       "method": "schema"
      },
      {
-      "op": "acquire.enrich.10",
+      "op": "acquire.recheck.10",
       "verdict": "pass",
       "method": "schema"
      }
@@ -2223,18 +2296,18 @@
    },
    {
     "phase": "update_world",
-    "at": "2026-09-30T08:31:37.328532+00:00",
+    "at": "2026-09-30T08:58:50.401477+00:00",
     "evidence": [
-     "evd_90af2def9fab",
-     "evd_19d27b1b7616"
+     "evd_efa7a21dcfcf",
+     "evd_f63385327a94"
     ],
     "notes": []
    },
    {
     "phase": "replan",
-    "at": "2026-09-30T08:31:37.457764+00:00",
+    "at": "2026-09-30T08:58:50.576201+00:00",
     "kind": "plan_kept",
-    "selected": "housing-share",
+    "selected": "housing-lease-jp-osaka",
     "reason": "incumbent still best",
     "decision": null
    }
@@ -2243,461 +2316,11 @@
  },
  {
   "tick": 11,
-  "status": "monitoring",
-  "idle": false,
-  "progress": true,
-  "seconds": 90,
-  "phases": [
-   {
-    "phase": "observe",
-    "at": "2026-09-30T08:31:37.543871+00:00",
-    "new_events": 0,
-    "external": [],
-    "resumed_interrupts": []
-   },
-   {
-    "phase": "model",
-    "at": "2026-09-30T08:31:37.577197+00:00",
-    "event_seq": 1280,
-    "snapshot": "snap_7c7e1b7ed9ec",
-    "entities": 137,
-    "facts": 13,
-    "runway_months": null
-   },
-   {
-    "phase": "acquire",
-    "at": "2026-09-30T08:31:37.623283+00:00",
-    "needs": [
-     {
-      "action": "enrich",
-      "reason": "shortlisted candidates lack verification, location and move-in facts needed to evaluate them",
-      "domain": "housing",
-      "state": {
-       "requests": 14,
-       "discovery_done": true,
-       "discovery_running": false,
-       "shortlisted": 15
-      }
-     },
-     {
-      "action": "recheck",
-      "reason": "time-sensitive claims (availability/rent) are past their TTL",
-      "domain": "housing",
-      "state": {
-       "requests": 14,
-       "discovery_done": true,
-       "discovery_running": false,
-       "shortlisted": 15
-      }
-     }
-    ],
-    "operations": [
-     "acquire.enrich.11: shortlisted candidates lack verification, location and move-in facts needed to evaluate them",
-     "acquire.recheck.11: time-sensitive claims (availability/rent) are past their TTL"
-    ],
-    "executed_before_planning": []
-   },
-   {
-    "phase": "generate",
-    "at": "2026-09-30T08:31:37.653633+00:00",
-    "reason": "world entities changed",
-    "created": [],
-    "updated": [
-     "housing-lease-jp-osaka",
-     "housing-monthly",
-     "housing-share",
-     "housing-hostel",
-     "housing-defer"
-    ],
-    "providers": [
-     "local",
-     "local"
-    ]
-   },
-   {
-    "phase": "evaluate",
-    "at": "2026-09-30T08:31:37.760318+00:00",
-    "ranking": [
-     {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.5002,
-      "rank": 1,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: お電話の方はこちら 1DK 35.0m² 6F #601 (+1 backups)",
-      "score": 1.8402,
-      "rank": 2,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_b53856b7bf67",
-      "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.7563,
-      "rank": 3,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_2b40ddd4d5ac",
-      "key": "housing-monthly",
-      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.4492,
-      "rank": 4,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_c7ede59c15a8",
-      "key": "housing-defer",
-      "title": "Don't commit until work location and right to stay are known",
-      "score": 0.8556,
-      "rank": 5,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_c1b70eaf682b",
-      "key": "housing-hostel",
-      "title": "Stay in hostels/hotels day by day (live prices: Berlin, DE)",
-      "score": 0.3094,
-      "rank": 6,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_29ae8ea0b6b6",
-      "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": 0.1772,
-      "rank": 7,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_f3436fd80341",
-      "key": "housing-lease-es-madrid",
-      "title": "Move to Madrid (ES) and lease: Pricing apartment",
-      "score": 0.1593,
-      "rank": 8,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     }
-    ],
-    "uncertainties": [
-     {
-      "fact": "principal.max_rent",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.JP",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.DE",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.ES",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.work_location",
-      "flips_selection": false,
-      "voi": 0.0
-     }
-    ]
-   },
-   {
-    "phase": "select",
-    "at": "2026-09-30T08:31:37.760333+00:00",
-    "kind": "plan_kept",
-    "selected": "housing-share",
-    "reason": "incumbent still best",
-    "decision": "dec_fa1849a9b3a9"
-   },
-   {
-    "phase": "decompose",
-    "at": "2026-09-30T08:31:37.767789+00:00",
-    "operations": [],
-    "acquisitions": []
-   },
-   {
-    "phase": "execute",
-    "at": "2026-09-30T08:31:50.035232+00:00",
-    "started": 2,
-    "interrupts": [],
-    "blocked": [],
-    "authority": []
-   },
-   {
-    "phase": "verify",
-    "at": "2026-09-30T08:31:50.044290+00:00",
-    "verified": [
-     {
-      "op": "acquire.recheck.11",
-      "verdict": "pass",
-      "method": "schema"
-     },
-     {
-      "op": "acquire.enrich.11",
-      "verdict": "pass",
-      "method": "schema"
-     }
-    ]
-   },
-   {
-    "phase": "update_world",
-    "at": "2026-09-30T08:31:50.044305+00:00",
-    "evidence": [
-     "evd_18c64266e49b",
-     "evd_ffc0e44aef80"
-    ],
-    "notes": []
-   },
-   {
-    "phase": "replan",
-    "at": "2026-09-30T08:31:50.318760+00:00",
-    "kind": "plan_kept",
-    "selected": "housing-share",
-    "reason": "incumbent still best",
-    "decision": null
-   }
-  ],
-  "clock_offset_h": 7.0
- },
- {
-  "tick": 12,
-  "status": "monitoring",
-  "idle": false,
-  "progress": true,
-  "seconds": 93,
-  "phases": [
-   {
-    "phase": "observe",
-    "at": "2026-09-30T08:31:50.415376+00:00",
-    "new_events": 0,
-    "external": [],
-    "resumed_interrupts": []
-   },
-   {
-    "phase": "model",
-    "at": "2026-09-30T08:31:50.451279+00:00",
-    "event_seq": 1454,
-    "snapshot": "snap_eeec6a6ed9e1",
-    "entities": 137,
-    "facts": 13,
-    "runway_months": null
-   },
-   {
-    "phase": "acquire",
-    "at": "2026-09-30T08:31:50.496450+00:00",
-    "needs": [
-     {
-      "action": "enrich",
-      "reason": "shortlisted candidates lack verification, location and move-in facts needed to evaluate them",
-      "domain": "housing",
-      "state": {
-       "requests": 16,
-       "discovery_done": true,
-       "discovery_running": false,
-       "shortlisted": 15
-      }
-     }
-    ],
-    "operations": [
-     "acquire.enrich.12: shortlisted candidates lack verification, location and move-in facts needed to evaluate them"
-    ],
-    "executed_before_planning": []
-   },
-   {
-    "phase": "generate",
-    "at": "2026-09-30T08:31:50.511427+00:00",
-    "skipped": true,
-    "live_routes": 8
-   },
-   {
-    "phase": "evaluate",
-    "at": "2026-09-30T08:31:50.637840+00:00",
-    "ranking": [
-     {
-      "route_id": "rt_51610c3f9584",
-      "key": "housing-share",
-      "title": "Room in a shared house (cheapest evidence: Tokyo, JP)",
-      "score": 2.5002,
-      "rank": 1,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_1abf8f3e6aa6",
-      "key": "housing-lease-jp-osaka",
-      "title": "Lease now in Osaka: お電話の方はこちら 1DK 35.0m² 6F #601 (+1 backups)",
-      "score": 1.8402,
-      "rank": 2,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_b53856b7bf67",
-      "key": "housing-lease-jp-tokyo",
-      "title": "Lease now in Tokyo: 東京都江戸川区東葛西6丁目 1K 24.3m² 1F",
-      "score": 1.7563,
-      "rank": 3,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_2b40ddd4d5ac",
-      "key": "housing-monthly",
-      "title": "Furnished mid-term rental while deciding (cheapest evidence: Tokyo, JP)",
-      "score": 1.4492,
-      "rank": 4,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_c7ede59c15a8",
-      "key": "housing-defer",
-      "title": "Don't commit until work location and right to stay are known",
-      "score": 0.8556,
-      "rank": 5,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_c1b70eaf682b",
-      "key": "housing-hostel",
-      "title": "Stay in hostels/hotels day by day (live prices: Berlin, DE)",
-      "score": 0.3094,
-      "rank": 6,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_29ae8ea0b6b6",
-      "key": "housing-lease-de-berlin",
-      "title": "Move to Berlin (DE) and lease: apartment (Berlin)",
-      "score": 0.1772,
-      "rank": 7,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     },
-     {
-      "route_id": "rt_f3436fd80341",
-      "key": "housing-lease-es-madrid",
-      "title": "Move to Madrid (ES) and lease: Pricing apartment",
-      "score": 0.1593,
-      "rank": 8,
-      "selectable": true,
-      "blocked": [],
-      "invalid": []
-     }
-    ],
-    "uncertainties": [
-     {
-      "fact": "principal.max_rent",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.JP",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.DE",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.right_to_reside.ES",
-      "flips_selection": false,
-      "voi": 0.0
-     },
-     {
-      "fact": "principal.work_location",
-      "flips_selection": false,
-      "voi": 0.0
-     }
-    ]
-   },
-   {
-    "phase": "select",
-    "at": "2026-09-30T08:31:50.637865+00:00",
-    "kind": "plan_kept",
-    "selected": "housing-share",
-    "reason": "incumbent still best",
-    "decision": null
-   },
-   {
-    "phase": "decompose",
-    "at": "2026-09-30T08:31:50.647816+00:00",
-    "operations": [],
-    "acquisitions": []
-   },
-   {
-    "phase": "execute",
-    "at": "2026-09-30T08:31:52.357478+00:00",
-    "started": 1,
-    "interrupts": [],
-    "blocked": [],
-    "authority": []
-   },
-   {
-    "phase": "verify",
-    "at": "2026-09-30T08:31:52.362274+00:00",
-    "verified": [
-     {
-      "op": "acquire.enrich.12",
-      "verdict": "pass",
-      "method": "schema"
-     }
-    ]
-   },
-   {
-    "phase": "update_world",
-    "at": "2026-09-30T08:31:52.362289+00:00",
-    "evidence": [
-     "evd_feb62bf60c2e"
-    ],
-    "notes": []
-   },
-   {
-    "phase": "replan",
-    "at": "2026-09-30T08:31:52.495444+00:00",
-    "kind": "plan_kept",
-    "selected": "housing-share",
-    "reason": "incumbent still best",
-    "decision": null
-   }
-  ],
+  "status": "waiting_human",
+  "idle": true,
+  "progress": false,
+  "seconds": 105,
+  "phases": [],
   "clock_offset_h": 7.0
  }
 ]
