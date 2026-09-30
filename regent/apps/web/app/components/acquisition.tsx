@@ -1,24 +1,24 @@
 "use client";
 import { useEffect, useState } from "react";
 import { api, type Json } from "@/lib/api";
-import { ago, beliefText, num, pct, ttlText } from "@/lib/format";
+import { ago, beliefText, money, num, pct, ttlText } from "@/lib/format";
 import { Panel, Status } from "./ui";
 
 /* World Acquisition: what Regent went to the web for, where it could and could not look,
    and every candidate as evidence-backed competing hypotheses (never a single scraped value). */
 
 const COLS: [string, string][] = [
-  ["rent", "Rent"], ["management_fee", "Mgmt"], ["deposit", "Deposit"], ["key_money", "Key"],
-  ["availability", "Available"], ["stations", "Access"],
+  ["rent", "Rent / month"], ["management_fee", "Mgmt"], ["deposit", "Deposit"], ["key_money", "Key"],
+  ["availability", "Available"], ["bedrooms", "Beds"], ["stations", "Access"],
 ];
 
-function Belief({ b, attr }: { b: Json | undefined; attr: string }) {
+function Belief({ b, attr, currency }: { b: Json | undefined; attr: string; currency?: string }) {
   if (!b) return <span className="muted">—</span>;
   const alts = (b.hypotheses ?? []) as Json[];
-  const tip = alts.map((h) => `${beliefText(attr, h.value)}  share ${pct(h.share)}  [${(h.hosts ?? []).join(", ")}]`).join("\n");
+  const tip = alts.map((h) => `${beliefText(attr, h.value, currency)}  share ${pct(h.share)}  [${(h.hosts ?? []).join(", ")}]`).join("\n");
   return (
     <span title={tip}>
-      <span className={b.conflict ? "belief conflict" : "belief"}>{beliefText(attr, b.value)}</span>
+      <span className={b.conflict ? "belief conflict" : "belief"}>{beliefText(attr, b.value, currency)}</span>
       <span className="tiny muted"> {pct(b.confidence)}·{b.n_sources}src</span>
       {b.conflict ? <span className="tag bad" title="competing values kept, not overwritten">conflict</span> : null}
       {b.n_claims && !b.fresh ? <span className="tag warn" title={`older than ttl ${ttlText(b.ttl_s)}`}>stale</span> : null}
@@ -40,12 +40,48 @@ function Funnel({ f }: { f: Json }) {
   );
 }
 
+function Geography({ g }: { g: Json }) {
+  const regions = (g.regions ?? []) as Json[];
+  if (!regions.length) return null;
+  const acquired = Object.fromEntries(((g.regions_acquired ?? []) as Json[]).map((r) => [r.id, r]));
+  const ref = g.ref_currency ?? "JPY";
+  return (
+    <>
+      <div className="sub">Where to live — regions compete</div>
+      <div className="tiny muted">{g.principal?.home_evidence ? `evidence: ${g.principal.home_evidence}; ` : ""}{g.geography_rationale}</div>
+      <table className="t">
+        <thead><tr><th>region</th><th className="r">price signal</th><th className="r">utility</th><th className="r">P(may live there)</th><th className="r">distance</th><th className="r">units</th></tr></thead>
+        <tbody>
+          {regions.map((r) => (
+            <tr key={r.id}>
+              <td>{r.name} <span className="tiny muted">{r.country}{r.home ? " · home evidence" : ""}</span></td>
+              <td className="r num">{r.price_ref ? money(r.price_ref, ref) : "—"}</td>
+              <td className="r num" title={JSON.stringify(r.utility_parts)}>{num(r.utility, 3)}</td>
+              <td className="r num">{pct(r.stay_p)}</td>
+              <td className="r num">{r.distance_km != null ? `${num(r.distance_km, 0)} km` : "—"}</td>
+              <td className="r num">{acquired[r.id]?.units ?? "…"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {(g.regions_rejected ?? []).length ? (
+        <details><summary className="tiny muted">{g.regions_rejected.length} regions considered and not acquired</summary>
+          {(g.regions_rejected as Json[]).map((r, i) => (
+            <div key={i} className="tiny">{r.name} ({r.country}) — {r.reason}{r.price_ref ? `, ${money(r.price_ref, ref)}` : ""}</div>
+          ))}
+        </details>
+      ) : null}
+    </>
+  );
+}
+
 function Drawer({ id, onClose }: { id: string; onClose: () => void }) {
   const [d, setD] = useState<Json | null>(null);
   useEffect(() => { api.acqEntity(id).then(setD).catch(() => setD({ error: true })); }, [id]);
   if (!d) return <div className="drawer"><div className="muted">Loading…</div></div>;
   if (d.error) return <div className="drawer"><div className="muted">Could not load entity.</div></div>;
   const attrs = Object.entries(d.attributes as Record<string, Json>);
+  const cur = (d.attributes as Json).currency?.belief?.value as string | undefined;
   return (
     <div className="drawer" role="dialog" aria-label="Entity claims">
       <div className="row" style={{ justifyContent: "space-between" }}>
@@ -60,7 +96,7 @@ function Drawer({ id, onClose }: { id: string; onClose: () => void }) {
       {attrs.map(([a, x]) => (
         <details key={a} open={x.belief.conflict || ["rent", "availability"].includes(a)}>
           <summary>
-            <span className="mono">{a}</span> = <Belief b={x.belief} attr={a} />
+            <span className="mono">{a}</span> = <Belief b={x.belief} attr={a} currency={cur} />
             <span className="tiny muted"> ttl {ttlText(x.belief.ttl_s)}</span>
           </summary>
           <table className="t">
@@ -68,7 +104,7 @@ function Drawer({ id, onClose }: { id: string; onClose: () => void }) {
             <tbody>
               {(x.claims as Json[]).map((c) => (
                 <tr key={c.id}>
-                  <td className="mono">{beliefText(a, c.value)}</td>
+                  <td className="mono">{beliefText(a, c.value, cur)}</td>
                   <td><a href={c.url} target="_blank" rel="noreferrer">{c.source_host}</a> <span className="tiny muted">{c.source_kind}</span></td>
                   <td className="r num">{num(c.confidence, 2)}</td>
                   <td className="tiny">{ago(c.observed_at)}</td>
@@ -127,6 +163,7 @@ export function AcquisitionPanel({ missionId }: { missionId: string }) {
       <div className="tiny muted">
         resolution: {Object.entries(o.resolution as Json).map(([k, v]) => `${k} ${v}`).join(" · ")} · {o.multi_source_units} units seen on ≥2 sites
       </div>
+      <Geography g={o.geography ?? {}} />
       <div className="sub">Sources</div>
       <table className="t">
         <thead><tr><th>host</th><th>kind</th><th className="r">pages</th><th className="r">records</th><th>access</th><th className="r">reliability</th></tr></thead>
@@ -146,13 +183,14 @@ export function AcquisitionPanel({ missionId }: { missionId: string }) {
       <div className="sub">Candidates (shortlisted first) — click for claims</div>
       <div className="scrollx">
         <table className="t">
-          <thead><tr><th>stage</th><th>building / unit</th>{COLS.map(([k, l]) => <th key={k}>{l}</th>)}<th>sources</th><th className="r">score</th></tr></thead>
+          <thead><tr><th>stage</th><th>region</th><th>building / unit</th>{COLS.map(([k, l]) => <th key={k}>{l}</th>)}<th>sources</th><th className="r">score</th></tr></thead>
           <tbody>
             {(o.candidates as Json[]).map((c) => (
               <tr key={c.id} className="click" onClick={() => setOpen(c.id)}>
                 <td><Status s={c.stage} /></td>
-                <td><div>{c.building?.label ?? "—"}</div><div className="tiny muted">{c.label}</div></td>
-                {COLS.map(([k]) => <td key={k}><Belief b={c.attrs[k]} attr={k} /></td>)}
+                <td className="tiny">{c.region ?? "—"}</td>
+                <td><div>{c.building?.label ?? c.attrs.title?.value ?? "—"}</div><div className="tiny muted">{c.label}</div></td>
+                {COLS.map(([k]) => <td key={k}><Belief b={c.attrs[k]} attr={k} currency={c.attrs.currency?.value} /></td>)}
                 <td className="tiny">{(c.sources ?? []).join(" ")}</td>
                 <td className="r num">{num(c.score, 3)}</td>
               </tr>

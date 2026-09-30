@@ -30,10 +30,11 @@ def _get_db():
 
 router = APIRouter(prefix="/api/acquisition", tags=["acquisition"])
 
-UNIT_COLUMNS = ("rent", "management_fee", "deposit", "key_money", "availability", "move_in", "housing_type",
-                "vacancies")
-BUILDING_COLUMNS = ("name", "address", "stations", "built_year", "structure", "nearest_stations_public",
-                    "rail_distance_m", "hub_minutes_est", "libraries_nearby", "universities_nearby", "coords")
+UNIT_COLUMNS = ("rent", "currency", "management_fee", "deposit", "key_money", "availability", "move_in",
+                "housing_type", "unit_kind", "bedrooms", "vacancies", "title")
+BUILDING_COLUMNS = ("name", "address", "locality", "postcode", "stations", "built_year", "structure",
+                    "nearest_stations_public", "rail_distance_m", "hub_minutes_est", "centre_km", "libraries_nearby",
+                    "universities_nearby", "coords")
 
 
 def _source_row(s: AcqSource) -> dict[str, Any]:
@@ -64,7 +65,9 @@ def _entity_row(db: Session, e: AcqEntity, parents: dict[str, AcqEntity] | None 
     b, pb = e.beliefs or {}, (p.beliefs if p else {}) or {}
     if e.entity_type == "building":
         b, pb = {}, e.beliefs or {}
+    region = db.get(AcqEntity, e.region_id) if e.region_id else None
     return {"id": e.id, "type": e.entity_type, "label": e.label, "stage": e.stage, "score": round(e.score or 0, 4),
+            "region": region.label if region else None,
             "score_detail": e.score_detail, "sources": e.source_hosts, "mentions": e.mention_count,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None,
             "building": ({"id": p.id, "label": p.label, "sources": p.source_hosts} if p else None),
@@ -101,6 +104,8 @@ def overview(mission_id: str | None = None, domain: str = "housing", db: Session
         "domain": domain,
         "requests": [{k: v for k, v in r.to_dict().items() if k not in ("log", "plan")} for r in requests],
         "funnel": ((disc.stats or {}).get("funnel") if disc else None) or {},
+        "geography": {k: (disc.plan or {}).get(k) for k in ("principal", "ref_currency", "regions", "regions_rejected",
+                                                              "geography_rationale", "regions_acquired")} if disc else {},
         "discovery_log": (disc.log or [])[-60:] if disc else [],
         "entities": types, "unit_stages": stages, "multi_source_units": multi,
         "resolution": links,

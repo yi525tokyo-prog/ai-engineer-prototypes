@@ -19,6 +19,7 @@ from regent.acquisition.tables import AcqClaim, AcqDocument, AcqEntity, AcqReque
 from regent.acquisition.types import FetchedDocument
 
 FIX = Path(__file__).parent / "fixtures" / "web"
+JP_ONLY = {"regions": [{"name": "東京都", "country": "JP"}], "household": 1, "max_areas": 1}
 
 
 @pytest.fixture()
@@ -61,12 +62,15 @@ def test_extractor_reads_real_listing_and_market_pages():
 
 def test_discovery_from_entry_pages_without_any_candidate_list(db, web):
     out = service.run_action("discover", mission_id=None,
-                             params={"region": "東京都", "household": 1, "max_areas": 1, "assumptions": []})
+                             params={**JP_ONLY, "assumptions": []})
     assert out["status"] == "done"
     db.expire_all()
     req = db.get(AcqRequest, out["request_id"])
     # areas were chosen from live market data, not given
-    assert req.plan["areas"] == ["江戸川区"] and "market rents from live data" in req.plan["area_rationale"]
+    # the principal named the region; the areas inside it were chosen from live market data
+    acquired = req.plan["regions_acquired"][0]
+    assert acquired["name"] == "東京都" and acquired["summary"]["areas"] == ["江戸川区"]
+    assert "market rents from live data" in acquired["summary"]["area_rationale"]
     f = out["funnel"]
     assert f["units"] >= 150 and f["units"] > f["passed_filters"] >= f["filtered"] >= f["shortlisted"] >= 1
     assert f["filtered"] <= 25 and f["shortlisted"] <= 8
@@ -83,12 +87,15 @@ def test_discovery_from_entry_pages_without_any_candidate_list(db, web):
     athome = db.get(AcqSource, "www.athome.co.jp")
     assert athome.blocked >= 1 and athome.ok == 0
     assert any("blocked" in e["message"] for e in req.log if "athome" in e["message"])
-    # every claim is traceable to the page that asserted it
+    # every observed claim is traceable to the page that asserted it; derived claims state their basis
     orphan = db.scalar(select(func.count()).select_from(AcqClaim).where(
+        AcqClaim.source_kind != "derived",
         (AcqClaim.url == "") | AcqClaim.document_id.is_(None) | (AcqClaim.evidence == "")))
     assert orphan == 0
+    assert not db.scalar(select(func.count()).select_from(AcqClaim).where(AcqClaim.evidence == ""))
     docs = {d.id for d in db.scalars(select(AcqDocument))}
-    assert all(c.document_id in docs for c in db.scalars(select(AcqClaim).limit(500)))
+    assert all(c.document_id in docs for c in db.scalars(select(AcqClaim).where(AcqClaim.source_kind != "derived")
+                                                         .limit(500)))
     # shortlisted candidates carry evidence-backed beliefs
     short = db.scalars(select(AcqEntity).where(AcqEntity.stage == "shortlisted")).all()
     assert short and all(e.beliefs["rent"]["hypotheses"][0]["sources"] for e in short)
@@ -131,7 +138,7 @@ def test_loop_acquires_the_world_from_a_mission_sentence(db, services, web):
 def test_acquisition_api_exposes_hypotheses_with_provenance(db, web, live_server):
     import httpx
 
-    service.run_action("discover", mission_id=None, params={"region": "東京都", "household": 1, "max_areas": 1})
+    service.run_action("discover", mission_id=None, params=JP_ONLY)
     o = httpx.get(f"{live_server}/api/acquisition/overview").json()
     assert o["funnel"]["shortlisted"] >= 1 and o["candidates"][0]["stage"] == "shortlisted"
     src = {s["host"]: s for s in o["sources"]}
@@ -152,7 +159,7 @@ def test_time_sensitive_claims_expire_and_are_rechecked_once(db, web, monkeypatc
     from regent.acquisition.tables import AcqJob
     from regent.ids import utcnow
 
-    service.run_action("discover", mission_id="m1", params={"region": "東京都", "household": 1, "max_areas": 1})
+    service.run_action("discover", mission_id="m1", params=JP_ONLY)
     adapter = D.adapters()["housing"]
     db.expire_all()
     pending = service.mission_state(db, "m1", adapter)["shortlist_pending_enrichment"]

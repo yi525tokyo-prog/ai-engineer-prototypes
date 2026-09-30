@@ -194,6 +194,13 @@ class Fetcher:
         cached = None if purpose in ("recheck", "verify") else self._cached(url)
         if cached is not None:
             return cached
+        if (src.blocked or 0) >= 3 and not src.ok and (src.last_status or "").startswith("blocked"):
+            # this host has refused the crawler repeatedly and never answered: do not keep knocking
+            known = self._record(url, url, host, purpose, 0, "", "static",
+                                 blocked={"type": "known_blocked", "detail": f"host refused {src.blocked} times: "
+                                                                             f"{src.last_status}"})
+            known.from_cache = True          # no request was made: it costs no page budget
+            return known
         if not self.allowed(url):
             src.disallowed += 1
             src.last_status = "robots_disallow"
@@ -240,6 +247,9 @@ class Fetcher:
 
     def _static(self, url: str, host: str, purpose: str) -> FetchedDocument:
         self._wait_turn(host)
+        # stateless crawling: sites personalise by cookie (e.g. redirecting an entry page to the
+        # last region viewed), which would make one navigation depend on the previous one
+        self._client.cookies.clear()
         try:
             r = self._client.get(url)
         except httpx.HTTPError as e:

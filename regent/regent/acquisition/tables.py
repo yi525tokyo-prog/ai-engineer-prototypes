@@ -97,6 +97,7 @@ class AcqEntity(Base):
     status: Mapped[str] = mapped_column(String(12), default="active")  # active|merged
     merged_into: Mapped[str | None] = mapped_column(String(40), nullable=True)
     request_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    region_id: Mapped[str | None] = mapped_column(String(40), index=True, nullable=True)   # competing region
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
 
@@ -176,6 +177,30 @@ class AcqJob(Base):
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = _ts()
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AcqSourceRecipe(Base):
+    """A source Regent knows how to use for a domain in a geography -- seeded by a country
+    pack or learned by discovery -- with how to reach listings and how well that worked."""
+
+    __tablename__ = "acq_source_recipes"
+    id: Mapped[str] = mapped_column(String(160), primary_key=True)          # domain:scope:host
+    domain: Mapped[str] = mapped_column(String(32), index=True)
+    host: Mapped[str] = mapped_column(String(120), index=True)
+    scope: Mapped[str] = mapped_column(String(8), index=True)               # ISO country code or "*" (global)
+    kind: Mapped[str] = mapped_column(String(24), default="portal")          # portal|aggregator|operator|hostel|...
+    entry_url: Mapped[str] = mapped_column(Text)
+    nav: Mapped[list] = mapped_column(JSONType, default=list)                # anchor terms, "{city}" templated
+    hints: Mapped[dict] = mapped_column(JSONType, default=dict)              # {"prefer": [...], "avoid": [...]}
+    render: Mapped[str] = mapped_column(String(12), default="auto")
+    origin: Mapped[str] = mapped_column(String(40), default="pack")          # pack:XX|discovered:<channel>|search
+    status: Mapped[str] = mapped_column(String(16), default="candidate")     # candidate|verified|blocked|rejected
+    evidence: Mapped[dict] = mapped_column(JSONType, default=dict)           # classification + learned trails
+    records: Mapped[int] = mapped_column(Integer, default=0)
+    uses: Mapped[int] = mapped_column(Integer, default=0)
+    failures: Mapped[int] = mapped_column(Integer, default=0)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = _ts()
 
 
 Index("ix_acq_claims_entity_attr", AcqClaim.entity_id, AcqClaim.attribute)

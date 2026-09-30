@@ -34,6 +34,9 @@ describe("format", () => {
   });
   it("acquired belief values", () => {
     expect(beliefText("rent", 82000)).toBe("¥82,000");
+    expect(beliefText("rent", 1450, "EUR")).toBe("€1,450");
+    expect(beliefText("rent", 3163, "NZD")).toBe("NZ$3,163");
+    expect(beliefText("rent", 900, "PLN")).toBe("900 PLN");
     expect(beliefText("availability", true)).toBe("yes");
     expect(beliefText("stations", [{ station: "野方", walk_min: 2 }])).toBe("野方 2min");
     expect(beliefText("rent", null)).toBe("—");

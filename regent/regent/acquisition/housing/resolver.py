@@ -200,3 +200,124 @@ def building_features(mention_keys: dict[str, Any], claims: dict[str, Any]) -> d
         f["address"] = claims["address"]
         f.update({k: v for k, v in T.parse_address(claims["address"]).items() if k in ("city", "town", "chome")})
     return f
+
+
+class GenericHousingResolver:
+    """Identity for listings outside the Japanese pack: the same listing URL is the same unit;
+    a different URL on the same site is a different listing; across sites bedrooms, area, rent
+    and title must agree. Buildings match on street address, postcode or coordinates."""
+
+    def block_keys(self, entity_type: str, f: dict[str, Any]) -> tuple[str, list[str]]:
+        cc = (f.get("country") or f.get("_geo") or "?").upper()
+        if entity_type == "building":
+            if f.get("postcode"):
+                k = f"{cc}|pc|{f['postcode']}"
+            elif f.get("address_key"):
+                k = f"{cc}|ad|{f['address_key'][:24]}"
+            else:
+                k = f"{cc}|lo|{(f.get('locality') or '')[:24]}"
+            return k, [k]
+        if entity_type == "unit":
+            k = f"{cc}|{f.get('kind') or '?'}|{f.get('bedrooms') if f.get('bedrooms') is not None else '?'}"
+            return k, [k]
+        return f.get("area", ""), [f.get("area", "")]
+
+    def score(self, entity_type: str, m: dict[str, Any], e: dict[str, Any]) -> tuple[float, dict[str, Any]]:
+        if entity_type == "building":
+            logit, d = -2.0, {}
+            a1, a2 = m.get("address_key") or "", e.get("address_key") or ""
+            if a1 and a2:
+                sim = SequenceMatcher(None, a1, a2).ratio()
+                d["address_sim"] = round(sim, 3)
+                logit += 5 if a1 == a2 else (2.5 if sim >= 0.9 else -3)
+            p1, p2 = m.get("postcode"), e.get("postcode")
+            if p1 and p2:
+                d["postcode_equal"] = p1 == p2
+                logit += 1.5 if p1 == p2 else -4
+            g1, g2 = m.get("coords"), e.get("coords")
+            if g1 and g2:
+                dist = _haversine_m(g1, g2)
+                d["distance_m"] = round(dist)
+                logit += 3 if dist <= 40 else (-5 if dist > 300 else 0)
+            if not a1 or not a2:
+                logit = min(logit, 1.0)
+                d["identity_capped"] = "no street address on one side"
+            d["logit"] = round(logit, 2)
+            return _sig(logit), d
+        if entity_type == "unit":
+            u1, u2 = m.get("listing_url"), (e.get("_urls") or [])
+            if u1 and u1 in u2:
+                return 0.995, {"same_listing_url": True}
+            if m.get("_host") and m.get("_host") in (e.get("_hosts") or []):
+                return 0.02, {"same_site_other_listing": True}
+            logit, d = -1.5, {}
+            b1, b2 = m.get("bedrooms"), e.get("bedrooms")
+            if b1 is not None and b2 is not None:
+                d["bedrooms_equal"] = b1 == b2
+                logit += 1.5 if b1 == b2 else -5
+            a1, a2 = m.get("area_m2"), e.get("area_m2")
+            if a1 and a2:
+                rel = abs(float(a1) - float(a2)) / max(float(a1), float(a2))
+                d["area_rel_diff"] = round(rel, 3)
+                logit += 2 if rel <= 0.02 else (-4 if rel > 0.1 else 0)
+            r1, r2 = m.get("rent"), e.get("rent")
+            if r1 and r2 and m.get("currency") == e.get("currency"):
+                rel = abs(float(r1) - float(r2)) / max(float(r1), float(r2))
+                d["rent_rel_diff"] = round(rel, 3)
+                logit += 1.5 if rel <= 0.02 else (0.3 if rel <= 0.06 else -2)
+            t1, t2 = m.get("title_key") or "", e.get("title_key") or ""
+            if t1 and t2:
+                sim = SequenceMatcher(None, t1, t2).ratio()
+                d["title_sim"] = round(sim, 3)
+                logit += 2 if sim >= 0.9 else (0 if sim >= 0.6 else -1)
+            d["logit"] = round(logit, 2)
+            return _sig(logit), d
+        same = m.get("area") == e.get("area")
+        return (0.99 if same else 0.0), {"area_equal": same}
+
+    def merge(self, entity_type: str, e: dict[str, Any], m: dict[str, Any]) -> dict[str, Any]:
+        out = dict(e)
+        for k, v in m.items():
+            if not k.startswith("_") and out.get(k) in (None, "", []) and v not in (None, "", []):
+                out[k] = v
+        if m.get("listing_url"):
+            out["_urls"] = sorted(set(out.get("_urls") or []) | {m["listing_url"]})
+        if m.get("_host"):
+            out["_hosts"] = sorted(set(out.get("_hosts") or []) | {m["_host"]})
+        return out
+
+    def label(self, entity_type: str, f: dict[str, Any]) -> str:
+        if entity_type == "building":
+            return f.get("address") or f.get("address_key") or f.get("locality") or "building"
+        if entity_type == "unit":
+            b = f.get("bedrooms")
+            kind = f.get("kind") or "unit"
+            size = f" {f['area_m2']}m²" if f.get("area_m2") else ""
+            return (f"{b}-bed {kind}" if b not in (None, 0) else kind) + size
+        return f.get("area") or entity_type
+
+
+class HousingResolver:
+    """Dispatch: records from the Japanese pack use Japanese identity rules; others the generic ones."""
+
+    def __init__(self):
+        self.jp = HousingEntityResolver()
+        self.generic = GenericHousingResolver()
+
+    def _for(self, f: dict[str, Any]):
+        return self.generic if (f.get("country") or "listing_url" in f or f.get("_geo")) else self.jp
+
+    def block_keys(self, entity_type, f):
+        return self._for(f).block_keys(entity_type, f)
+
+    def score(self, entity_type, m, e):
+        r1, r2 = self._for(m), self._for(e) if e else self._for(m)
+        if e and r1 is not r2:
+            return 0.0, {"different_geography_model": True}
+        return r1.score(entity_type, m, e)
+
+    def merge(self, entity_type, e, m):
+        return self._for(m).merge(entity_type, e, m)
+
+    def label(self, entity_type, f):
+        return self._for(f).label(entity_type, f)

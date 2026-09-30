@@ -165,10 +165,15 @@ def brief(db: Session, adapter, units: list[AcqEntity]) -> str:
         b = e.beliefs or {}
         bl = db.get(AcqEntity, e.parent_id) if e.parent_id else None
         bb = (bl.beliefs if bl else {}) or {}
-        name = (bb.get("name") or {}).get("value") or (bb.get("address") or {}).get("value") or e.label
-        lines.append(f"## {i}. {name} — {e.label} (score {e.score:.3f})")
-        for attr, src in (("rent", b), ("management_fee", b), ("deposit", b), ("key_money", b), ("availability", b),
-                          ("move_in", b), ("address", bb), ("stations", bb), ("nearest_stations_public", bb),
+        name = (bb.get("name") or {}).get("value") or (bb.get("address") or {}).get("value") or \
+            (b.get("title") or {}).get("value") or e.label
+        region = db.get(AcqEntity, e.region_id) if e.region_id else None
+        cur = (b.get("currency") or {}).get("value")
+        lines.append(f"## {i}. {name} — {e.label}" + (f" — {region.label}" if region else "")
+                     + (f" [{cur}]" if cur else "") + f" (score {e.score:.3f})")
+        for attr, src in (("rent", b), ("rent_period", b), ("management_fee", b), ("deposit", b), ("key_money", b),
+                          ("bedrooms", b), ("unit_kind", b), ("availability", b), ("move_in", b), ("address", bb),
+                          ("postcode", bb), ("stations", bb), ("nearest_stations_public", bb), ("centre_km", bb),
                           ("rail_distance_m", bb), ("hub_minutes_est", bb), ("libraries_nearby", bb)):
             x = src.get(attr)
             if not x:

@@ -89,13 +89,21 @@ export function estimateDelta(changes: Record<string, { from: number; to: number
 const YEN_ATTRS = new Set(["rent", "management_fee", "deposit", "key_money", "initial_cost", "monthly", "renewal_fee",
   "other_initial_cost"]);
 
-/** Human text for an acquired attribute value (yen amounts, booleans, station lists). */
-export function beliefText(attr: string, v: unknown): string {
+const CURRENCY_SIGN: Record<string, string> = { JPY: "¥", EUR: "€", GBP: "£", USD: "$", NZD: "NZ$", AUD: "A$", CAD: "C$" };
+
+export function money(n: number, currency = "JPY"): string {
+  const sign = CURRENCY_SIGN[currency];
+  const body = Math.round(n).toLocaleString("en-US");
+  return sign ? `${sign}${body}` : `${body} ${currency}`;
+}
+
+/** Human text for an acquired attribute value (money in its own currency, booleans, station lists). */
+export function beliefText(attr: string, v: unknown, currency?: string): string {
   if (v === null || v === undefined || v === "") return "—";
   if (typeof v === "boolean") return v ? "yes" : "no";
   if (YEN_ATTRS.has(attr) || attr.startsWith("market_rent")) {
     const n = Number(v);
-    return Number.isFinite(n) ? `¥${Math.round(n).toLocaleString("en-US")}` : String(v);
+    return Number.isFinite(n) ? money(n, currency ?? "JPY") : String(v);
   }
   if (Array.isArray(v)) {
     return v.map((x) => (x && typeof x === "object" && "station" in x

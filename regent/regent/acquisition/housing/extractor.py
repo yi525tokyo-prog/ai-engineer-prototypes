@@ -70,7 +70,7 @@ def _t(e) -> str:
 class HousingExtractor:
     name = "housing-extractor-v1"
 
-    def __init__(self, default_pref: str = "東京都"):
+    def __init__(self, default_pref: str = ""):
         self.default_pref = default_pref
 
     # ------------------------------------------------------------ entry

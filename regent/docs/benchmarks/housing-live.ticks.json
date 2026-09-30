@@ -1,0 +1,762 @@
+[
+ {
+  "tick": 1,
+  "status": "active",
+  "idle": false,
+  "progress": true,
+  "seconds": 433,
+  "phases": [
+   {
+    "phase": "observe",
+    "at": "2026-09-29T12:44:46.163807+00:00",
+    "new_events": 1,
+    "external": [
+     "mission_created#1"
+    ],
+    "resumed_interrupts": []
+   },
+   {
+    "phase": "model",
+    "at": "2026-09-29T12:44:46.228186+00:00",
+    "event_seq": 1,
+    "snapshot": "snap_d355254fe862",
+    "entities": 0,
+    "facts": 0,
+    "runway_months": null
+   },
+   {
+    "phase": "acquire",
+    "at": "2026-09-29T12:51:54.517204+00:00",
+    "needs": [
+     {
+      "action": "discover",
+      "reason": "no live housing options are known: cannot compare strategies without them",
+      "domain": "housing",
+      "state": {
+       "requests": 0,
+       "discovery_done": false,
+       "discovery_running": false,
+       "shortlisted": 0
+      }
+     }
+    ],
+    "operations": [
+     "acquire.discover.1: no live housing options are known: cannot compare strategies without them"
+    ],
+    "executed_before_planning": [
+     "op_6037c50c688b"
+    ]
+   },
+   {
+    "phase": "generate",
+    "at": "2026-09-29T12:51:54.644590+00:00",
+    "reason": "no live routes",
+    "created": [
+     "housing-lease",
+     "housing-monthly",
+     "housing-share",
+     "housing-hostel",
+     "housing-defer"
+    ],
+    "updated": [],
+    "providers": [
+     "local",
+     "local"
+    ]
+   },
+   {
+    "phase": "evaluate",
+    "at": "2026-09-29T12:51:54.694227+00:00",
+    "ranking": [
+     {
+      "route_id": "rt_d25e16eee9ee",
+      "key": "housing-lease",
+      "title": "Lease now: 東京都中野区江原町 1K 23.0m² 1F #103 (+1 backups)",
+      "score": 2.7835,
+      "rank": 1,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_5927c29aeb0e",
+      "key": "housing-share",
+      "title": "Share house room",
+      "score": 2.3447,
+      "rank": 2,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_f07231d71904",
+      "key": "housing-monthly",
+      "title": "Monthly apartment while deciding",
+      "score": 1.085,
+      "rank": 3,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_45592ea2d4fd",
+      "key": "housing-defer",
+      "title": "Don't commit until the work location is known",
+      "score": 0.8588,
+      "rank": 4,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_b377332db967",
+      "key": "housing-hostel",
+      "title": "Stay in hotels/hostels",
+      "score": 0.5414,
+      "rank": 5,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     }
+    ],
+    "uncertainties": [
+     {
+      "fact": "principal.max_rent",
+      "flips_selection": true,
+      "voi": 1.5333
+     },
+     {
+      "fact": "principal.work_location",
+      "flips_selection": false,
+      "voi": 0.0
+     }
+    ]
+   },
+   {
+    "phase": "select",
+    "at": "2026-09-29T12:51:54.694244+00:00",
+    "kind": "route_selected",
+    "selected": "housing-lease",
+    "reason": "initial selection: 'Lease now: 東京都中野区江原町 1K 23.0m² 1F #103 (+1 backups)' ranks first (2.783)",
+    "decision": "dec_ff359fe05317"
+   },
+   {
+    "phase": "decompose",
+    "at": "2026-09-29T12:51:54.707885+00:00",
+    "operations": [
+     "lease.recheck (acquire.recheck, AUTO)",
+     "lease.brief (fs.write, AUTO)",
+     "lease.contact (human.perform, IDENTITY)"
+    ],
+    "acquisitions": []
+   },
+   {
+    "phase": "execute",
+    "at": "2026-09-29T12:51:59.488041+00:00",
+    "started": 1,
+    "interrupts": [],
+    "blocked": [],
+    "authority": []
+   },
+   {
+    "phase": "verify",
+    "at": "2026-09-29T12:51:59.502809+00:00",
+    "verified": [
+     {
+      "op": "acquire.discover.1",
+      "verdict": "pass",
+      "method": "schema"
+     },
+     {
+      "op": "lease.recheck",
+      "verdict": "pass",
+      "method": "schema"
+     }
+    ]
+   },
+   {
+    "phase": "update_world",
+    "at": "2026-09-29T12:51:59.502822+00:00",
+    "evidence": [
+     "evd_67eb6ae557fa",
+     "evd_fb09a032301b"
+    ],
+    "notes": []
+   },
+   {
+    "phase": "replan",
+    "at": "2026-09-29T12:51:59.605799+00:00",
+    "kind": "plan_kept",
+    "selected": "housing-lease",
+    "reason": "incumbent still best",
+    "decision": null
+   }
+  ]
+ },
+ {
+  "tick": 2,
+  "status": "active",
+  "idle": false,
+  "progress": true,
+  "seconds": 490,
+  "phases": [
+   {
+    "phase": "observe",
+    "at": "2026-09-29T12:51:59.635907+00:00",
+    "new_events": 0,
+    "external": [],
+    "resumed_interrupts": []
+   },
+   {
+    "phase": "model",
+    "at": "2026-09-29T12:51:59.659920+00:00",
+    "event_seq": 131,
+    "snapshot": "snap_470e7f48aca6",
+    "entities": 46,
+    "facts": 15,
+    "runway_months": null
+   },
+   {
+    "phase": "acquire",
+    "at": "2026-09-29T12:51:59.677939+00:00",
+    "needs": [
+     {
+      "action": "enrich",
+      "reason": "shortlisted candidates lack verification, location and move-in facts needed to evaluate them",
+      "domain": "housing",
+      "state": {
+       "requests": 2,
+       "discovery_done": true,
+       "discovery_running": false,
+       "shortlisted": 8
+      }
+     }
+    ],
+    "operations": [
+     "acquire.enrich.2: shortlisted candidates lack verification, location and move-in facts needed to evaluate them"
+    ],
+    "executed_before_planning": []
+   },
+   {
+    "phase": "generate",
+    "at": "2026-09-29T12:51:59.714951+00:00",
+    "reason": "world entities changed",
+    "created": [],
+    "updated": [
+     "housing-lease",
+     "housing-monthly",
+     "housing-share",
+     "housing-hostel",
+     "housing-defer"
+    ],
+    "providers": [
+     "local",
+     "local"
+    ]
+   },
+   {
+    "phase": "evaluate",
+    "at": "2026-09-29T12:51:59.749484+00:00",
+    "ranking": [
+     {
+      "route_id": "rt_d25e16eee9ee",
+      "key": "housing-lease",
+      "title": "Lease now: 古谷マンション 1DK 24.0m² 1F (+1 backups)",
+      "score": 3.3361,
+      "rank": 1,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_5927c29aeb0e",
+      "key": "housing-share",
+      "title": "Share house room",
+      "score": 2.3645,
+      "rank": 2,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_f07231d71904",
+      "key": "housing-monthly",
+      "title": "Monthly apartment while deciding",
+      "score": 1.1227,
+      "rank": 3,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_45592ea2d4fd",
+      "key": "housing-defer",
+      "title": "Don't commit until the work location is known",
+      "score": 0.8565,
+      "rank": 4,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_b377332db967",
+      "key": "housing-hostel",
+      "title": "Stay in hotels/hostels",
+      "score": 0.5581,
+      "rank": 5,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     }
+    ],
+    "uncertainties": [
+     {
+      "fact": "principal.max_rent",
+      "flips_selection": true,
+      "voi": 1.342
+     },
+     {
+      "fact": "principal.work_location",
+      "flips_selection": false,
+      "voi": 0.0
+     }
+    ]
+   },
+   {
+    "phase": "select",
+    "at": "2026-09-29T12:51:59.749498+00:00",
+    "kind": "plan_kept",
+    "selected": "housing-lease",
+    "reason": "incumbent still best",
+    "decision": null
+   },
+   {
+    "phase": "decompose",
+    "at": "2026-09-29T12:51:59.757265+00:00",
+    "operations": [],
+    "acquisitions": []
+   },
+   {
+    "phase": "execute",
+    "at": "2026-09-29T12:52:56.394889+00:00",
+    "started": 2,
+    "interrupts": [],
+    "blocked": [],
+    "authority": []
+   },
+   {
+    "phase": "verify",
+    "at": "2026-09-29T12:52:56.405471+00:00",
+    "verified": [
+     {
+      "op": "lease.brief",
+      "verdict": "pass",
+      "method": "schema"
+     },
+     {
+      "op": "acquire.enrich.2",
+      "verdict": "pass",
+      "method": "schema"
+     }
+    ]
+   },
+   {
+    "phase": "update_world",
+    "at": "2026-09-29T12:52:56.405485+00:00",
+    "evidence": [
+     "evd_7f8da4881975",
+     "evd_a531d2fbd0b0"
+    ],
+    "notes": []
+   },
+   {
+    "phase": "replan",
+    "at": "2026-09-29T12:52:56.451209+00:00",
+    "kind": "plan_kept",
+    "selected": "housing-lease",
+    "reason": "incumbent still best",
+    "decision": null
+   }
+  ]
+ },
+ {
+  "tick": 3,
+  "status": "waiting_human",
+  "idle": false,
+  "progress": true,
+  "seconds": 500,
+  "phases": [
+   {
+    "phase": "observe",
+    "at": "2026-09-29T12:52:56.476806+00:00",
+    "new_events": 0,
+    "external": [],
+    "resumed_interrupts": []
+   },
+   {
+    "phase": "model",
+    "at": "2026-09-29T12:52:56.496693+00:00",
+    "event_seq": 187,
+    "snapshot": "snap_c66baa1949c5",
+    "entities": 54,
+    "facts": 16,
+    "runway_months": null
+   },
+   {
+    "phase": "acquire",
+    "at": "2026-09-29T12:52:56.530870+00:00",
+    "needs": [
+     {
+      "action": "enrich",
+      "reason": "shortlisted candidates lack verification, location and move-in facts needed to evaluate them",
+      "domain": "housing",
+      "state": {
+       "requests": 3,
+       "discovery_done": true,
+       "discovery_running": false,
+       "shortlisted": 8
+      }
+     }
+    ],
+    "operations": [
+     "acquire.enrich.3: shortlisted candidates lack verification, location and move-in facts needed to evaluate them"
+    ],
+    "executed_before_planning": []
+   },
+   {
+    "phase": "generate",
+    "at": "2026-09-29T12:52:56.563866+00:00",
+    "reason": "world entities changed",
+    "created": [],
+    "updated": [
+     "housing-lease",
+     "housing-monthly",
+     "housing-share",
+     "housing-hostel",
+     "housing-defer"
+    ],
+    "providers": [
+     "local",
+     "local"
+    ]
+   },
+   {
+    "phase": "evaluate",
+    "at": "2026-09-29T12:52:56.595865+00:00",
+    "ranking": [
+     {
+      "route_id": "rt_d25e16eee9ee",
+      "key": "housing-lease",
+      "title": "Lease now: 古谷マンション 1DK 24.0m² 1F (+2 backups)",
+      "score": 4.9974,
+      "rank": 1,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_5927c29aeb0e",
+      "key": "housing-share",
+      "title": "Share house room",
+      "score": 2.3584,
+      "rank": 2,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_f07231d71904",
+      "key": "housing-monthly",
+      "title": "Monthly apartment while deciding",
+      "score": 1.1068,
+      "rank": 3,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_45592ea2d4fd",
+      "key": "housing-defer",
+      "title": "Don't commit until the work location is known",
+      "score": 0.8558,
+      "rank": 4,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_b377332db967",
+      "key": "housing-hostel",
+      "title": "Stay in hotels/hostels",
+      "score": 0.5515,
+      "rank": 5,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     }
+    ],
+    "uncertainties": [
+     {
+      "fact": "principal.max_rent",
+      "flips_selection": true,
+      "voi": 0.6642
+     },
+     {
+      "fact": "principal.work_location",
+      "flips_selection": false,
+      "voi": 0.0
+     }
+    ]
+   },
+   {
+    "phase": "select",
+    "at": "2026-09-29T12:52:56.595877+00:00",
+    "kind": "plan_kept",
+    "selected": "housing-lease",
+    "reason": "incumbent still best",
+    "decision": null
+   },
+   {
+    "phase": "decompose",
+    "at": "2026-09-29T12:52:56.602937+00:00",
+    "operations": [],
+    "acquisitions": []
+   },
+   {
+    "phase": "execute",
+    "at": "2026-09-29T12:53:05.655317+00:00",
+    "started": 1,
+    "interrupts": [
+     "hi_c39a5b4e557a"
+    ],
+    "blocked": [],
+    "authority": []
+   },
+   {
+    "phase": "verify",
+    "at": "2026-09-29T12:53:05.662525+00:00",
+    "verified": [
+     {
+      "op": "acquire.enrich.3",
+      "verdict": "pass",
+      "method": "schema"
+     }
+    ]
+   },
+   {
+    "phase": "update_world",
+    "at": "2026-09-29T12:53:05.662540+00:00",
+    "evidence": [
+     "evd_9220073677d8"
+    ],
+    "notes": []
+   },
+   {
+    "phase": "replan",
+    "at": "2026-09-29T12:53:05.726590+00:00",
+    "kind": "plan_kept",
+    "selected": "housing-lease",
+    "reason": "incumbent still best",
+    "decision": null
+   }
+  ]
+ },
+ {
+  "tick": 4,
+  "status": "waiting_human",
+  "idle": true,
+  "progress": false,
+  "seconds": 500,
+  "phases": []
+ },
+ {
+  "tick": 4,
+  "status": "waiting_human",
+  "idle": false,
+  "progress": true,
+  "seconds": 26,
+  "phases": [
+   {
+    "phase": "observe",
+    "at": "2026-09-29T12:53:05.866686+00:00",
+    "new_events": 0,
+    "external": [],
+    "resumed_interrupts": []
+   },
+   {
+    "phase": "model",
+    "at": "2026-09-29T12:53:05.898326+00:00",
+    "event_seq": 242,
+    "snapshot": "snap_24ee56c6acf4",
+    "entities": 56,
+    "facts": 16,
+    "runway_months": null
+   },
+   {
+    "phase": "acquire",
+    "at": "2026-09-29T12:53:05.947757+00:00",
+    "needs": [
+     {
+      "action": "recheck",
+      "reason": "time-sensitive claims (availability/rent) are past their TTL",
+      "domain": "housing",
+      "state": {
+       "requests": 4,
+       "discovery_done": true,
+       "discovery_running": false,
+       "shortlisted": 8
+      }
+     }
+    ],
+    "operations": [
+     "acquire.recheck.4: time-sensitive claims (availability/rent) are past their TTL"
+    ],
+    "executed_before_planning": []
+   },
+   {
+    "phase": "generate",
+    "at": "2026-09-29T12:53:05.989089+00:00",
+    "reason": "world entities changed",
+    "created": [],
+    "updated": [
+     "housing-lease",
+     "housing-monthly",
+     "housing-share",
+     "housing-hostel",
+     "housing-defer"
+    ],
+    "providers": [
+     "local",
+     "local"
+    ]
+   },
+   {
+    "phase": "evaluate",
+    "at": "2026-09-29T12:53:06.036377+00:00",
+    "ranking": [
+     {
+      "route_id": "rt_d25e16eee9ee",
+      "key": "housing-lease",
+      "title": "Lease now: 基本情報 1R 13.91m² 1F #102 (+2 backups)",
+      "score": 3.9895,
+      "rank": 1,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_5927c29aeb0e",
+      "key": "housing-share",
+      "title": "Share house room",
+      "score": 2.3447,
+      "rank": 2,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_f07231d71904",
+      "key": "housing-monthly",
+      "title": "Monthly apartment while deciding",
+      "score": 1.0756,
+      "rank": 3,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_45592ea2d4fd",
+      "key": "housing-defer",
+      "title": "Don't commit until the work location is known",
+      "score": 0.8556,
+      "rank": 4,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     },
+     {
+      "route_id": "rt_b377332db967",
+      "key": "housing-hostel",
+      "title": "Stay in hotels/hostels",
+      "score": 0.5382,
+      "rank": 5,
+      "selectable": true,
+      "blocked": [],
+      "invalid": []
+     }
+    ],
+    "uncertainties": [
+     {
+      "fact": "principal.max_rent",
+      "flips_selection": true,
+      "voi": 1.03
+     },
+     {
+      "fact": "principal.work_location",
+      "flips_selection": false,
+      "voi": 0.0
+     }
+    ]
+   },
+   {
+    "phase": "select",
+    "at": "2026-09-29T12:53:06.036398+00:00",
+    "kind": "plan_kept",
+    "selected": "housing-lease",
+    "reason": "incumbent still best",
+    "decision": null
+   },
+   {
+    "phase": "decompose",
+    "at": "2026-09-29T12:53:06.047114+00:00",
+    "operations": [],
+    "acquisitions": []
+   },
+   {
+    "phase": "execute",
+    "at": "2026-09-29T12:53:32.075019+00:00",
+    "started": 1,
+    "interrupts": [],
+    "blocked": [],
+    "authority": []
+   },
+   {
+    "phase": "verify",
+    "at": "2026-09-29T12:53:32.083155+00:00",
+    "verified": [
+     {
+      "op": "acquire.recheck.4",
+      "verdict": "pass",
+      "method": "schema"
+     }
+    ]
+   },
+   {
+    "phase": "update_world",
+    "at": "2026-09-29T12:53:32.083169+00:00",
+    "evidence": [
+     "evd_30a04f1bbcaa"
+    ],
+    "notes": []
+   },
+   {
+    "phase": "replan",
+    "at": "2026-09-29T12:53:32.141504+00:00",
+    "kind": "plan_kept",
+    "selected": "housing-lease",
+    "reason": "incumbent still best",
+    "decision": null
+   }
+  ],
+  "clock_offset_h": 7.0
+ },
+ {
+  "tick": 5,
+  "status": "waiting_human",
+  "idle": true,
+  "progress": false,
+  "seconds": 27,
+  "phases": [],
+  "clock_offset_h": 7.0
+ }
+]

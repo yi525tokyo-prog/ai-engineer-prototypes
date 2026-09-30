@@ -291,7 +291,7 @@ class RegentLoop:
             op = Operation(id=new_id("op"), mission_id=m.id, route_id=None, key=f"acquire.{n['action']}.{m.tick_count}",
                            goal=f"{n['action'].title()} ({n['domain']}): {n['reason']}", kind="acquire",
                            executor="search", tool="acquire", action=n["action"], required_authority="AUTO",
-                           status="pending", inputs=inputs, outputs={}, timeout_s=1500,
+                           status="pending", inputs=inputs, outputs={}, timeout_s=3000,
                            retry_policy={"max_attempts": 1, "fallback": [], "fallback_index": -1},
                            verification={"method": "schema", "required_keys": ["request_id", "funnel"]},
                            cost_estimate={"minutes": 5}, depends_on=[], resolves=[], emits={}, sequence=-1,

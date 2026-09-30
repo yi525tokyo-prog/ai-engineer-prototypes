@@ -156,7 +156,7 @@ class AcquisitionEngine:
     # ---------------------------------------------------------------- ingest
 
     def ingest(self, doc: FetchedDocument, mentions: list[Mention], *, source_kind: str,
-               pin: str | None = None, pin_min_p: float = 0.0) -> list[AcqEntity]:
+               pin: str | None = None, pin_min_p: float = 0.0, region: dict | None = None) -> list[AcqEntity]:
         """``pin``: the page was reached *from* this entity (e.g. its detail link), so its
         single matching record is that entity by provenance -- provided the resolver's own
         probability is at least ``pin_min_p`` (0 = trust provenance fully)."""
@@ -182,6 +182,11 @@ class AcquisitionEngine:
                 child_f["_host"] = doc.host
                 parent = self._ingest_one(doc, m.parent, source_kind, parent_id=None, child=(m.entity_type, child_f))
             ent = self._ingest_one(doc, m, source_kind, parent_id=parent.id if parent else None)
+            rid = (region or {}).get("id")
+            if rid:
+                for x in (ent, parent):
+                    if x is not None and not x.region_id:
+                        x.region_id = rid
             out.append(ent)
         self.stats["mentions"] += len(mentions)
         self.stats["by_host"].setdefault(doc.host, {"pages": 0, "ok": 0, "blocked": 0, "mentions": 0,
