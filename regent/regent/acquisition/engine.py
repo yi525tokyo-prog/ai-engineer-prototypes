@@ -57,6 +57,8 @@ class AcquisitionEngine:
         # an injected clock (tests, simulated TTL expiry) must stamp *everything* this run
         # observes -- documents, claims and jobs -- or re-observed claims would look old
         self._clock = now
+        # region of the entity a job is working on: records it produces belong to that region
+        self.region_ctx: dict | None = None
         self.stats: dict[str, Any] = {"pages": 0, "pages_ok": 0, "blocked": 0, "robots_disallowed": 0, "errors": 0,
                                       "mentions": 0, "claims": 0, "by_host": {}, "render_browser": 0}
 
@@ -182,7 +184,7 @@ class AcquisitionEngine:
                 child_f["_host"] = doc.host
                 parent = self._ingest_one(doc, m.parent, source_kind, parent_id=None, child=(m.entity_type, child_f))
             ent = self._ingest_one(doc, m, source_kind, parent_id=parent.id if parent else None)
-            rid = (region or {}).get("id")
+            rid = (region or self.region_ctx or {}).get("id")
             if rid:
                 for x in (ent, parent):
                     if x is not None and not x.region_id:

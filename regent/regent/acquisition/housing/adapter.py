@@ -243,7 +243,7 @@ class HousingAdapter(DomainAdapter):
         addr = v(bb, "address") or v(bb, "locality") or ""
         return {
             "id": e.id, "label": e.label, "building_id": e.parent_id,
-            "building": v(bb, "name") or addr or v(b, "title") or "?", "address": addr,
+            "building": v(bb, "name") or addr or v(b, "title") or "", "address": addr,
             "region_id": e.region_id, "region": reg.get("name"), "country": reg.get("country"),
             "housing_type": v(b, "housing_type") or ("share_house" if kind == "room" else "rent"), "kind": kind,
             "rent": rent, "fee": fee, "monthly": monthly, "currency": cur,
@@ -284,6 +284,8 @@ class HousingAdapter(DomainAdapter):
         for e in units:
             u = views[e.id]
             reasons = []
+            if not e.region_id:
+                reasons.append("not part of any acquired region")
             if u["rent"] is None:
                 reasons.append("no rent claim")
             if u["availability"] is False:
@@ -390,10 +392,12 @@ class HousingAdapter(DomainAdapter):
         ent = engine.db.get(AcqEntity, job.entity_id) if job.entity_id else None
         self.active_pack = pack
         self.active_region = self.region_info(engine, ent.region_id) if ent is not None and ent.region_id else None
+        engine.region_ctx = {"id": ent.region_id} if ent is not None and ent.region_id else None
         try:
             return pack.run(engine, job)
         finally:
             self.active_pack = self.active_region = None
+            engine.region_ctx = None
 
     def recheck_jobs(self, engine, entity: AcqEntity) -> list[EnrichmentJobSpec]:
         pack = self._pack_of_entity(engine, entity)
@@ -413,7 +417,11 @@ class HousingAdapter(DomainAdapter):
     def project(self, engine, request: AcqRequest) -> list[dict[str, Any]]:
         evs: list[dict[str, Any]] = []
         stats = request.stats or {}
-        plan = request.plan or {}
+        # region-level decisions live in the discovery request, not in later enrich/recheck requests
+        disc = engine.db.scalar(select(AcqRequest).where(AcqRequest.domain == self.name, AcqRequest.goal == "discover",
+                                                         AcqRequest.plan.isnot(None))
+                                .order_by(AcqRequest.created_at.desc()).limit(1)) if request.goal != "discover" else request
+        plan = (disc.plan if disc is not None else None) or request.plan or {}
         ref = plan.get("ref_currency")
         units = list(engine.db.scalars(select(AcqEntity).where(AcqEntity.domain == self.name,
                                                                AcqEntity.entity_type == "unit",
@@ -436,7 +444,8 @@ class HousingAdapter(DomainAdapter):
         for e in units:
             u = self.unit_view(engine, e, rinfo)
             views.append((e, u))
-            evs.append({"type": "entity_upserted", "id": e.id, "kind": "unit", "name": f"{u['building']} {e.label}",
+            evs.append({"type": "entity_upserted", "id": e.id, "kind": "unit",
+                        "name": f"{u['building']} {e.label}".strip() if u["building"] else f"{e.label} ({u['region']})",
                         "merge": False, "attrs": {
                             "housing_type": u["housing_type"], "kind": u["kind"], "stage": e.stage, "score": e.score,
                             "region_id": e.region_id, "region": u["region"], "country": u["country"],
@@ -546,17 +555,18 @@ def housing_strategies(mission: dict[str, Any], world: dict[str, Any]) -> list[R
                             affects=["success_probability"])]
     by_region: dict[str, list[dict]] = {}
     for u in units:
-        if u["attrs"].get("monthly_ref") or (u["attrs"].get("monthly") and not u["attrs"].get("region_id")):
-            by_region.setdefault(u["attrs"].get("region_id") or "_", []).append(u)
+        if u["attrs"].get("region_id") and u["attrs"].get("monthly_ref"):
+            by_region.setdefault(u["attrs"]["region_id"], []).append(u)
     region_monthlies = []
     for rid, us in by_region.items():
         reg = regions.get(rid, {"attrs": {}, "name": "home", "id": rid})
         ra = reg["attrs"]
         cc = ra.get("country") or "JP"
-        rent_units = sorted([u for u in us if u["attrs"].get("kind") != "room"
+        rent_units = sorted([u for u in us if u["attrs"].get("kind") not in ("room", "hostel_bed")
                              and u["attrs"].get("housing_type", "rent") == "rent"],
-                            key=lambda u: -(u["attrs"].get("score") or 0)) or \
-            sorted(us, key=lambda u: -(u["attrs"].get("score") or 0))
+                            key=lambda u: -(u["attrs"].get("score") or 0))
+        if not rent_units:
+            continue          # only rooms here: that evidence feeds the room strategy, not a lease
         top = rent_units[:3]
 
         def m_ref(u):
@@ -573,7 +583,7 @@ def housing_strategies(mission: dict[str, Any], world: dict[str, Any]) -> list[R
             return dep_ref + (a.get("key_money") or 0) * scale + m_ref(u)
 
         initial = statistics.median(upfront(u) for u in top)
-        home = bool(ra.get("home")) or rid == "_"
+        home = bool(ra.get("home"))
         dist = ra.get("distance_km") or 0
         relocation = 0.0 if home or not fx_ref_usd else (RELOCATION_USD[0] + RELOCATION_USD[1] * dist) * fx_ref_usd
         p_avail = 1.0

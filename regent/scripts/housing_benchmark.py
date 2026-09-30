@@ -254,7 +254,9 @@ def report(ticks: list[dict] | None) -> str:
         L += ["", f"Selected: **{sel.title if sel else 'none'}**"]
         if sel is not None:
             L += ["", f"> {sel.thesis}", ""]
-            for k, v in (sel.estimate_rationale or {}).items():
+            rationale = next((v.get("rationale") for v in (sel.estimate_sources or {}).values()
+                              if isinstance(v, dict) and v.get("rationale")), {})
+            for k, v in (rationale or {}).items():
                 L.append(f"- {k}: {v}")
         d = s.scalars(select(Decision).where(Decision.mission_id == m.id).order_by(Decision.created_at.desc())).first()
         if d is not None:

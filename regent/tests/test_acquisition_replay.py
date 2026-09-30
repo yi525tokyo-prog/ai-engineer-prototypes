@@ -167,6 +167,10 @@ def test_loop_acquires_the_world_from_a_mission_sentence(db, services, world_web
     home = [r for r in routes if r.key.startswith("housing-lease-jp")]
     assert len(abroad) >= 2 and home and any(r.key == "housing-defer" for r in routes)
     assert all(any(u["fact_key"].startswith("principal.right_to_reside.") for u in r.uncertainty) for r in abroad)
+    # later requests (enrichment) keep region semantics: home stays home, nothing floats region-less
+    assert all(r.title.startswith("Lease now in") for r in home)
+    assert not db.scalar(select(func.count()).select_from(AcqEntity).where(
+        AcqEntity.entity_type == "unit", AcqEntity.stage == "shortlisted", AcqEntity.region_id.is_(None)))
 
 
 def test_acquisition_api_exposes_hypotheses_with_provenance(db, web, live_server):
