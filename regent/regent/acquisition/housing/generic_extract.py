@@ -43,6 +43,9 @@ ADDRESSY = re.compile(r"^\s*(?:(?:flat|apt|unit|#)\s*\w+[,/ ]\s*)?\d+[a-z]?(?:[/
                       r"straße|strasse|str\.?|weg|allee|platz|gasse|calle|via|rue|boulevard|blvd)\b"
                       r"|^[A-ZÄÖÜ][\w'. -]{2,40}(?:straße|strasse|str\.|weg|allee|platz|gasse)\s+\d+"
                       r"|,\s*[A-Z][a-z]+(?:\s[A-Z][a-z]+)?\s*(?:,|$)", re.I)
+UI_LABEL = re.compile(r"^\W*(pricing|price|prices|details|detail|contact|overview|features|description|map|photos?|"
+                      r"gallery|share|save|saved|new|featured|premium|top|sponsored|ad|anzeige|more|mehr|ver m[aá]s|"
+                      r"precio|preis|prix|info|information|highlights?|amenities|location)\W*$", re.I)
 LD_LISTING = {"Apartment", "Residence", "House", "SingleFamilyResidence", "Accommodation", "Room", "Suite",
               "RealEstateListing", "Offer", "Product", "ApartmentComplex", "Place", "LodgingBusiness", "Hostel"}
 MIN_MONTHLY_BY_CUR = {"JPY": 10000, "KRW": 100000, "INR": 3000, "THB": 2000, "PHP": 3000, "IDR": 500000,
@@ -167,7 +170,7 @@ class GenericListingExtractor:
             cls = f"{el.get('class') or ''} {el.get('data-testid') or ''} {el.get('itemprop') or ''}"
             if el.tag in ("h1", "h2", "h3", "h4") or TITLE_CLASS.search(cls):
                 tt = L.norm(el.text_content())
-                if 3 <= len(tt) <= 160 and not L.money(tt, self.currency):
+                if 3 <= len(tt) <= 160 and not L.money(tt, self.currency) and not UI_LABEL.match(tt):
                     title = tt
                     break
         address = None
@@ -420,7 +423,7 @@ class GenericListingExtractor:
             claims.append(ClaimIn("bedrooms", est, 0.6, f"derived from {r['rooms']} rooms", now, self.name))
         if r.get("available_from"):
             claims.append(ClaimIn("move_in", str(r["available_from"])[:24], 0.75, ev[:200], now, self.name))
-        if r.get("title"):
+        if r.get("title") and not UI_LABEL.match(str(r["title"])):
             claims.append(ClaimIn("title", L.norm(str(r["title"]))[:160], 0.9, str(r["title"])[:160], now, self.name))
         bclaims = []
         address = L.norm(str(r.get("address") or "")) or None

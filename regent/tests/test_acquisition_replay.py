@@ -138,6 +138,23 @@ def test_geography_is_decided_not_assumed(db, world_web):
     assert any(r.status in ("blocked", "rejected") and (r.evidence or {}).get("why") for r in es)
     # every region's shortlist exists; three per region in multi-region mode
     assert out["funnel"]["shortlisted"] >= 3 * len(acquired) - 3
+    # one enrichment pass settles every candidate -- including ones with nothing to enrich --
+    # so the loop does not ask for enrichment again on every tick
+    from regent.acquisition import domain as D
+
+    adapter = D.adapters()["housing"]
+    pending = service.mission_state(db, None, adapter)["shortlist_pending_enrichment"]
+    assert pending
+    enriched: set[str] = set()
+    for _ in range(4):        # enrichment may reject a candidate and promote the next one: converge
+        assert not (set(pending) & enriched), "a candidate was enriched twice"
+        service.run_action("enrich", mission_id=None, params={"entity_ids": pending})
+        enriched |= set(pending)
+        db.expire_all()
+        pending = service.mission_state(db, None, adapter)["shortlist_pending_enrichment"]
+        if not pending:
+            break
+    assert pending == []
 
 
 def test_loop_acquires_the_world_from_a_mission_sentence(db, services, world_web):

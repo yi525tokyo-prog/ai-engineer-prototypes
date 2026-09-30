@@ -61,7 +61,9 @@ def mission_state(db: Session, mission_id: str, adapter: D.DomainAdapter) -> dic
     store = ClaimStore(db, adapter.policy(), now=now())
     for e in shortlisted:
         ids = [e.id] + ([e.parent_id] if e.parent_id else [])
-        done = db.scalar(select(AcqJob.id).where(AcqJob.entity_id.in_(ids), AcqJob.kind.in_(DEEP_JOB_KINDS),
+        # enriched = any enrichment was attempted (a unit with no detail link and no building gets an
+        # explicit "nothing to enrich" record instead of being retried every tick)
+        done = db.scalar(select(AcqJob.id).where(AcqJob.entity_id.in_(ids),
                                                  AcqJob.status.in_(("done", "failed", "blocked", "skipped"))).limit(1))
         if done is None:
             pending.append(e.id)
@@ -120,7 +122,12 @@ def _run_action(action: str, *, mission_id: str | None, params: dict[str, Any], 
                 for eid in params.get("entity_ids") or []:
                     e = s.get(AcqEntity, eid)
                     if e is not None:
-                        engine.schedule(adapter.enrichment_jobs(engine, e))
+                        specs = adapter.enrichment_jobs(engine, e)
+                        engine.schedule(specs)
+                        if not specs:
+                            s.add(AcqJob(id=new_id("job"), request_id=req.id, entity_id=e.id, kind="none",
+                                         status="skipped", reason="nothing to enrich: no detail page, no building",
+                                         params={}, result={}, created_at=engine.claims.now()))
                 engine.log("deep_research", f"enriching {len(params.get('entity_ids') or [])} shortlisted candidates")
                 req.stats = {**(req.stats or {}), "jobs": engine.run_jobs()}
                 adapter.funnel(engine, req)
