@@ -1,3 +1,9 @@
+> **Baseline (superseded).** Recorded before geography became part of the search space: Regent
+> silently assumed the principal should live in Tokyo ("region = 東京都 ... using locale default").
+> Under the cross-geography criterion this run **fails**. See
+> [housing-cross-geography.md](housing-cross-geography.md). The Japan implementation shown here is
+> now the Japan source pack.
+
 # Housing benchmark — 「住居を安定させたい」
 
 A fresh world received only the sentence above: no tags, no candidates, no areas, no budget.

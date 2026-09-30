@@ -71,31 +71,34 @@ All of this is exercised end to end by the test suite, against PostgreSQL and re
     ALTERNATIVES, CHANGES, WORLD and MISSION, plus constitution, system and simulation controls.
     It is not a chat window.
 
-18. **World acquisition.** Regent gets the world it needs from the public web. Told only
-    「住居を安定させたい」 ("I want to stabilize my housing"), with nothing seeded, it:
-    - reads live rent markets and picks areas
-    - navigates from portal entry pages to the listings, obeying robots.txt and recording
-      blocks
-    - extracts **claims**, each with its source, URL, cached page, time, TTL and confidence
-    - resolves identical rooms across portals
-    - keeps conflicting values as competing hypotheses
-    - funnels ~1,300 units down to 8 for deep research: operator page, geocode, public
-      station/rail/facility data, move-in
-    - competes housing strategies, including not signing yet, on that evidence
+18. **World acquisition, with geography in the search space.** Told only 「住居を安定させたい」
+    ("I want to stabilize my housing"), with nothing seeded and no country given, Regent:
+    - builds a candidate world of cities from public directories;
+    - treats the language of the request as evidence about where the principal *is*, not where
+      they should live;
+    - prices shortlisted cities live, in one currency (ECB rates);
+    - chooses regions across countries and continents;
+    - acquires each through a source pack (the Japan pack, or a generic pack that works anywhere),
+      bootstrapping local sources by discovery where it has none;
+    - extracts claims with provenance, resolves identities, keeps conflicts, runs a funnel per region;
+    - compares strategies across borders: leasing in several countries, rooms, hostels, or waiting.
+      The right to live abroad is an explicit uncertainty.
 
     See [World acquisition](docs/ARCHITECTURE.md#world-acquisition-regentacquisition) and the
-    [benchmark report](docs/benchmarks/housing-live.md).
+    [cross-geography benchmark](docs/benchmarks/housing-cross-geography.md).
 
 ## World acquisition
 
 ```bash
 # the unseen-query benchmark: fresh DB, only the mission sentence, live web
 REGENT_DATABASE_URL=postgresql+psycopg://regent:regent@localhost:5432/regent_bench \
-  python scripts/housing_benchmark.py --ticks 6 --out docs/benchmarks/housing-live.md
+  python scripts/housing_benchmark.py --ticks 8 --pages 300 --recheck-after-hours 7 \
+  --out docs/benchmarks/housing-cross-geography.md
 ```
 
 API endpoints:
-- `/api/acquisition/overview`: funnel, sources and access status, candidates with beliefs
+- `/api/acquisition/overview`: regions chosen and rejected, funnel, sources and access status,
+  candidates with beliefs
 - `/api/acquisition/entities/{id}`: every claim per attribute with URL, time and confidence;
   the hypotheses, conflicts, identity decisions and enrichment jobs
 - `/api/acquisition/requests`, `/sources` and `/documents`
