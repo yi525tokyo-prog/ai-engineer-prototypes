@@ -149,7 +149,7 @@ class RouteGenerator:
             prop, dropped = self._validate_ops(prop)
             r = existing.get(prop.key)
             if r is None:
-                r = Route(id=new_id("rt"), mission_id=mission.id, key=prop.key, title=prop.title, thesis=prop.thesis,
+                r = Route(id=new_id("rt"), mission_id=mission.id, key=prop.key, title=_clip(prop.title), thesis=prop.thesis,
                           archetype=prop.archetype, generated_by=[provider_name], status="alive",
                           estimates={}, effective={}, estimate_sources={}, critiques=[], evidence_ids=[])
                 self.db.add(r)
@@ -168,7 +168,7 @@ class RouteGenerator:
             # executed history is never rewritten.
             if provider_name == (r.generated_by or [provider_name])[0] or provider_name not in ("local",):
                 started = self.db.scalar(select(Operation.id).where(Operation.route_id == r.id).limit(1))
-                r.title, r.thesis, r.archetype, r.tags = prop.title, prop.thesis, prop.archetype, prop.tags
+                r.title, r.thesis, r.archetype, r.tags = _clip(prop.title), prop.thesis, prop.archetype, prop.tags
                 r.sensitivities = [s.model_dump() for s in prop.sensitivities]
                 r.blockers = [b.model_dump() for b in prop.blockers]
                 r.required_capabilities = prop.required_capabilities
@@ -239,3 +239,8 @@ class RouteGenerator:
                     r.estimate_sources = sources
                     r.estimates, _ = combine_estimates(sources)
         self.db.flush()
+
+
+def _clip(title: str, n: int = 200) -> str:
+    """Route titles are labels (the thesis carries the argument); a provider may propose a long one."""
+    return title if len(title) <= n else title[: n - 3].rsplit(" ", 1)[0] + "..."

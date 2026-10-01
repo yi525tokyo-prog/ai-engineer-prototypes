@@ -379,7 +379,8 @@ class AppBuild:
     def _previous_live(self) -> S.AppService | None:
         """The version in use, running (started from its own workspace on the live data if this
         process has not started it yet)."""
-        live = S.get(self.slug, "live")
+        live = S.get(self.slug, "live") or S.adopt(self.slug, "live", Path(self.previous["workspace"]),
+                                                   self.root / "data" / "live", credential=self.passphrase)
         if live is not None and live.healthy():
             return live
         if live is not None:

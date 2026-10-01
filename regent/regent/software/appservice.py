@@ -91,6 +91,7 @@ class AppService:
     credential: str | None = None
     port: int = 0
     proc: subprocess.Popen | None = None
+    pid: int | None = None              # set when adopted from a pid file (started by an earlier Regent process)
     log_path: Path | None = None
     started_at: float = 0.0
     history: list[dict[str, Any]] = field(default_factory=list)
@@ -127,6 +128,9 @@ class AppService:
                 r = httpx.get(self.url + health, timeout=3, trust_env=False)
                 if r.status_code == 200:
                     _RUNNING[self.key] = self
+                    self.pid = self.proc.pid
+                    self._pidfile().write_text(json.dumps({"pid": self.pid, "port": self.port,
+                                                           "workspace": str(self.workspace)}))
                     ev = {"event": "started", "port": self.port, "seconds": round(time.time() - self.started_at, 1)}
                     self.history.append(ev)
                     return {"ok": True, **ev}
@@ -139,8 +143,25 @@ class AppService:
         return {"ok": False, "error": f"did not become healthy ({last}); exit={self.proc.poll() if self.proc else None}",
                 "log_tail": tail}
 
+    def _pidfile(self) -> Path:
+        return self.data_dir.parent / f"{self.role}.pid"
+
+    def _alive(self) -> bool:
+        if self.proc is not None:
+            return self.proc.poll() is None
+        if self.pid:
+            try:
+                os.kill(self.pid, 0)
+            except OSError:
+                return False
+            try:      # a zombie (exited, not yet reaped by whoever started it) is not running
+                return Path(f"/proc/{self.pid}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z"
+            except (OSError, IndexError):
+                return True
+        return False
+
     def healthy(self) -> bool:
-        if self.proc is None or self.proc.poll() is not None:
+        if not self._alive():
             return False
         try:
             return httpx.get(self.url + manifest(self.workspace)["health"], timeout=3, trust_env=False).status_code == 200
@@ -148,16 +169,29 @@ class AppService:
             return False
 
     def stop(self) -> None:
-        if self.proc is not None and self.proc.poll() is None:
+        pid = self.proc.pid if self.proc is not None else self.pid
+        if pid and self._alive():
             try:
-                os.killpg(self.proc.pid, signal.SIGTERM)
-                self.proc.wait(timeout=10)
+                os.killpg(pid, signal.SIGTERM)
+                if self.proc is not None:
+                    self.proc.wait(timeout=10)
+                else:
+                    for _ in range(40):
+                        if not self._alive():
+                            break
+                        time.sleep(0.25)
             except Exception:
+                pass
+            if self._alive():
                 try:
-                    os.killpg(self.proc.pid, signal.SIGKILL)
+                    os.killpg(pid, signal.SIGKILL)
                 except Exception:
                     pass
         _RUNNING.pop(self.key, None)
+        try:
+            self._pidfile().unlink()
+        except OSError:
+            pass
         self.history.append({"event": "stopped"})
 
     def restart(self) -> dict[str, Any]:
@@ -175,6 +209,25 @@ class AppService:
 
 def get(slug: str, role: str = "live") -> AppService | None:
     return _RUNNING.get(f"{slug}:{role}")
+
+
+def adopt(slug: str, role: str, workspace: Path, data_dir: Path, credential: str | None = None) -> AppService | None:
+    """An instance an earlier Regent process started (it outlives Regent: own session, pid file).
+    Adopted only if it is alive, healthy and runs the expected version; anything else found there
+    is stopped so it cannot hold the port or the data directory."""
+    pf = data_dir.parent / f"{role}.pid"
+    try:
+        rec = json.loads(pf.read_text())
+    except (OSError, ValueError):
+        return None
+    svc = AppService(slug, role, Path(rec["workspace"]), data_dir, credential=credential, port=int(rec["port"]),
+                     pid=int(rec["pid"]))
+    if svc.healthy() and Path(rec["workspace"]) == workspace:
+        svc.history.append({"event": "adopted", "pid": svc.pid, "port": svc.port})
+        _RUNNING[svc.key] = svc
+        return svc
+    svc.stop()
+    return None
 
 
 def stop_all() -> None:

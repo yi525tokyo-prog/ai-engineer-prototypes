@@ -26,7 +26,8 @@ def register(s: Session, *, mission_id: str | None, need: dict[str, Any], signat
              build: dict[str, Any], promote: dict[str, Any], capability_id: str | None = None,
              coverage: float = 0.0, provenance: dict[str, Any] | None = None) -> SwCapability:
     last = build["rounds"][-1]
-    spec = {"title": design.get("summary") or design.get("name"), "slug": design.get("name"),
+    spec = {"title": (design.get("name") or "application").replace("-", " ").capitalize(),
+            "summary": design.get("summary"), "slug": design.get("name"),
             "design": design, "requirements": need.get("requirements", []),
             "app": {"version": build["version"], "workspace": build["workspace"], "credential": build.get("credential"),
                     "data_dir": str(Path(build["workspace"]).parent / "data" / "live"), "port": promote.get("port"),
@@ -60,7 +61,9 @@ def _summary(build: dict[str, Any]) -> str:
 def live(cap: SwCapability) -> S.AppService:
     """The live instance, started from the current version if it is not running."""
     app = cap.spec["app"]
-    svc = S.get(app_slug(cap), "live")
+    cred = secrets.get(app["credential"]) if app.get("credential") else None
+    svc = S.get(app_slug(cap), "live") or S.adopt(app_slug(cap), "live", Path(app["workspace"]),
+                                                  Path(app["data_dir"]), credential=cred)
     if svc is not None and svc.healthy():
         return svc
     if svc is not None:
@@ -132,7 +135,10 @@ def maintain(s: Session) -> list[str]:
     out = []
     for c in s.query(SwCapability).filter(SwCapability.implementation == "application",
                                           SwCapability.status.in_(("usable", "degraded"))):
-        svc = S.get(app_slug(c), "live")
+        app = c.spec["app"]
+        svc = S.get(app_slug(c), "live") or S.adopt(
+            app_slug(c), "live", Path(app["workspace"]), Path(app["data_dir"]),
+            credential=secrets.get(app["credential"]) if app.get("credential") else None)
         if svc is None or not svc.healthy():
             try:
                 live(c)

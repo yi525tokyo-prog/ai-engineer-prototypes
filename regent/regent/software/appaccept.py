@@ -126,7 +126,8 @@ class Runner:
                 except Exception:
                     browser = pw.chromium.launch(headless=True, executable_path=_chromium_executable())
             for sc in scenarios or self.design.get("scenarios", []):
-                ctx = browser.new_context() if browser else None
+                # a phone-sized screen: the people these applications are for use them on phones
+                ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True) if browser else None
                 page = ctx.new_page() if ctx else None
                 results.append(self._scenario(sc, page))
                 if ctx:

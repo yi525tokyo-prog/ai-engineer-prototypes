@@ -317,3 +317,20 @@ def test_a_worker_dispute_is_judged_and_never_weakens_acceptance(apps, weaken):
         assert d.get("corrected") and res["accepted"] and len(res["rounds"]) == 2
         assert design["revisions"][0]["scenario"] == "login_api"
         assert "corrected its scenario login_api" in worker.briefs[-1] or len(worker.briefs) == 2
+
+
+def test_a_running_application_outlives_regent_and_is_adopted_not_duplicated(apps):
+    worker = ScriptedWorker([lambda ws: write_app(ws, persist=True)])
+    b = B.AppBuild(slug="shelf", need=NEED, design=DESIGN, sources=[], agent=worker, version=1, max_rounds=0)
+    res = b.run()
+    promo = b.promote()
+    live = S.get("shelf", "live")
+    pid = live.proc.pid
+    S._RUNNING.clear()                       # Regent's process restarts; the application keeps running
+    data = Path(apps) / "apps" / "shelf" / "data" / "live"
+    again = S.adopt("shelf", "live", Path(res["workspace"]), data, credential=b.passphrase)
+    assert again is not None and again.pid == pid and again.port == promo["port"] and again.healthy()
+    # a stale instance of another version is stopped, not adopted
+    S._RUNNING.clear()
+    assert S.adopt("shelf", "live", Path(res["workspace"]).parent / "v9", data) is None
+    assert not again._alive()
