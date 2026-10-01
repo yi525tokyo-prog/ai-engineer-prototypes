@@ -125,7 +125,7 @@ def register_tool(services: Any, cap: SwCapability) -> None:
 
     actions = {a["id"]: ActionSpec(a["id"], f"{a['method']} {a['path']}: {a['purpose']}",
                                    "AUTO" if a["method"] == "GET" else "COMMIT" if a["method"] == "DELETE" else "AUTO",
-                                   capabilities=[f"app:{cap.slug}"]) for a in api}
+                                   capabilities=[K.capability_id(f"app:{cap.slug}")]) for a in api}
     services.tools.register(Tool(name=cap.tool_name, executor="api", description=f"{cap.title} (application "
                                  f"v{cap.spec['app']['version']}, built and verified by Regent)", actions=actions,
                                  handler=handler, backend="live", built_by_regent=True))

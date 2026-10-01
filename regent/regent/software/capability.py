@@ -48,6 +48,15 @@ def _aware(d: datetime | None) -> datetime | None:
     return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
 
 
+def capability_id(name: str, n: int = 64) -> str:
+    """A registry id for a need signature: readable, stable, and within the registry's key size."""
+    if len(name) <= n:
+        return name
+    import hashlib
+
+    return name[: n - 13] + "#" + hashlib.sha1(name.encode()).hexdigest()[:12]
+
+
 def slugify(s: str) -> str:
     return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", s.lower())).strip("-")[:60] or "capability"
 
@@ -388,7 +397,7 @@ def register_tool(services: Any, cap: SwCapability) -> None:
     from regent.tools.base import ActionSpec, Tool
 
     cap_id = cap.id
-    caps = [f"need:{s}" for s in cap.signature or []]
+    caps = [capability_id(f"need:{s}") for s in cap.signature or []]
 
     def handler(action: str, inputs: dict[str, Any], ctx) -> ToolResult:
         s = dbm.session()
