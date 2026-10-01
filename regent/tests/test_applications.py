@@ -255,3 +255,65 @@ def test_a_tool_need_gets_build_routes_even_without_public_data():
     ext = {"existing_capabilities": [{"id": "c1", "slug": "shelf", "title": "Shelf", "relation": "extend",
                                       "gaps": ["sharing"]}]}
     assert {r.key for r in strategies({"id": "m3"}, need, ext)} == {"software-extend-shelf", "software-separate-shelf"}
+
+
+class _Judge:
+    """Stands in for the reasoning worker that adjudicates disputes."""
+
+    def __init__(self, corrected):
+        self.corrected = corrected
+        self.asked = []
+
+    def ask(self, task, instructions, payload, schema, **kw):
+        from types import SimpleNamespace
+
+        self.asked.append(payload)
+        return SimpleNamespace(output={"verdict": "scenario_wrong", "why": "the scenario uses a literal placeholder",
+                                       "corrected_scenario": self.corrected})
+
+    def available(self):
+        return True
+
+
+def _disputed_design():
+    d = json.loads(json.dumps(DESIGN))
+    d["scenarios"].append({"id": "login_api", "requirement": "private", "kind": "api", "steps": [
+        {"do": "call", "api": "login", "auth": False, "body": {"passphrase": "MY_SECRET"}, "expect_status": 200}]})
+    d["api"].append({"id": "login", "method": "POST", "path": "/api/login", "purpose": "login", "public": True})
+    return d
+
+
+def _dispute(ws: Path) -> None:
+    write_app(ws, persist=True)
+    (ws / "DISPUTES.json").write_text(json.dumps([{"scenario": "login_api", "reason": "sends a literal value, not "
+                                                   "the passphrase; accepting it would be a backdoor"}]))
+
+
+@pytest.mark.parametrize("weaken", [False, True])
+def test_a_worker_dispute_is_judged_and_never_weakens_acceptance(apps, weaken):
+    from regent.software.reasoner import set_reasoner
+
+    good = {"id": "login_api", "requirement": "private", "kind": "api", "steps": [
+        {"do": "call", "api": "login", "auth": False, "body": {"passphrase": "{passphrase}"}, "expect_status": 200}]}
+    weaker = {"id": "login_api", "requirement": "private", "kind": "api", "steps": [
+        {"do": "call", "api": "health", "auth": False}]}
+    judge = _Judge(weaker if weaken else good)
+    set_reasoner(judge)
+    try:
+        design = _disputed_design()
+        worker = ScriptedWorker([lambda ws: write_app(ws, persist=True), _dispute, lambda ws: None])
+        b = B.AppBuild(slug="shelf", need=NEED, design=design, sources=[], agent=worker, version=1, max_rounds=2)
+        res = b.run()
+    finally:
+        set_reasoner(None)
+    assert not res["rounds"][0]["passed"]                       # the literal value fails against the real app
+    assert "DISPUTES.json" in worker.briefs[1]                  # the worker was told how to contest a check
+    [d] = res["disputes"]
+    if weaken:
+        assert d["verdict"] == "correction_rejected" and "fewer checks" in d["why"]
+        assert not res["accepted"]
+        assert design["scenarios"][-1]["steps"][0]["body"]["passphrase"] == "MY_SECRET"
+    else:
+        assert d.get("corrected") and res["accepted"] and len(res["rounds"]) == 2
+        assert design["revisions"][0]["scenario"] == "login_api"
+        assert "corrected its scenario login_api" in worker.briefs[-1] or len(worker.briefs) == 2

@@ -142,12 +142,66 @@ def brief(need: dict[str, Any], design: dict[str, Any], *, sources: list[dict[st
     return "".join(parts)
 
 
-def _repair_brief(round_: int, failures: list[dict[str, Any]]) -> str:
+def _repair_brief(round_: int, failures: list[dict[str, Any]], revised: list[dict[str, Any]] | None = None) -> str:
     out = [f"# Repair round {round_}\n\nRegent built, tested and ran your application. These checks failed. Fix the "
-           "code so they pass, without breaking the contract in BRIEF.md.\n"]
+           "code so they pass, without breaking the contract in BRIEF.md.\n\n"
+           "If a failing check itself contradicts BRIEF.md or cannot be passed by a correct application, do not work "
+           "around it (never weaken security or the contract to satisfy a check). Instead write `DISPUTES.json`: "
+           '`[{"scenario": "<id>", "reason": "...", "evidence": "<quote from BRIEF.md or the failure>"}]`. Regent '
+           "judges each dispute itself; a dispute it does not accept stays a failure.\n"]
+    for d in revised or []:
+        out.append(f"\n## Regent corrected its scenario {d['scenario']} (your dispute was upheld)\n{d['why']}\n```json\n"
+                   f"{json.dumps(d['new'], ensure_ascii=False, indent=1)[:2500]}\n```\n")
     for f in failures:
         out.append(f"\n## {f['stage']}: {f['summary']}\n```\n{f.get('detail', '')[:3500]}\n```\n")
     return "".join(out)
+
+
+DISPUTE_SCHEMA: dict[str, Any] = {"type": "object", "required": ["verdict", "why"], "properties": {
+    "verdict": {"type": "string", "enum": ["scenario_wrong", "app_wrong", "unclear"]},
+    "why": {"type": "string"},
+    "corrected_scenario": {"type": ["object", "null"], "description": "only for scenario_wrong: the same scenario "
+                           "(same id, requirement and kind) with the defect fixed and every check kept"}}}
+
+DISPUTE_INSTRUCTIONS = """An operational agent wrote an acceptance scenario for an application a coding agent built.
+The scenario failed, and the coding agent disputes it. Judge from the design (the contract both sides were given),
+the scenario, the observed failure and the dispute -- not from who is asking. scenario_wrong only if a correct
+application honouring the design could not pass it (e.g. a literal placeholder, a status code the design itself
+specifies differently, text the design never defines). Then give the corrected scenario: fix only the defect, keep
+every assertion's intent, use {passphrase} for the credential, data-testid hooks and expect_visible for messages whose
+wording the design does not fix. Never drop a check, never turn a negative scenario into a positive one. If the app
+could reasonably be fixed instead, say app_wrong."""
+
+ASSERTS = ("expect_text", "expect_no_text", "expect_visible", "expect_hidden", "restart_app")
+
+
+def _assertions(sc: dict[str, Any]) -> int:
+    n = 0
+    for st in sc.get("steps", []):
+        if st.get("do") in ASSERTS:
+            n += 1
+        elif st.get("do") == "call":
+            n += 1 + bool(st.get("expect_json_contains")) + bool(st.get("expect_status"))
+    return n
+
+
+def not_weaker(old: dict[str, Any], new: dict[str, Any], design: dict[str, Any], need: dict[str, Any]) -> list[str]:
+    """Why a corrected scenario would weaken acceptance (empty: it does not)."""
+    from regent.software import appdesign as D
+
+    ids = {r["id"] for r in need.get("requirements", [])}
+    why = []
+    if new.get("id") != old.get("id") or new.get("kind") != old.get("kind"):
+        why.append("changes the scenario's id or kind")
+    if not D.scenario_requirements(old, ids) <= D.scenario_requirements(new, ids):
+        why.append("covers fewer requirements")
+    if _assertions(new) < _assertions(old):
+        why.append(f"has fewer checks ({_assertions(new)} < {_assertions(old)})")
+    trial = {**design, "scenarios": [new if s["id"] == old["id"] else s for s in design.get("scenarios", [])]}
+    before = set(D.check(design, need))
+    added = [p for p in D.check(trial, need) if p not in before]
+    why += added
+    return why
 
 
 class AppBuild:
@@ -161,6 +215,7 @@ class AppBuild:
         self.ws = self.root / f"v{version}"
         self.cred_name = re.sub(r"[^A-Z0-9]+", "_", f"APP_{slug}_PASSPHRASE".upper())
         self.rounds: list[dict[str, Any]] = []
+        self.disputes: list[dict[str, Any]] = []
 
     # -------------------------------------------------------------- pipeline
 
@@ -181,22 +236,77 @@ class AppBuild:
         self.log("delegate", f"worker v{self.version} round 0: claimed_done={work['claimed_done']} "
                              f"${work.get('cost_usd')} {work.get('seconds')}s files={len(work.get('files', []))}")
         worker_runs = [work]
+        revised: list[dict[str, Any]] = []
         for round_ in range(self.max_rounds + 1):
             r = self._verify_round(round_)
             r["worker"] = worker_runs[-1]
             self.rounds.append(r)
             if r["passed"]:
                 return {"accepted": True, "version": self.version, "workspace": str(self.ws), "rounds": self.rounds,
-                        "credential": self.cred_name if self.passphrase else None}
+                        "credential": self.cred_name if self.passphrase else None, "disputes": self.disputes}
             if round_ == self.max_rounds:
                 break
-            (self.ws / f"REPAIR-{round_ + 1}.md").write_text(_repair_brief(round_ + 1, r["failures"]))
+            (self.ws / f"REPAIR-{round_ + 1}.md").write_text(_repair_brief(round_ + 1, r["failures"], revised))
             work = self.agent.run(self.ws, None, prompt=f"Read REPAIR-{round_ + 1}.md (and BRIEF.md for the contract) "
                                                          "and fix the application accordingly.")
             worker_runs.append(work)
             self.log("repair", f"worker v{self.version} round {round_ + 1}: {len(r['failures'])} failures sent; "
                                f"claimed_done={work['claimed_done']} ${work.get('cost_usd')}")
-        return {"accepted": False, "version": self.version, "workspace": str(self.ws), "rounds": self.rounds}
+            revised = self._judge_disputes(round_ + 1, r)
+        return {"accepted": False, "version": self.version, "workspace": str(self.ws), "rounds": self.rounds,
+                "disputes": self.disputes}
+
+    # -------------------------------------------------------------- disputes
+
+    def _judge_disputes(self, round_: int, last: dict[str, Any]) -> list[dict[str, Any]]:
+        """The worker may contest a check. Regent judges each dispute against the design and the
+        observed failure, and corrects its own scenario only when the correction keeps every check
+        (``not_weaker``). Upheld or not, every dispute is recorded."""
+        from regent.software.reasoner import ReasonerUnavailable, get_reasoner
+
+        path = self.ws / "DISPUTES.json"
+        if not path.exists():
+            return []
+        try:
+            raw = json.loads(path.read_text())
+        except ValueError:
+            raw = []
+        path.rename(self.ws / f"DISPUTES-{round_}.json")
+        failed = {f["scenario"]: f for f in last["failures"] if f.get("scenario")}
+        by_id = {s["id"]: s for s in self.design.get("scenarios", [])}
+        upheld = []
+        for d in raw if isinstance(raw, list) else []:
+            sid = str(d.get("scenario") or "")
+            rec = {"round": round_, "scenario": sid, "reason": str(d.get("reason") or "")[:1000], "verdict": None}
+            self.disputes = self.disputes + [rec]
+            if sid not in by_id or sid not in failed:
+                rec.update(verdict="ignored", why="not a scenario that failed in the last round")
+                continue
+            payload = {"design": {k: self.design.get(k) for k in ("api", "ui", "auth", "entities")},
+                       "scenario": by_id[sid], "failure": failed[sid]["summary"],
+                       "dispute": {"reason": rec["reason"], "evidence": str(d.get("evidence") or "")[:1500]}}
+            try:
+                ans = get_reasoner().ask("app_dispute", DISPUTE_INSTRUCTIONS, payload, DISPUTE_SCHEMA, budget_usd=0.5)
+            except ReasonerUnavailable as e:
+                rec.update(verdict="unjudged", why=str(e)[:200])
+                continue
+            v = ans.output
+            rec.update(verdict=v["verdict"], why=v["why"][:800])
+            if v["verdict"] != "scenario_wrong" or not v.get("corrected_scenario"):
+                continue
+            new = {**v["corrected_scenario"], "id": sid}
+            weaker = not_weaker(by_id[sid], new, self.design, self.need)
+            if weaker:
+                rec.update(verdict="correction_rejected", why=f"{v['why'][:400]} -- but the correction {weaker}")
+                continue
+            self.design["scenarios"] = [new if s["id"] == sid else s for s in self.design["scenarios"]]
+            self.design.setdefault("revisions", []).append({"scenario": sid, "round": round_, "why": v["why"],
+                                                            "old": by_id[sid], "new": new, "raised_by": "worker"})
+            by_id[sid] = new
+            rec["corrected"] = True
+            upheld.append({"scenario": sid, "why": v["why"], "new": new})
+            self.log("dispute", f"scenario {sid} corrected (dispute upheld): {v['why'][:160]}")
+        return upheld
 
     def _verify_round(self, round_: int) -> dict[str, Any]:
         failures: list[dict[str, Any]] = []
@@ -244,7 +354,8 @@ class AppBuild:
             out["acceptance"] = acc
             for sc in acc["scenarios"]:
                 if not sc["passed"]:
-                    failures.append({"stage": "acceptance", "summary": f"scenario {sc['id']} ({sc.get('requirement')}, "
+                    failures.append({"stage": "acceptance", "scenario": sc["id"],
+                                     "summary": f"scenario {sc['id']} ({sc.get('requirement')}, "
                                      f"{sc.get('kind')}) failed at step {sc.get('failed_step')}: {sc.get('error')}",
                                      "detail": "\n".join(sc.get("log", [])) + "\n" + (sc.get("page") or "")
                                      + "\n--- server log ---\n" + svc.logs(1500)})

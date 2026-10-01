@@ -24,10 +24,12 @@ from typing import Any
 from regent.software.reasoner import Reasoner, ReasonerUnavailable, get_reasoner
 
 STEP = {"type": "object", "required": ["do"], "properties": {
-    "do": {"type": "string", "enum": ["call", "goto", "fill", "click", "expect_text", "expect_no_text", "reload",
-                                      "restart_app", "login", "logout"]},
+    "do": {"type": "string", "enum": ["call", "goto", "fill", "click", "expect_text", "expect_no_text",
+                                      "expect_visible", "expect_hidden", "reload", "restart_app", "login", "logout"]},
     "api": {"type": "string", "description": "for call: the endpoint id"},
-    "path_params": {"type": "object"}, "body": {"type": ["object", "null"]},
+    "path_params": {"type": "object"}, "query": {"type": ["object", "null"], "description": "for call: query "
+                                                                                 "string parameters"},
+    "body": {"type": ["object", "null"]},
     "auth": {"type": "boolean", "description": "for call: send the principal's credential (default true)"},
     "expect_status": {"type": "integer"},
     "expect_json_contains": {"type": ["object", "null"], "description": "key/values that must appear somewhere in "
@@ -35,7 +37,7 @@ STEP = {"type": "object", "required": ["do"], "properties": {
     "save": {"type": ["object", "null"], "description": "var -> dotted path into the JSON response, e.g. "
              "{\"book_id\": \"id\"}; later steps may use {var} in path_params/body/value"},
     "path": {"type": "string", "description": "for goto: a URL path"},
-    "target": {"type": "string", "description": "for fill/click: a data-testid"},
+    "target": {"type": "string", "description": "for fill/click/expect_visible/expect_hidden: a data-testid"},
     "value": {"type": "string"}, "text": {"type": "string"}}}
 
 DESIGN_SCHEMA: dict[str, Any] = {
@@ -82,7 +84,11 @@ that is public); data-testid hooks on the interface elements a person uses; and 
 run itself against a running instance -- API scenarios, browser scenarios (log in, fill, click, expect text, reload,
 restart_app to prove data survives), and negative scenarios proving what must NOT be possible (for privacy: content
 unreachable without the credential). Every core requirement needs at least one scenario. Use realistic data from the
-supplied sources where the app integrates them. Keep it as small as the requirements allow."""
+supplied sources where the app integrates them. Keep it as small as the requirements allow.
+Scenarios are run literally: write {passphrase} wherever the credential goes (the agent substitutes the real one);
+pass GET parameters in "query"; assert only text the scenario itself entered or the supplied data contains -- for a
+message whose wording you cannot know (an error, an empty state) declare a data-testid and use expect_visible. Never
+write placeholder values. State creation responses as you specify them in the endpoint (e.g. 201)."""
 
 UPGRADE = """This is a new version of an application that is already in use. Keep every existing endpoint working
 with the same paths and fields (the agent's tools and the principal's data depend on them); add what the new
@@ -142,6 +148,17 @@ def check(d: dict[str, Any], need: dict[str, Any], previous: dict[str, Any] | No
                 problems.append(f"scenario {sc['id']} uses undeclared hook {st.get('target')}")
     ids = {r["id"] for r in need.get("requirements", [])}
     covered = {x for sc in d.get("scenarios", []) for x in scenario_requirements(sc, ids)}
+    for sc in d.get("scenarios", []):
+        for st in sc.get("steps", []):
+            for v in _strings(st):
+                if PLACEHOLDER.search(v):
+                    problems.append(f"scenario {sc['id']} uses a placeholder value {v!r}: it would be run literally")
+            body = st.get("body") or {}
+            if st.get("do") == "call" and isinstance(body, dict) and "passphrase" in body \
+                    and body["passphrase"] != "{passphrase}" and sc.get("kind") != "negative":
+                problems.append(f"scenario {sc['id']} logs in with {body['passphrase']!r} instead of {{passphrase}}")
+            if st.get("do") in ("expect_visible", "expect_hidden") and st.get("target") not in testids:
+                problems.append(f"scenario {sc['id']} uses undeclared hook {st.get('target')}")
     for r in need.get("requirements", []):
         if r.get("priority", "core") == "core" and r["id"] not in covered:
             problems.append(f"core requirement {r['id']} has no acceptance scenario")
@@ -161,6 +178,19 @@ def check(d: dict[str, Any], need: dict[str, Any], previous: dict[str, Any] | No
         if gone:
             problems.append(f"endpoints of the version in use were dropped: {gone}")
     return problems
+
+
+PLACEHOLDER = re.compile(r"__[A-Z0-9_]+__|placeholder|\bTODO\b|<[a-z_]+>|\bXXX\b", re.I)
+
+
+def _strings(v: Any) -> list[str]:
+    if isinstance(v, str):
+        return [v]
+    if isinstance(v, dict):
+        return [s for k, x in v.items() if k not in ("do",) for s in _strings(x)]
+    if isinstance(v, list):
+        return [s for x in v for s in _strings(x)]
+    return []
 
 
 def requirement_coverage(d: dict[str, Any], need: dict[str, Any], results: dict[str, bool]) -> float:

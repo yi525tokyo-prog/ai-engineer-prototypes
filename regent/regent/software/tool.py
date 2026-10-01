@@ -209,6 +209,8 @@ def _app_action(s, action: str, inputs: dict[str, Any], ctx: ToolContext) -> Too
     summary = {"accepted": res["accepted"], "version": version, "rounds": len(res["rounds"]), "worker_cost_usd": round(cost, 2),
                "failures_by_round": [[f["stage"] + ": " + f["summary"][:160] for f in r["failures"]] for r in res["rounds"]],
                "inspect": {k: res["rounds"][-1]["inspect"].get(k) for k in ("files", "lines", "languages", "tests")},
+               "disputes": res.get("disputes") or [], "scenario_revisions": [
+                   {k: x.get(k) for k in ("scenario", "round", "why")} for x in design.get("revisions", [])],
                "log": notes}
     if not res["accepted"]:
         return ToolResult(status="ok", outputs={**summary, "passed": False}, cost=CostEstimate(api_usd=cost),

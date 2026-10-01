@@ -24,6 +24,7 @@ import re
 from typing import Any
 
 from regent.schemas import (
+    RetryPolicy,
     CostEstimate,
     Effect,
     OperationSpec,
@@ -261,7 +262,7 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
                                   action="design_app", timeout_s=600,
                                   verification=VerificationSpec(method="schema", required_keys=["designed"])),
                     OperationSpec(key="sw.delegate", goal="Delegate the build, then accept it independently",
-                                  tool="software", action="build_app", depends_on=["sw.design"], timeout_s=7200,
+                                  tool="software", action="build_app", retry=RetryPolicy(max_attempts=1), depends_on=["sw.design"], timeout_s=7200,
                                   verification=_verify_passed())]))
 
     if best is not None:
@@ -319,7 +320,7 @@ def _app_reuse_routes(cap: dict[str, Any], rel: str, need: dict[str, Any], scale
                                   timeout_s=600, verification=VerificationSpec(method="schema",
                                                                                 required_keys=["designed"])),
                     OperationSpec(key="sw.extend", goal="Build, test on real data, promote or roll back",
-                                  tool="software", action="extend_app", depends_on=["sw.design"],
+                                  tool="software", action="extend_app", retry=RetryPolicy(max_attempts=1), depends_on=["sw.design"],
                                   inputs={"capability_id": cap["id"]}, timeout_s=7200,
                                   verification=_verify_passed())]),
         RouteProposal(
@@ -333,7 +334,7 @@ def _app_reuse_routes(cap: dict[str, Any], rel: str, need: dict[str, Any], scale
         operations=[OperationSpec(key="sw.design", goal="Design a separate application", tool="software",
                                   action="design_app", timeout_s=600,
                                   verification=VerificationSpec(method="schema", required_keys=["designed"])),
-                    OperationSpec(key="sw.build", goal="Build it", tool="software", action="build_app",
+                    OperationSpec(key="sw.build", goal="Build it", tool="software", action="build_app", retry=RetryPolicy(max_attempts=1),
                                   depends_on=["sw.design"], timeout_s=7200, verification=_verify_passed())])]
 
 
@@ -359,7 +360,7 @@ def tool_strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str
                                   tool="software", action="design_app", timeout_s=600,
                                   verification=VerificationSpec(method="schema", required_keys=["designed"])),
                     OperationSpec(key="sw.build", goal="Delegate, inspect, build, test, run, accept, repair, promote",
-                                  tool="software", action="build_app", depends_on=["sw.design"], timeout_s=7200,
+                                  tool="software", action="build_app", retry=RetryPolicy(max_attempts=1), depends_on=["sw.design"], timeout_s=7200,
                                   verification=_verify_passed())])]
     for a in inv.get("alternatives", []):
         if not a.get("reachable"):

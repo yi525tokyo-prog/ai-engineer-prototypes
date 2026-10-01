@@ -93,7 +93,8 @@ class Runner:
             raise AssertionError(f"login returned no token: {r.text[:200]}")
         return self.token
 
-    def call(self, api_id: str, path_params: dict | None, body: Any, auth: bool = True) -> httpx.Response:
+    def call(self, api_id: str, path_params: dict | None, body: Any, auth: bool = True,
+             query: dict | None = None) -> httpx.Response:
         a = self.api[api_id]
         path = a["path"]
         for k, v in (path_params or {}).items():
@@ -104,6 +105,7 @@ class Runner:
                 self.login()
             headers["Authorization"] = f"Bearer {self.token}"
         return self.client.request(a["method"], self.svc.url + path, json=body if body is not None else None,
+                                   params={k: v for k, v in (query or {}).items() if v is not None} or None,
                                    headers=headers)
 
     def run(self, scenarios: list[dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -139,7 +141,7 @@ class Runner:
                 "by_id": {r["id"]: r["passed"] for r in results}}
 
     def _scenario(self, sc: dict[str, Any], page) -> dict[str, Any]:
-        vars_: dict[str, Any] = {}
+        vars_: dict[str, Any] = {"passphrase": self.passphrase or ""}
         log = []
         try:
             for i, st in enumerate(sc.get("steps", [])):
@@ -162,9 +164,11 @@ class Runner:
     def _step(self, st: dict[str, Any], page, vars_: dict[str, Any]) -> str:
         do = st["do"]
         if do == "call":
-            r = self.call(st["api"], st.get("path_params"), st.get("body"), auth=st.get("auth", True))
+            r = self.call(st["api"], st.get("path_params"), st.get("body"), auth=st.get("auth", True),
+                          query=st.get("query"))
             want = st.get("expect_status")
-            if want is not None and r.status_code != int(want):
+            # 200 and 201 both mean "done"; which one a creation returns is the endpoint's own convention
+            if want is not None and r.status_code != int(want) and not {int(want), r.status_code} <= {200, 201}:
                 raise AssertionError(f"{st['api']}: HTTP {r.status_code}, expected {want}: {r.text[:300]}")
             if want is None and r.status_code >= 400:
                 raise AssertionError(f"{st['api']}: HTTP {r.status_code}: {r.text[:300]}")
@@ -198,13 +202,13 @@ class Runner:
             raise AssertionError(f"browser step {do} without a browser")
         if do == "goto":
             page.goto(self.svc.url + (st.get("path") or "/"))
-            page.wait_for_load_state("networkidle", timeout=8000)
+            _settle(page)
         elif do == "login":
             page.goto(self.svc.url + (st.get("path") or "/"))
             page.wait_for_selector('[data-testid="login-passphrase"]', timeout=8000)
             page.fill('[data-testid="login-passphrase"]', self.passphrase or "")
             page.click('[data-testid="login-submit"]')
-            page.wait_for_load_state("networkidle", timeout=8000)
+            _settle(page)
         elif do == "logout":
             page.context.clear_cookies()
             page.evaluate("() => { try { localStorage.clear(); sessionStorage.clear(); } catch (e) {} }")
@@ -215,13 +219,16 @@ class Runner:
         elif do == "click":
             page.wait_for_selector(f'[data-testid="{st["target"]}"]', timeout=8000)
             page.click(f'[data-testid="{st["target"]}"]')
-            try:
-                page.wait_for_load_state("networkidle", timeout=8000)
-            except Exception:
-                pass
+            _settle(page)
         elif do == "reload":
-            page.reload()
-            page.wait_for_load_state("networkidle", timeout=8000)
+            page.reload(wait_until="domcontentloaded")
+            _settle(page)
+        elif do in ("expect_visible", "expect_hidden"):
+            sel = f'[data-testid="{st["target"]}"]'
+            try:
+                page.wait_for_selector(sel, state="visible" if do == "expect_visible" else "hidden", timeout=6000)
+            except Exception:
+                raise AssertionError(f"{st['target']} is not {'visible' if do == 'expect_visible' else 'hidden'}")
         elif do in ("expect_text", "expect_no_text"):
             text = st.get("text") or st.get("value") or ""
             deadline = time.time() + 6
@@ -236,6 +243,15 @@ class Runner:
             if do == "expect_no_text" and seen:
                 raise AssertionError(f"text shown but must not be: {text!r}")
         return ""
+
+
+def _settle(page) -> None:
+    """Let the page finish what the last action started. A page that keeps a request open (polling,
+    a slow upstream) never reaches network-idle; the assertions that follow poll for what they need."""
+    try:
+        page.wait_for_load_state("networkidle", timeout=3000)
+    except Exception:
+        pass
 
 
 def snapshot(svc: AppService, design: dict[str, Any], passphrase: str | None) -> dict[str, Any]:
