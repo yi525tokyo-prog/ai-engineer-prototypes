@@ -167,7 +167,7 @@ class ClaimStore:
         for h in hyps:
             h["share"] = round(h["support"] / total, 4)
             h["support"] = round(h["support"], 4)
-        hyps.sort(key=lambda h: (-h["support"], -len(h["hosts"])))
+        hyps.sort(key=lambda h: (-h["support"], -len(h["hosts"]), str(h["value"])))
         top = hyps[0] if hyps else None
         contenders = [h for h in hyps if h["share"] >= CONFLICT_SHARE]
         latest = max((_aware(c.observed_at) for c in claims), default=None)
@@ -217,7 +217,7 @@ class ClaimStore:
         total = sum(h["support"] for h in hyps) or 1.0
         for h in hyps:
             h["share"] = round(h["support"] / total, 4)
-        hyps.sort(key=lambda h: -h["support"])
+        hyps.sort(key=lambda h: (-h["support"], str(h["value"])))
         latest = max((_aware(c.observed_at) for c in claims), default=None)
         return {
             "value": union, "confidence": round(support * (0.6 if disputes else 1.0), 4), "fresh": fresh_any,

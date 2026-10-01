@@ -15,11 +15,11 @@ from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from regent.db import Base, JSONType
-from regent.ids import utcnow
+from regent.ids import monotonic_now
 
 
 def _ts() -> Mapped[datetime]:
-    return mapped_column(DateTime(timezone=True), default=utcnow)
+    return mapped_column(DateTime(timezone=True), default=monotonic_now)
 
 
 class AcqRequest(Base):
@@ -205,3 +205,9 @@ class AcqSourceRecipe(Base):
 
 
 Index("ix_acq_claims_entity_attr", AcqClaim.entity_id, AcqClaim.attribute)
+
+
+#: deterministic order for entity lists: creation order, then natural keys (ids are random, and
+#: rows created in one transaction share a timestamp). Budgeted work iterates in this order, so the
+#: world Regent builds does not depend on how the database happens to return rows.
+ENTITY_ORDER = (AcqEntity.created_at, AcqEntity.block_key, AcqEntity.label, AcqEntity.parent_id)

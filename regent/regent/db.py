@@ -40,7 +40,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sess
 from sqlalchemy.types import TypeDecorator
 
 from regent.config import settings
-from regent.ids import utcnow
+from regent.ids import monotonic_now, utcnow
 
 EMBEDDING_DIM = 256
 
@@ -67,7 +67,7 @@ class Embedding(TypeDecorator):
 
 
 def _ts() -> Mapped[datetime]:
-    return mapped_column(DateTime(timezone=True), default=utcnow)
+    return mapped_column(DateTime(timezone=True), default=monotonic_now)
 
 
 class Base(DeclarativeBase):

@@ -234,7 +234,7 @@ class GeographyResolver:
             for c in cs:
                 c["coverage"] = coverage.get(cc, 0) + len(c["origins"])
                 c["salience"] = sal.get(c["name"].lower(), 0)
-            cs.sort(key=lambda c: -(math.log1p(c["supply"]) + 2 * c["salience"] + len(c["origins"])))
+            cs.sort(key=lambda c: (-(math.log1p(c["supply"]) + 2 * c["salience"] + len(c["origins"])), c["name"]))
             n_geo = 8 if cc == prin["home"] else 3
             for c in cs[:n_geo]:
                 if not engine.budget_left():
@@ -296,7 +296,7 @@ class GeographyResolver:
         entries = [s.entry_url for s in pack_for(cc).seed_sources()][:2]
         entries += [r.entry_url for r in engine.db.scalars(select(AcqSourceRecipe).where(
             AcqSourceRecipe.domain == self.adapter.name, AcqSourceRecipe.scope == cc,
-            AcqSourceRecipe.status == "verified"))][:2]
+            AcqSourceRecipe.status == "verified").order_by(AcqSourceRecipe.created_at, AcqSourceRecipe.id))][:2]
         for url in entries[:2]:
             if "{" in url or not engine.budget_left():
                 continue
@@ -315,7 +315,7 @@ class GeographyResolver:
         cov: dict[str, int] = {cc: len(v) for cc, v in COUNTRY_SEEDS.items()}
         cov["JP"] = cov.get("JP", 0) + 7
         for r in engine.db.scalars(select(AcqSourceRecipe).where(AcqSourceRecipe.domain == self.adapter.name,
-                                                                 AcqSourceRecipe.status == "verified")):
+                                                                 AcqSourceRecipe.status == "verified").order_by(AcqSourceRecipe.created_at, AcqSourceRecipe.id)):
             cov[r.scope] = cov.get(r.scope, 0) + 1
         return cov
 

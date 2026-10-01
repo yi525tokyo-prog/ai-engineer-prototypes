@@ -20,7 +20,7 @@ from sqlalchemy import select
 from regent.acquisition.housing.extractor import HousingExtractor
 from regent.acquisition.housing.packs.base import SourcePack
 from regent.acquisition.navigate import next_page
-from regent.acquisition.tables import AcqEntity, AcqMention
+from regent.acquisition.tables import AcqEntity, AcqMention, ENTITY_ORDER
 from regent.acquisition.types import EnrichmentJobSpec, SourceSpec
 from regent.config import settings
 
@@ -269,7 +269,7 @@ class JapanPack(SourcePack):
             return list(params["areas"]), "principal-specified areas"
         rows = []
         for e in engine.db.scalars(select(AcqEntity).where(AcqEntity.domain == self.adapter.name,
-                                                           AcqEntity.entity_type == "area")):
+                                                           AcqEntity.entity_type == "area").order_by(*ENTITY_ORDER)):
             b = e.beliefs or {}
             rent = (b.get("market_rent_1k_1dk") or b.get("market_rent_1r") or {}).get("value")
             name = (e.features or {}).get("area", "")
@@ -318,7 +318,7 @@ class JapanPack(SourcePack):
         """Median 1K/1DK market rent (JPY/month) across the region's scanned areas."""
         vals = [float((e.beliefs or {}).get("market_rent_1k_1dk", {}).get("value") or 0)
                 for e in engine.db.scalars(select(AcqEntity).where(AcqEntity.domain == self.adapter.name,
-                                                                   AcqEntity.entity_type == "area"))]
+                                                                   AcqEntity.entity_type == "area").order_by(*ENTITY_ORDER))]
         vals = [v for v in vals if v]
         return statistics.median(vals) if vals else None
 
@@ -327,7 +327,7 @@ class JapanPack(SourcePack):
     def enrichment_jobs(self, engine, entity: AcqEntity) -> list[EnrichmentJobSpec]:
         jobs: list[EnrichmentJobSpec] = []
         urls: dict[str, str] = {}
-        for m in engine.db.scalars(select(AcqMention).where(AcqMention.entity_id == entity.id)):
+        for m in engine.db.scalars(select(AcqMention).where(AcqMention.entity_id == entity.id).order_by(AcqMention.observed_at, AcqMention.url)):
             u = (m.links or {}).get("detail_url")
             if u and m.host not in urls and m.url != u:
                 urls[m.host] = u

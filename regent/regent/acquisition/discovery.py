@@ -83,7 +83,7 @@ class SourceRegistry:
     def usable(self, scope: str) -> list[AcqSourceRecipe]:
         rows = self.db.scalars(select(AcqSourceRecipe).where(
             AcqSourceRecipe.domain == self.domain, AcqSourceRecipe.scope == scope,
-            AcqSourceRecipe.status.in_(("candidate", "verified"))))
+            AcqSourceRecipe.status.in_(("candidate", "verified"))).order_by(AcqSourceRecipe.created_at, AcqSourceRecipe.id))
         return sorted(rows, key=lambda r: (r.status != "verified", -(r.records or 0), r.failures or 0))
 
     def known_hosts(self) -> set[str]:

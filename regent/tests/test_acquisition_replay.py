@@ -182,11 +182,14 @@ def test_loop_acquires_the_world_from_a_mission_sentence(db, services, world_web
     routes = list(db.scalars(select(Route).where(Route.mission_id == m.id)))
     abroad = [r for r in routes if "relocation" in (r.tags or [])]
     home = [r for r in routes if r.key.startswith("housing-lease-jp")]
-    # Which regions reach enough verified homes for a lease route within the page budget varies
-    # between runs (the order of equal-priority enrichment/recheck work is not fixed), so the test
-    # asks for the property itself: leases in different countries compete, and not signing is an option.
-    lease_countries = {r.key.split("-")[2] for r in routes if r.key.startswith("housing-lease-")}
-    assert len(lease_countries) >= 2 and any(r.key == "housing-defer" for r in routes)
+    assert len(abroad) >= 2 and home and any(r.key == "housing-defer" for r in routes)
+    # every region with shortlisted homes to rent gets its lease route: route generation sees the
+    # whole world, not a truncated summary (truncation once dropped whole regions arbitrarily)
+    leased = {r.key.split("-", 3)[3] for r in routes if r.key.startswith("housing-lease-")}
+    with_homes = {e.name.split(",")[0].lower() for e in regions if any(
+        u.attrs.get("region_id") == e.id and u.attrs.get("stage") == "shortlisted" and u.attrs.get("kind") != "room"
+        for u in world.entities.values() if u.kind == "unit")}
+    assert with_homes <= leased, (with_homes, leased)
     assert all(any(u["fact_key"].startswith("principal.right_to_reside.") for u in r.uncertainty) for r in abroad)
     # later requests (enrichment) keep region semantics: home stays home, nothing floats region-less
     assert all(r.title.startswith("Lease now in") for r in home)
@@ -234,6 +237,7 @@ def test_time_sensitive_claims_expire_and_are_rechecked_once(db, web, monkeypatc
     out = service.run_action("recheck", mission_id="m1", params={"entity_ids": stale})
     db.expire_all()
     jobs = db.scalars(select(AcqJob).where(AcqJob.kind == "recheck", AcqJob.request_id == out["request_id"])).all()
+
     assert jobs and all(abs((j.created_at - t7).total_seconds()) < 5 for j in jobs)
     for j in jobs:
         if j.status == "done" and j.result.get("re_observed"):
@@ -246,3 +250,27 @@ def test_time_sensitive_claims_expire_and_are_rechecked_once(db, web, monkeypatc
     still = service.mission_state(db, "m1", adapter)["stale_shortlisted"]
     refreshed = {j.entity_id for j in jobs if j.status == "done" and j.result.get("re_observed")}
     assert set(still) <= set(stale) and not (set(still) & refreshed)
+
+
+def test_acquisition_is_deterministic(workspace, monkeypatch):
+    """Same pages in, same world out: two runs on fresh databases fetch the same URLs in the same
+    order and shortlist the same candidates with the same scores. (Row order, random ids and equal
+    timestamps once decided which candidate got enriched and which region got a lease route.)"""
+    from regent import db as dbm
+
+    runs = []
+    for _ in range(2):
+        dbm.configure()
+        dbm.init_db(drop=True)
+        t = ReplayTransport(FIX)
+        monkeypatch.setattr(service, "TRANSPORT", t)
+        monkeypatch.setattr(service, "ENGINE_KW", {"max_pages": 60, "min_interval_s": 0, "deadline_s": 600})
+        out = service.run_action("discover", mission_id=None, params=JP_ONLY)
+        service.run_action("enrich", mission_id=None, params={"entity_ids": out["shortlisted"][:4]})
+        s = dbm.session()
+        units = [(e.label, e.stage, round(e.score, 6)) for e in s.scalars(
+            select(AcqEntity).where(AcqEntity.entity_type == "unit").order_by(AcqEntity.label, AcqEntity.score))]
+        s.close()
+        runs.append((list(t.requests), units))
+    assert runs[0][0] == runs[1][0]
+    assert runs[0][1] == runs[1][1]

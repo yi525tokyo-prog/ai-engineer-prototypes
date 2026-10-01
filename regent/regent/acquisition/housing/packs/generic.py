@@ -222,7 +222,7 @@ class GenericPack(SourcePack):
     def enrichment_jobs(self, engine, entity: AcqEntity) -> list[EnrichmentJobSpec]:
         jobs: list[EnrichmentJobSpec] = []
         urls: dict[str, str] = {}
-        for m in engine.db.scalars(select(AcqMention).where(AcqMention.entity_id == entity.id)):
+        for m in engine.db.scalars(select(AcqMention).where(AcqMention.entity_id == entity.id).order_by(AcqMention.observed_at, AcqMention.url)):
             u = (m.links or {}).get("detail_url")
             if u and m.host not in urls and m.url != u:
                 urls[m.host] = u

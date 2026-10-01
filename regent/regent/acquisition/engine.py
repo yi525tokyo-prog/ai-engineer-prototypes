@@ -27,7 +27,7 @@ from regent.acquisition.claims import ClaimStore
 from regent.acquisition.domain import DomainAdapter
 from regent.acquisition.fetch import Fetcher
 from regent.acquisition.resolution import EntityResolution
-from regent.acquisition.tables import AcqEntity, AcqJob, AcqMention, AcqRequest
+from regent.acquisition.tables import AcqEntity, AcqJob, AcqMention, AcqRequest, ENTITY_ORDER
 from regent.acquisition.types import EnrichmentJobSpec, FetchedDocument, Mention
 from regent.core.observe.events import EventStore
 from regent.ids import new_id, utcnow
@@ -311,7 +311,7 @@ class AcquisitionEngine:
 
     def finish(self, status: str = "done") -> dict[str, Any]:
         self.refresh_dirty()
-        ents = list(self.db.scalars(select(AcqEntity).where(AcqEntity.request_id == self.request.id)))
+        ents = list(self.db.scalars(select(AcqEntity).where(AcqEntity.request_id == self.request.id).order_by(*ENTITY_ORDER)))
         self.stats["reliability_learning"] = self.claims.learn_reliability(ents, since=self.started - timedelta(minutes=1))
         self.stats["world_events"] = self.project()
         self.request.status = status

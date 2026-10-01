@@ -18,7 +18,7 @@ from typing import Any, Protocol
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from regent.acquisition.tables import AcqEntity, AcqLink, AcqMention
+from regent.acquisition.tables import AcqEntity, AcqLink, AcqMention, ENTITY_ORDER
 from regent.ids import new_id, utcnow
 
 
@@ -46,7 +46,7 @@ class EntityResolution:
 
     def candidates(self, entity_type: str, prefixes: list[str], parent_id: str | None) -> list[AcqEntity]:
         q = select(AcqEntity).where(AcqEntity.domain == self.domain, AcqEntity.entity_type == entity_type,
-                                    AcqEntity.status == "active")
+                                    AcqEntity.status == "active").order_by(*ENTITY_ORDER)
         if parent_id is not None:
             q = q.where(AcqEntity.parent_id == parent_id)
         out: dict[str, AcqEntity] = {}
@@ -65,7 +65,8 @@ class EntityResolution:
         for e in self.candidates(entity_type, prefixes, parent_id):
             p, detail = self.resolver.score(entity_type, features, e.features or {})
             scored.append((p, e, detail))
-        scored.sort(key=lambda x: -x[0])
+        # equal probabilities: the earlier-created entity wins (row order is not an order)
+        scored.sort(key=lambda x: (-x[0], x[1].created_at))
         return store_key, scored
 
     def resolve(self, mention: AcqMention, entity_type: str, features: dict[str, Any], *,
@@ -83,7 +84,7 @@ class EntityResolution:
                 if p >= self.ambiguous_at:
                     kids = self.db.scalars(select(AcqEntity).where(AcqEntity.parent_id == e.id,
                                                                    AcqEntity.entity_type == child[0],
-                                                                   AcqEntity.status == "active"))
+                                                                   AcqEntity.status == "active").order_by(*ENTITY_ORDER))
                     best_child = max((self.resolver.score(child[0], child[1], k.features or {})[0] for k in kids),
                                      default=0.0)
                     if best_child >= 0.9:
@@ -92,7 +93,7 @@ class EntityResolution:
                         detail = {**detail, "joint_child_match": round(best_child, 3), "joint_p": round(p2, 4)}
                         p = p2
                 rescored.append((p, e, detail))
-            scored = sorted(rescored, key=lambda x: -x[0])
+            scored = sorted(rescored, key=lambda x: (-x[0], x[1].created_at))
         best = scored[0] if scored else None
         if best is not None and best[0] >= self.merge_at:
             p, ent, detail = best

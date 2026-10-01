@@ -30,7 +30,7 @@ from regent.acquisition.housing.packs.base import SourcePack
 from regent.acquisition.housing.packs.generic import GenericPack
 from regent.acquisition.housing.packs.japan import JP_HOSTS, JapanPack
 from regent.acquisition.housing.resolver import HousingResolver, building_features
-from regent.acquisition.tables import AcqEntity, AcqJob, AcqMention, AcqRequest
+from regent.acquisition.tables import AcqEntity, AcqJob, AcqMention, AcqRequest, ENTITY_ORDER
 from regent.acquisition.types import EnrichmentJobSpec, FreshnessPolicy, Mention
 from regent.ids import utcnow
 from regent.schemas import (CostEstimate, Effect, OperationSpec, RouteEstimates, RouteProposal, Sensitivity,
@@ -269,7 +269,7 @@ class HousingAdapter(DomainAdapter):
         params = request.params or {}
         units = list(engine.db.scalars(select(AcqEntity).where(AcqEntity.domain == self.name,
                                                                AcqEntity.entity_type == "unit",
-                                                               AcqEntity.status == "active")))
+                                                               AcqEntity.status == "active").order_by(*ENTITY_ORDER)))
         mentions = engine.db.scalar(select(func.count(AcqMention.id)).where(AcqMention.entity_type == "unit")) or 0
         regions = {rid: self.region_info(engine, rid) for rid in {e.region_id for e in units}}
         views = {e.id: self.unit_view(engine, e, regions) for e in units}
@@ -318,7 +318,7 @@ class HousingAdapter(DomainAdapter):
                 passed_by_region.setdefault(e.region_id, []).append(e)
         filtered_n, shortlisted, per_region_stats = 0, [], {}
         for rid, passed in passed_by_region.items():
-            passed.sort(key=lambda e: -e.score)
+            passed.sort(key=lambda e: (-e.score, e.created_at))      # ties: creation order, never row order
             k_filter = 25 if len(regions) <= 1 else 10
             k_short = 8 if len(regions) <= 1 else SHORTLIST_PER_REGION
             flt = passed[:k_filter]
@@ -403,7 +403,7 @@ class HousingAdapter(DomainAdapter):
         pack = self._pack_of_entity(engine, entity)
         urls = {}
         for m in engine.db.scalars(select(AcqMention).where(AcqMention.entity_id == entity.id)
-                                   .order_by(AcqMention.observed_at.desc())):
+                                   .order_by(AcqMention.observed_at.desc(), AcqMention.url)):
             if m.host not in urls:
                 urls[m.host] = ((m.links or {}).get("detail_url"), m.url)
         out = []
@@ -425,9 +425,9 @@ class HousingAdapter(DomainAdapter):
         ref = plan.get("ref_currency")
         units = list(engine.db.scalars(select(AcqEntity).where(AcqEntity.domain == self.name,
                                                                AcqEntity.entity_type == "unit",
-                                                               AcqEntity.stage.in_(("filtered", "shortlisted", "deep")))))
+                                                               AcqEntity.stage.in_(("filtered", "shortlisted", "deep"))).order_by(*ENTITY_ORDER)))
         regions = {r.id: r for r in engine.db.scalars(select(AcqEntity).where(AcqEntity.domain == self.name,
-                                                                              AcqEntity.entity_type == "region"))}
+                                                                              AcqEntity.entity_type == "region").order_by(*ENTITY_ORDER))}
         rinfo = {rid: self.region_info(engine, rid) for rid in regions}
         for rid, r in regions.items():
             info = rinfo[rid]
@@ -468,7 +468,7 @@ class HousingAdapter(DomainAdapter):
                             "attrs": {"address": u["address"], "coords": u["coords"], "built_year": u["built_year"]}})
         # region-level market evidence, in each region's own currency and in the reference currency
         all_units = list(engine.db.scalars(select(AcqEntity).where(AcqEntity.domain == self.name,
-                                                                   AcqEntity.entity_type == "unit")))
+                                                                   AcqEntity.entity_type == "unit").order_by(*ENTITY_ORDER)))
         per_region: dict[str, dict[str, list[float]]] = {}
         for e in all_units:
             u = self.unit_view(engine, e, rinfo)
@@ -558,13 +558,14 @@ def housing_strategies(mission: dict[str, Any], world: dict[str, Any]) -> list[R
         if u["attrs"].get("region_id") and u["attrs"].get("monthly_ref"):
             by_region.setdefault(u["attrs"]["region_id"], []).append(u)
     region_monthlies = []
-    for rid, us in by_region.items():
+    for rid, us in sorted(by_region.items(), key=lambda kv: (regions.get(kv[0]) or {}).get("name") or ""):
         reg = regions.get(rid, {"attrs": {}, "name": "home", "id": rid})
         ra = reg["attrs"]
         cc = ra.get("country") or "JP"
         rent_units = sorted([u for u in us if u["attrs"].get("kind") not in ("room", "hostel_bed")
                              and u["attrs"].get("housing_type", "rent") == "rent"],
-                            key=lambda u: -(u["attrs"].get("score") or 0))
+                            key=lambda u: (-(u["attrs"].get("score") or 0), u.get("name") or "",
+                                           u["attrs"].get("monthly") or 0, u["attrs"].get("area_m2") or 0))
         if not rent_units:
             continue          # only rooms here: that evidence feeds the room strategy, not a lease
         top = rent_units[:3]

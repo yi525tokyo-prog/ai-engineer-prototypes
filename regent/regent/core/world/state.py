@@ -101,9 +101,12 @@ class WorldView:
             return None
         return round(float(m.balance) / float(burn), 2)
 
-    def summary(self, max_entities: int = 60) -> dict[str, Any]:
+    def summary(self, max_entities: int | None = 60) -> dict[str, Any]:
         """Compact, provider-neutral description used in model prompts and the UI."""
-        ents = sorted(self.entities.values(), key=lambda e: (e.kind, e.id))[:max_entities]
+        # by kind and name, not id: ids are random, and consumers break ties by position
+        ents = sorted(self.entities.values(), key=lambda e: (e.kind, e.name or "", e.id))
+        if max_entities is not None:
+            ents = ents[:max_entities]
         return {
             "event_seq": self.event_seq,
             "entities": [{"id": e.id, "kind": e.kind, "name": e.name, "attrs": e.attrs} for e in ents],

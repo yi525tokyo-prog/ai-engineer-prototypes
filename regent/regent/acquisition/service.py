@@ -22,7 +22,7 @@ from regent import db as dbm
 from regent.acquisition import domain as D
 from regent.acquisition.claims import ClaimStore
 from regent.acquisition.engine import AcquisitionEngine
-from regent.acquisition.tables import AcqEntity, AcqJob, AcqRequest
+from regent.acquisition.tables import AcqEntity, AcqJob, AcqRequest, ENTITY_ORDER
 from regent.ids import new_id, utcnow
 
 DISCOVERY_MAX_AGE = timedelta(hours=24)
@@ -56,7 +56,7 @@ def mission_state(db: Session, mission_id: str, adapter: D.DomainAdapter) -> dic
     }
     shortlisted = list(db.scalars(select(AcqEntity).where(AcqEntity.domain == adapter.name,
                                                           AcqEntity.entity_type == "unit",
-                                                          AcqEntity.stage == "shortlisted")))
+                                                          AcqEntity.stage == "shortlisted").order_by(*ENTITY_ORDER)))
     pending, stale = [], []
     store = ClaimStore(db, adapter.policy(), now=now())
     for e in shortlisted:
@@ -136,7 +136,7 @@ def _run_action(action: str, *, mission_id: str | None, params: dict[str, Any], 
                 adapter.funnel(engine, req)
             elif action == "recheck":
                 ids = params.get("entity_ids") or [e.id for e in s.scalars(select(AcqEntity).where(
-                    AcqEntity.domain == domain, AcqEntity.stage == "shortlisted"))]
+                    AcqEntity.domain == domain, AcqEntity.stage == "shortlisted").order_by(*ENTITY_ORDER))]
                 for eid in ids:
                     e = s.get(AcqEntity, eid)
                     if e is not None:
@@ -156,7 +156,7 @@ def _run_action(action: str, *, mission_id: str | None, params: dict[str, Any], 
             engine.log("error", f"{type(e).__name__}: {e}"[:400], where=traceback.format_exc(limit=4)[-800:])
         stats = engine.finish(status)
         shortlisted = list(s.scalars(select(AcqEntity).where(AcqEntity.domain == domain,
-                                                             AcqEntity.stage == "shortlisted")))
+                                                             AcqEntity.stage == "shortlisted").order_by(*ENTITY_ORDER)))
         out = {"request_id": req.id, "action": action, "status": status,
                "pages": stats.get("pages", 0), "mentions": stats.get("mentions", 0), "claims": stats.get("claims", 0),
                "funnel": stats.get("funnel", {}), "jobs": stats.get("jobs", {}),

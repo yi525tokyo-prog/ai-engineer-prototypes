@@ -112,6 +112,9 @@ class RouteGenerator:
     def generate(self, mission: Mission, world: WorldView, *, reason: str = "") -> GenerationResult:
         res = GenerationResult()
         mdict = mission_dict(mission)
+        # the deterministic strategist reasons over the whole world; only model prompts are capped
+        # (a truncated world silently drops whole regions' candidates from route generation)
+        wfull = world.summary(max_entities=None)
         wsum = world.summary()
         proposals: list[tuple[str, RouteProposal]] = []
         if "capability_acquisition" in (mission.tags or []):
@@ -129,7 +132,8 @@ class RouteGenerator:
             for provider in self.services.providers.all_available():
                 try:
                     out = self.services.providers.call(
-                        provider, "generate_routes", lambda p=provider: p.generate_routes(mdict, wsum, context),
+                        provider, "generate_routes",
+                        lambda p=provider: p.generate_routes(mdict, wfull if p.kind == "local" else wsum, context),
                         mission_id=mission.id)
                 except Exception as e:
                     res.provider_outputs.append({"provider": provider.name, "task": "generate_routes",
