@@ -1,0 +1,136 @@
+{
+ "task": "page_reading",
+ "key": "2c153594da2c38220e65",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.041566,
+ "instructions": "Below is the visible text of a page of an existing service, as fetched just now. Say whether it\nanswers the principal's question for this subject, and give regular expressions (each with exactly one capture group)\nthat pull the answering values out of this text, with the exact value each captures here. Values that change daily\nmust be captured by the pattern, not written into it. Anchor patterns on stable labels, not on today's values.",
+ "payload": {
+  "question": [
+   "Is today a good day to dry laundry outside in Osaka?",
+   "What is the chance of rain in Osaka during today's daytime drying period?",
+   "How favourable are the drying conditions today (humidity, wind, temperature, sunshine)?",
+   "Are there outdoor factors that make drying outside undesirable (heavy pollen, PM2.5/yellow sand, strong wind, typhoon)?"
+  ],
+  "subject": [
+   "Osaka",
+   "Outdoor laundry drying"
+  ],
+  "service": "tenki.jp Osaka city 3-hourly forecast",
+  "url": "https://tenki.jp/forecast/6/30/6200/27100/3hours.html",
+  "page_text": "大阪市の3時間天気 - 日本気象協会 tenki.jp tenki.jpトップ| サイトマップ| ヘルプ tenki.jp 検索 現在地 天気予報 天気予報 世界天気 気圧予報 2週間天気 長期予報 雨雲レーダー 積雪マップ PM2.5分布予測 黄砂情報 雷(予報) 道路気象 観測 雨雲レーダー(過去) アメダス 実況天気 過去天気 雷(実況) 防災情報 警報・注意報 地震情報 津波情報 火山情報 台風情報 知る防災 天気図 天気図 気象衛星 世界衛星 指数情報 洗濯 服装 お出かけ 星空 傘 紫外線 体感温度 洗車 睡眠 水道凍結 うるおい 霜 風邪ひき 暖房 鍋もの 寒暖差 レジャー天気 山の天気 海の天気 空港 野球場 サッカー場 ゴルフ場 キャンプ場 競馬・競艇・競輪場 釣り お出かけスポット天気 季節特集 花粉飛散情報 桜開花情報 GWの天気 梅雨入り・明け 熱中症情報 紅葉見頃情報 ヒートショック予報 スキー積雪情報 初日の出 天気ニュース 気象予報士のポイント解説 季節・暮らしの話題 放送局のニュース 特集 雨雲レーダー 天気図 PM2.5分布予測 地震情報 気象予報士の解説 警報・注意報注目 トップ 近畿地方 大阪府 大阪市 3時間天気 大阪市の天気01日13:00発表 雷レーダーで落雷情報を見る 今日・明日の天気 3時間天気 1時間天気 2週間天気 今日01日(木) 明日02日(金) 明後日03日(土) 日付 今日 10月01日(木) 日の出|05:52 日の入|17:43 時刻 午前 午後 03 06 09 12 15 18 21 24 天気 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 気温 (°C) 4 19.5 18.5 23.5 27.5 28.2 25.5 23.2 21.9 降水確率 (%) --- --- --- --- 0 0 0 0 降水量 (mm/h) 0 0 0 0 0 0 0 0 降雪量 (cm/h) 0 0 0 0 0 0 0 0 湿度 (%) 93 94 87 51 52 64 73 76 風向風速 (m/s) 北北西 西北西 東 西 西 北北西 北 北北西 1 1 1 2 3 2 2 2 大阪府雨雲レーダー現在の雨雲を見る これからの予報を見る 雨雲レーダー 天気図 アメダス 警報・注意報 日付 明日 10月02日(金) 日の出|05:53 日の入|17:41 時刻 午前 午後 03 06 09 12 15 18 21 24 天気 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 気温 (°C) 21.0 19.7 22.9 26.3 25.2 22.3 20.4 19.0 降水確率 (%) 10 10 0 0 0 0 0 0 降水量 (mm/h) 0 0 0 0 0 0 0 0 降雪量 (cm/h) 0 0 0 0 0 0 0 0 湿度 (%) 74 74 55 43 42 52 64 68 風向風速 (m/s) 北北西 北 北 北 北 北 北 北 2 2 4 4 4 3 3 2 大阪府雨雲レーダー現在の雨雲を見る これからの予報を見る 日付 明後日 10月03日(土) 日の出|05:54 日の入|17:40 時刻 午前 午後 03 06 09 12 15 18 21 24 天気 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 気温 (°C) 17.9 16.5 20.3 24.3 26.1 21.7 19.9 18.7 降水確率 (%) 0 0 0 0 0 0 0 0 降水量 (mm/h) 0 0 0 0 0 0 0 0 降雪量 (cm/h) 0 0 0 0 0 0 0 0 湿度 (%) 70 75 57 43 38 54 62 67 風向風速 (m/s) 北北東 北東 北北東 北北東 北 北 北北東 北北東 2 1 3 3 3 3 3 2 大阪府雨雲レーダー現在の雨雲を見る これからの予報を見る 今日 明日 紫外線 強い 紫外線対策は必須、外では日かげに 洗濯 大変よく乾く ジーンズなど厚手のものもOK 服装 80 半袖Tシャツ一枚で過ごせる暑さ 星空 80 星座の観察が十分に楽しめるよ 紫外線 強い 紫外線対策は必須、外では日かげに 洗濯 大変よく乾く ジーンズなど厚手のものもOK 服装 80 半袖Tシャツ一枚で過ごせる暑さ 星空 80 星座の観察が十分に楽しめるよ 紫外線 強い 紫外線対策は必須、外では日かげに 洗濯 大変よく乾く ジーンズなど厚手のものもOK 服装 70 半袖+カーディガンで温度調節を 星空 90 きれいな星空が広がりそうだよ 10日間天気 日付 10月04日 (日) 10月05日 (月) 10月06日 (火) 10月07日 (水) 10月08日 (木) 10月09日 (金) 10月10日 (土) 10月11日 (日) 天気 曇一時雨 曇一時雨 雨のち曇 晴 晴時々曇 晴 晴 晴 気温 (°C) 24 18 24 19 24 19 24 18 24 16 27 17 28 18 27 18 降水 確率 70% 80% 90% 10% 30% 10% 10% 20% 2週間先までの天気を見る 気象予報士のポイント解説(日直予報士) 台風27号は発達しながら北上 進路に注意 秋晴れが増えるのはいつ? 2週間天気 10/01(Thu)12:18 東京都心36日連続で雨 最長記録さらに更新 一転して待望の日差し 27°C超え夏日 10/01(Thu)12:09 いよいよ北海道で雪!? 明日2日は初冠雪の便りが届きそう 10/01(Thu)11:47 解説記事一覧 こちらもおすすめ 大阪府(大阪)各地の天気 大阪府(大阪) 大阪市 大阪市都島区 大阪市福島区 大阪市此花区 大阪市西区 大阪市港区 大阪市大正区 大阪市天王寺区 大阪市浪速区 大阪市西淀川区 大阪市東淀川区 大阪市東成区 大阪市生野区 大阪市旭区 大阪市城東区 大阪市阿倍野区 大阪市住吉区 大阪市東住吉区 大阪市西成区 大阪市淀川区 大阪市鶴見区 大阪市住之江区 大阪市平野区 大阪市北区 大阪市中央区 堺市 堺市堺区 堺市中区 堺市東区 堺市西区 堺市南区 堺市北区 堺市美原区 岸和田市 豊中市 池田市 吹田市 泉大津市 高槻市 貝塚市 守口市 枚方市 茨木市 八尾市 泉佐野市 富田林市 寝屋川市 河内長野市 松原市 大東市 和泉市 箕面市 柏原市 羽曳野市 門真市 摂津市 高石市 藤井寺市 東大阪市 泉南市 四條畷市 交野市 大阪狭山市 阪南市 島本町 豊能町 能勢町 忠岡町 熊取町 田尻町 岬町 太子町 河南町 千早赤阪村 天気ガイド 衛星 天気図 雨雲 アメダス PM2.5 大阪府の紅葉名所人気ランキング 1位大阪城公園大阪府 青葉 2位勝ち運の寺 勝尾寺大阪府 青葉 3位明治の森箕面国定公園大阪府 青葉 4位府民の森ほしだ園地大阪府 青葉 5位牛滝山 大威徳寺大阪府 青葉 紅葉名所人気ランキングをもっと見る 注目の情報 アプリのアップデート第1弾公開中 新画面「天気リスト」や「防災」画面を追加、使いやすくなりました tenki.jpの天気予報精度 皆様の少し未来の暮らしを情報で支えるため、精度向上に取り組んでいます tenki.jpの公式X(旧Twitter) 最新の気象・防災情報や、生活に役立つ情報を毎日リアルタイムに配信中! 天気予報 天気予報 世界天気 気圧予報 2週間天気 長期予報 雨雲レーダー PM2.5 黄砂 世界の雨雲 雷(予報) 道路気象 観測 雨雲レーダー(過去) アメダス 実況天気 過去天気 雷(実況) 防災情報 警報・注意報 地震 津波 火山 台風 知る防災 天気図 天気図 気象衛星 世界衛星 指数情報 洗濯 服装 お出かけ 星空 傘 紫外線 体感 洗車 睡眠 水道凍結 うるおい 霜 風邪ひき 暖房 鍋もの 寒暖差 レジャー天気 山の天気 海の天気 空港 野球場 サッカー場 ゴルフ場 キャンプ場 競馬·競艇·競輪 釣り お出かけ天気 季節特集 花粉飛散情報 桜開花情報 GWの天気 梅雨入り·明け 熱中症情報 紅葉見頃情報 ヒートショック予報 スキー積雪情報 天気ニュース 気象予報士の解説 季節・暮らしの話題 放送局のニュース 特集 tenki.jp公式SNS tenki.jp公式アプリ tenki.jp tenki.jp 登山天気 全国のコンテンツ tenki.jpトップ 天気予報 天気予報 世界天気 気圧予報 2週間天気 長期予報 雨雲レーダー 積雪マップ PM2.5分布予測 世界の雨雲 雷(予報) 道路気象 黄砂情報 観測 雨雲(過去) アメダス実況 実況天気 過去天気 雷(実況) 防災情報 警報・注意報 地震情報 津波情報 火山情報 台風情報 知る防災 天気図 天気図 気象衛星 世界衛星 指数情報 通年 洗濯 服装 お出かけ 星空 傘 紫外線 体感温度 洗車 睡眠 冬季 水道凍結 うるおい 霜 風邪ひき 暖房 鍋もの 寒暖差 レジャー天気 山の天気 海の天気 空港 野球場 サッカー場 ゴルフ場 キャンプ場 競馬・競艇・競輪 釣り お出かけスポット天気 季節特集 花粉飛散情報(1~5月頃) 桜開花情報(2~5月頃) GWの天気(4~5月頃) 梅雨入り・明け(5~7月頃) 熱中症情報(4~9月頃) 紅葉見頃情報(10~11月頃) ヒートショック(10~3月頃) スキー積雪情報(11~5月頃) 初日の出(12~1月頃) 天気ニュース 気象予報士解説 暮らしの話題 放送局のニュース 特集 会社概要(日本気象協会/ALiNKインターネット) 利用規約 プライバシーポリシー クッキーポリシー 広告掲載 お問い合わせ Copyright (C) 2026 日本気象協会 All Rights Reserved. Copyright (C) 2026 ALiNKインターネット All Rights Reserved. ×"
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "answers_question",
+   "readings"
+  ],
+  "properties": {
+   "answers_question": {
+    "type": "boolean"
+   },
+   "readings": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "name",
+      "pattern",
+      "example",
+      "meaning",
+      "question",
+      "relation_to_need"
+     ],
+     "properties": {
+      "name": {
+       "type": "string",
+       "description": "snake_case field name"
+      },
+      "pattern": {
+       "type": "string",
+       "description": "Python regex with ONE capture group, matched against the page text exactly as given"
+      },
+      "example": {
+       "type": "string",
+       "description": "the value the pattern captures in this text"
+      },
+      "meaning": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "relation_to_need": {
+       "type": "string",
+       "enum": [
+        "direct",
+        "lower_bound",
+        "upper_bound",
+        "activity_signal",
+        "context",
+        "unrelated"
+       ]
+      },
+      "counts": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "answers_question": true,
+  "readings": [
+   {
+    "name": "laundry_index_today",
+    "pattern": "洗濯 (\\S*乾\\S*)",
+    "example": "大変よく乾く",
+    "meaning": "tenki.jp laundry drying index text for today (first occurrence)",
+    "question": "How favourable are drying conditions today?",
+    "relation_to_need": "direct"
+   },
+   {
+    "name": "precip_probability_today",
+    "pattern": "降水確率 \\(%\\) ([-\\d ]+?) 降水量",
+    "example": "--- --- --- --- 0 0 0 0",
+    "meaning": "3-hourly chance of rain (%) for today; --- for past slots",
+    "question": "Chance of rain during today's daytime?",
+    "relation_to_need": "direct"
+   },
+   {
+    "name": "humidity_today",
+    "pattern": "湿度 \\(%\\) ([\\d ]+?) 風向風速",
+    "example": "93 94 87 51 52 64 73 76",
+    "meaning": "3-hourly humidity % for today",
+    "question": "Humidity today?",
+    "relation_to_need": "direct"
+   },
+   {
+    "name": "wind_speed_today",
+    "pattern": "風向風速 \\(m/s\\) [^\\d]+? ([\\d ]+?) 大阪府雨雲",
+    "example": "1 1 1 2 3 2 2 2",
+    "meaning": "3-hourly wind speed m/s for today",
+    "question": "Wind strength today?",
+    "relation_to_need": "direct"
+   },
+   {
+    "name": "temperature_today",
+    "pattern": "気温 \\(°C\\) ([\\d. ]+?) 降水確率",
+    "example": "4 19.5 18.5 23.5 27.5 28.2 25.5 23.2 21.9",
+    "meaning": "3-hourly temperature °C for today (first value is a header artifact)",
+    "question": "Temperature today?",
+    "relation_to_need": "direct"
+   },
+   {
+    "name": "weather_today",
+    "pattern": "天気 (晴れ(?: 晴れ)*|[^\\d]+?) 気温",
+    "example": "晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ 晴れ",
+    "meaning": "3-hourly weather conditions today",
+    "question": "Sunshine/weather today?",
+    "relation_to_need": "direct"
+   }
+  ]
+ },
+ "at": "2026-10-01T04:18:38Z"
+}

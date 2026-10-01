@@ -1,0 +1,920 @@
+{
+ "task": "field_semantics",
+ "key": "30578baae5f1e9a48fd4",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.06303120000000001,
+ "instructions": "You read a live product from the outside for an operational agent. Given the principal's\nneed (questions with precise definitions) and what was observed (public JSON endpoints the product's own code calls,\nwith the code around each call and a sample response; the product's stated commitments; platform sources that exist\nbut need the principal's access, described by their documented fields), say for each numeric or event-list field\nthat could bear on the questions what it measures and how it relates to the need. For a platform source use its\n\"endpoint\" value (connector:<id>) and the field name as path, and quote its documentation as evidence. For a value\ninside a JSON array give the element's path with its index (e.g. \"daily.temperature_2m_max.0\" for the first day);\nuse relation \"direct\" for a value that answers a question as it stands and \"context\" for inputs to a decision. Be strict: a\nnumber that counts something other than people using this product (e.g. counts from an upstream catalogue, sizes,\nbudgets, caps) is 'unrelated' even if large. Distinct paying or contributing people are a 'lower_bound' on real\nusers; counts of actions are an 'activity_signal', not people. Quote evidence verbatim from the input. Also list the\nproduct's commitments that constrain how usage may be measured, and any other sources the principal likely holds.",
+ "payload": {
+  "need": {
+   "sentence": "Every morning, tell me whether it's a good day to dry laundry outside in Osaka.",
+   "questions": [
+    {
+     "id": "good_day_verdict",
+     "unit": "yes/no",
+     "exclude": [
+      "Overnight hours",
+      "Forecasts for other days",
+      "Other cities or prefectures"
+     ],
+     "windows": [
+      "today daytime"
+     ],
+     "priority": "core",
+     "quantity": "Overall verdict for today's daytime drying period (roughly 08:00-18:00 local), derived from the conditions below: no rain during the drying period and conditions that dry clothes reasonably (not too humid, some wind or sun).",
+     "question": "Is today a good day to dry laundry outside in Osaka?",
+     "population": "Osaka city, today, daytime hours when laundry would be hanging out",
+     "answer_type": "yes_no"
+    },
+    {
+     "id": "rain_chance",
+     "unit": "percent and mm",
+     "exclude": [
+      "Nighttime rain",
+      "Rain on other days"
+     ],
+     "windows": [
+      "today daytime"
+     ],
+     "priority": "core",
+     "quantity": "Maximum hourly probability of precipitation, and expected precipitation amount, between 08:00 and 18:00 local today",
+     "question": "What is the chance of rain in Osaka during today's daytime drying period?",
+     "population": "Osaka city forecast",
+     "answer_type": "amount"
+    },
+    {
+     "id": "drying_conditions",
+     "unit": "% RH, m/s, °C, cloud %",
+     "exclude": [
+      "Indoor conditions"
+     ],
+     "windows": [
+      "today daytime"
+     ],
+     "priority": "supporting",
+     "quantity": "Daytime average relative humidity, wind speed, temperature and cloud cover/sunshine",
+     "question": "How favourable are the drying conditions today (humidity, wind, temperature, sunshine)?",
+     "population": "Osaka city forecast",
+     "answer_type": "text"
+    },
+    {
+     "id": "outdoor_air_quality",
+     "unit": "category (none/moderate/high)",
+     "exclude": [],
+     "windows": [
+      "today daytime"
+     ],
+     "priority": "supporting",
+     "quantity": "Presence of pollen, PM2.5/yellow-sand or strong wind or typhoon warnings affecting Osaka today",
+     "question": "Are there outdoor factors that make drying outside undesirable (heavy pollen, PM2.5/yellow sand, strong wind, typhoon)?",
+     "population": "Osaka city",
+     "answer_type": "category"
+    }
+   ],
+   "definitions_to_state": [
+    "'Morning' delivery time (not given; assumed 07:00 Asia/Tokyo)",
+    "'Good day' criteria and thresholds, e.g. rain probability below ~30%, humidity below ~70%, no strong wind",
+    "Drying window considered (assumed 08:00-18:00 local)",
+    "Osaka means Osaka city, not the whole prefecture",
+    "Forecast-based, so the answer is an estimate, not a certainty",
+    "Whether pollen, PM2.5 and yellow sand count against a good day",
+    "Whether the answer is a yes/no or a graded rating"
+   ]
+  },
+  "endpoints": [
+   {
+    "url": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "code_context": [
+     "proposed: Japan Meteorological Agency official forecast for Osaka Prefecture: weather text, wind, and 6-hourly rain probability for today"
+    ],
+    "used_with": [
+     "GET"
+    ],
+    "fields": {
+     "0.publishingOffice": "str",
+     "0.reportDatetime": "str",
+     "0.timeSeries": "list[3]",
+     "0.timeSeries.0.timeDefines": "list[3]",
+     "0.timeSeries.0.areas": "list[1]",
+     "0.timeSeries.0.areas.0.area": "dict",
+     "0.timeSeries.0.areas.0.area.name": "str",
+     "0.timeSeries.0.areas.0.area.code": "str",
+     "0.timeSeries.0.areas.0.weatherCodes": "list[3]",
+     "0.timeSeries.0.areas.0.weathers": "list[3]",
+     "0.timeSeries.0.areas.0.winds": "list[3]",
+     "0.timeSeries.0.areas.0.waves": "list[3]"
+    },
+    "sample": [
+     {
+      "publishingOffice": "大阪管区気象台",
+      "reportDatetime": "2026-10-01T11:00:00+09:00",
+      "timeSeries": [
+       {
+        "timeDefines": [
+         "2026-10-01T11:00:00+09:00",
+         "2026-10-02T00:00:00+09:00",
+         "2026-10-03T00:00:00+09:00"
+        ],
+        "areas": [
+         {
+          "area": {
+           "name": "大阪府",
+           "code": "270000"
+          },
+          "weatherCodes": [
+           "111",
+           "101",
+           "101"
+          ],
+          "weathers": [
+           "晴れ　夕方　から　くもり",
+           "晴れ　時々　くもり",
+           "晴れ　時々　くもり"
+          ],
+          "winds": [
+           "北西の風　後　北の風　海上　では　後　北の風　やや強く",
+           "北の風　海上　では　北の風　やや強く",
+           "北の風"
+          ],
+          "waves": [
+           "０．５メートル　後　１メートル",
+           "０．５メートル　後　１メートル",
+           "０．５メートル　後　１メートル"
+          ]
+         }
+        ]
+       },
+       {
+        "timeDefines": [
+         "2026-10-01T12:00:00+09:00",
+         "2026-10-01T18:00:00+09:00",
+         "2026-10-02T00:00:00+09:00",
+         "… 3 more"
+        ],
+        "areas": [
+         {
+          "area": {
+           "name": "大阪府",
+           "code": "270000"
+          },
+          "pops": [
+           "10",
+           "10",
+           "10",
+           "… 3 more"
+          ]
+         }
+        ]
+       },
+       {
+        "timeDefines": [
+         "2026-10-01T09:00:00+09:00",
+         "2026-10-01T00:00:00+09:00",
+         "2026-10-02T00:00:00+09:00",
+         "… 1 more"
+        ],
+        "areas": [
+         {
+          "area": {
+           "name": "大阪",
+           "code": "62078"
+          },
+          "temps": [
+           "30",
+           "30",
+           "20",
+           "… 1 more"
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "publishingOffice": "大阪管区気象台",
+      "reportDatetime": "2026-10-01T11:00:00+09:00",
+      "timeSeries": [
+       {
+        "timeDefines": [
+         "2026-10-02T00:00:00+09:00",
+         "2026-10-03T00:00:00+09:00",
+         "2026-10-04T00:00:00+09:00",
+         "… 4 more"
+        ],
+        "areas": [
+         {
+          "area": {
+           "name": "大阪府",
+           "code": "270000"
+          },
+          "weatherCodes": [
+           "101",
+           "101",
+           "200",
+           "… 4 more"
+          ],
+          "pops": [
+           "",
+           "10",
+           "40",
+           "… 4 more"
+          ],
+          "reliabilities": [
+           "",
+           "",
+           "B",
+           "… 4 more"
+          ]
+         }
+        ]
+       },
+       {
+        "timeDefines": [
+         "2026-10-02T00:00:00+09:00",
+         "2026-10-03T00:00:00+09:00",
+         "2026-10-04T00:00:00+09:00",
+         "… 4 more"
+        ],
+        "areas": [
+         {
+          "area": {
+           "name": "大阪",
+           "code": "62078"
+          },
+          "tempsMin": [
+           "",
+           "17",
+           "19",
+           "… 4 more"
+          ],
+          "tempsMinUpper": [
+           "",
+           "19",
+           "20",
+           "… 4 more"
+          ],
+          "tempsMinLower": [
+           "",
+           "16",
+           "17",
+           "… 4 more"
+          ],
+          "tempsMax": [
+           "",
+           "27",
+           "26",
+           "… 4 more"
+          ],
+          "tempsMaxUpper": [
+           "",
+           "29",
+           "28",
+           "… 4 more"
+          ],
+          "tempsMaxLower": [
+           "",
+           "25",
+           "24",
+           "… 4 more"
+          ]
+         }
+        ]
+       }
+      ],
+      "tempAverage": {
+       "areas": [
+        {
+         "area": {
+          "name": "大阪",
+          "code": "62078"
+         },
+         "min": "18.2",
+         "max": "25.8"
+        }
+       ]
+      },
+      "precipAverage": {
+       "areas": [
+        {
+         "area": {
+          "name": "大阪",
+          "code": "62078"
+         },
+         "min": "14.4",
+         "max": "42.4"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "url": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.694&lon=135.501",
+    "code_context": [
+     "proposed: Hourly forecast with humidity, wind, temperature, cloud cover and precipitation amount for Osaka (needs identifying User-Agent header, no key)"
+    ],
+    "used_with": [
+     "GET"
+    ],
+    "fields": {
+     "type": "str",
+     "geometry": "dict",
+     "geometry.type": "str",
+     "geometry.coordinates": "list[3]",
+     "properties": "dict",
+     "properties.meta": "dict",
+     "properties.meta.updated_at": "str",
+     "properties.meta.units": "dict",
+     "properties.meta.units.air_pressure_at_sea_level": "str",
+     "properties.meta.units.air_temperature": "str",
+     "properties.meta.units.cloud_area_fraction": "str",
+     "properties.meta.units.precipitation_amount": "str",
+     "properties.meta.units.relative_humidity": "str",
+     "properties.meta.units.wind_from_direction": "str",
+     "properties.meta.units.wind_speed": "str",
+     "properties.timeseries": "list[83]",
+     "properties.timeseries.0.time": "str",
+     "properties.timeseries.0.data": "dict",
+     "properties.timeseries.0.data.instant": "dict",
+     "properties.timeseries.0.data.instant.details": "dict",
+     "properties.timeseries.0.data.instant.details.air_pressure_at_sea_level": "float",
+     "properties.timeseries.0.data.instant.details.air_temperature": "float",
+     "properties.timeseries.0.data.instant.details.cloud_area_fraction": "float",
+     "properties.timeseries.0.data.instant.details.relative_humidity": "float",
+     "properties.timeseries.0.data.instant.details.wind_from_direction": "float",
+     "properties.timeseries.0.data.instant.details.wind_speed": "float",
+     "properties.timeseries.0.data.next_12_hours": "dict",
+     "properties.timeseries.0.data.next_12_hours.summary": "dict",
+     "properties.timeseries.0.data.next_12_hours.summary.symbol_code": "str",
+     "properties.timeseries.0.data.next_12_hours.details": "dict",
+     "properties.timeseries.0.data.next_1_hours": "dict",
+     "properties.timeseries.0.data.next_1_hours.summary": "dict",
+     "properties.timeseries.0.data.next_1_hours.summary.symbol_code": "str",
+     "properties.timeseries.0.data.next_1_hours.details": "dict",
+     "properties.timeseries.0.data.next_1_hours.details.precipitation_amount": "float",
+     "properties.timeseries.0.data.next_6_hours": "dict",
+     "properties.timeseries.0.data.next_6_hours.summary": "dict",
+     "properties.timeseries.0.data.next_6_hours.summary.symbol_code": "str",
+     "properties.timeseries.0.data.next_6_hours.details": "dict",
+     "properties.timeseries.0.data.next_6_hours.details.precipitation_amount": "float"
+    },
+    "sample": {
+     "type": "Feature",
+     "geometry": {
+      "type": "Point",
+      "coordinates": [
+       135.501,
+       34.694,
+       19
+      ]
+     },
+     "properties": {
+      "meta": {
+       "updated_at": "2026-09-30T19:17:33Z",
+       "units": {
+        "air_pressure_at_sea_level": "hPa",
+        "air_temperature": "celsius",
+        "cloud_area_fraction": "%",
+        "precipitation_amount": "mm",
+        "relative_humidity": "%",
+        "wind_from_direction": "degrees",
+        "wind_speed": "m/s"
+       }
+      },
+      "timeseries": [
+       {
+        "time": "2026-10-01T04:00:00Z",
+        "data": {
+         "instant": {
+          "details": {
+           "air_pressure_at_sea_level": 1011.0,
+           "air_temperature": 26.0,
+           "cloud_area_fraction": 7.8,
+           "relative_humidity": 68.3,
+           "wind_from_direction": 235.1,
+           "wind_speed": 3.1
+          }
+         },
+         "next_12_hours": {
+          "summary": {
+           "symbol_code": "clearsky_day"
+          },
+          "details": {}
+         },
+         "next_1_hours": {
+          "summary": {
+           "symbol_code": "clearsky_day"
+          },
+          "details": {
+           "precipitation_amount": 0.0
+          }
+         },
+         "next_6_hours": {
+          "summary": {
+           "symbol_code": "clearsky_day"
+          },
+          "details": {
+           "precipitation_amount": 0.0
+          }
+         }
+        }
+       },
+       {
+        "time": "2026-10-01T05:00:00Z",
+        "data": {
+         "instant": {
+          "details": {
+           "air_pressure_at_sea_level": 1010.6,
+           "air_temperature": 26.0,
+           "cloud_area_fraction": 7.8,
+           "relative_humidity": 70.2,
+           "wind_from_direction": 240.6,
+           "wind_speed": 3.4
+          }
+         },
+         "next_12_hours": {
+          "summary": {
+           "symbol_code": "clearsky_day"
+          },
+          "details": {}
+         },
+         "next_1_hours": {
+          "summary": {
+           "symbol_code": "clearsky_day"
+          },
+          "details": {
+           "precipitation_amount": 0.0
+          }
+         },
+         "next_6_hours": {
+          "summary": {
+           "symbol_code": "clearsky_day"
+          },
+          "details": {
+           "precipitation_amount": 0.0
+          }
+         }
+        }
+       },
+       {
+        "time": "2026-10-01T06:00:00Z",
+        "data": {
+         "instant": {
+          "details": {
+           "air_pressure_at_sea_level": 1010.4,
+           "air_temperature": 25.7,
+           "cloud_area_fraction": 4.7,
+           "relative_humidity": 72.9,
+           "wind_from_direction": 238.8,
+           "wind_speed": 3.6
+          }
+         },
+         "next_12_hours": {
+          "summary": {
+           "symbol_code": "clearsky_night"
+          },
+          "details": {}
+         },
+         "next_1_hours": {
+          "summary": {
+           "symbol_code": "clearsky_day"
+          },
+          "details": {
+           "precipitation_amount": 0.0
+          }
+         },
+         "next_6_hours": {
+          "summary": {
+           "symbol_code": "clearsky_night"
+          },
+          "details": {
+           "precipitation_amount": 0.0
+          }
+         }
+        }
+       },
+       "… 80 more"
+      ]
+     }
+    }
+   },
+   {
+    "url": "https://www.jma.go.jp/bosai/warning/data/warning/270000.json",
+    "code_context": [
+     "proposed: JMA current warnings/advisories (strong wind, storm, typhoon) for Osaka Prefecture"
+    ],
+    "used_with": [
+     "GET"
+    ],
+    "fields": {
+     "reportDatetime": "str",
+     "publishingOffice": "str",
+     "headlineText": "str",
+     "areaTypes": "list[2]",
+     "areaTypes.0.areas": "list[1]",
+     "areaTypes.0.areas.0.code": "str",
+     "areaTypes.0.areas.0.warnings": "list[1]",
+     "areaTypes.0.areas.0.warnings.0.code": "str",
+     "areaTypes.0.areas.0.warnings.0.status": "str"
+    },
+    "sample": {
+     "reportDatetime": "2026-05-26T21:09:00+09:00",
+     "publishingOffice": "大阪管区気象台",
+     "headlineText": "注意報を解除します。",
+     "areaTypes": [
+      {
+       "areas": [
+        {
+         "code": "270000",
+         "warnings": [
+          {
+           "code": "21",
+           "status": "解除"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "areas": [
+        {
+         "code": "2710000",
+         "warnings": [
+          {
+           "code": "21",
+           "status": "解除"
+          }
+         ]
+        },
+        {
+         "code": "2714000",
+         "warnings": [
+          {
+           "code": "21",
+           "status": "解除"
+          }
+         ]
+        },
+        {
+         "code": "2720200",
+         "warnings": [
+          {
+           "code": "21",
+           "status": "解除"
+          }
+         ]
+        },
+        "… 40 more"
+       ]
+      }
+     ]
+    }
+   }
+  ],
+  "commitments": [],
+  "platform": [],
+  "platform_sources": []
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "fields",
+   "constraints",
+   "other_sources"
+  ],
+  "properties": {
+   "fields": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "endpoint",
+      "path",
+      "meaning",
+      "relation_to_need",
+      "question",
+      "time_semantics",
+      "evidence",
+      "confidence"
+     ],
+     "properties": {
+      "endpoint": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string",
+       "description": "dotted path in the JSON"
+      },
+      "meaning": {
+       "type": "string"
+      },
+      "counts": {
+       "type": "string",
+       "enum": [
+        "people",
+        "actions",
+        "items",
+        "money",
+        "time",
+        "other"
+       ]
+      },
+      "relation_to_need": {
+       "type": "string",
+       "enum": [
+        "direct",
+        "lower_bound",
+        "upper_bound",
+        "activity_signal",
+        "context",
+        "unrelated"
+       ]
+      },
+      "question": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "id of the need question it bears on"
+      },
+      "time_semantics": {
+       "type": "string",
+       "enum": [
+        "cumulative",
+        "resets_daily",
+        "snapshot",
+        "event_list",
+        "unknown"
+       ]
+      },
+      "timestamp_key": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "for event lists: the item key holding the event time"
+      },
+      "caveats": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "evidence": {
+       "type": "string",
+       "description": "a verbatim quote (8-200 chars) from the endpoint's code context or response that supports this reading"
+      },
+      "confidence": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "constraints": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "statement",
+      "evidence",
+      "forbids"
+     ],
+     "properties": {
+      "statement": {
+       "type": "string"
+      },
+      "evidence": {
+       "type": "string",
+       "description": "verbatim quote of the promise"
+      },
+      "forbids": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "enum": [
+         "adds_client_code",
+         "third_party_tracking",
+         "writes_to_product",
+         "stores_personal_data",
+         "requires_accounts",
+         "shows_ads"
+        ]
+       }
+      }
+     }
+    }
+   },
+   "other_sources": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "title",
+      "access",
+      "question"
+     ],
+     "properties": {
+      "title": {
+       "type": "string"
+      },
+      "access": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "why": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "fields": [
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "0.timeSeries.1.areas.0.pops",
+    "meaning": "JMA 6-hourly probability of precipitation (%) for Osaka Prefecture; time slots given by timeDefines (12:00, 18:00, ...). The 12:00-18:00 slot covers most of the daytime window.",
+    "relation_to_need": "direct",
+    "question": "rain_chance",
+    "time_semantics": "event_list",
+    "timestamp_key": null,
+    "evidence": "\"pops\": [\"10\",\"10\",\"10\",\"… 3 more\"]",
+    "confidence": 0.6,
+    "caveats": [
+     "6-hour bins, not hourly; prefecture-level not city",
+     "Time defines in the same series: 12:00, 18:00, 00:00 ..., the 06-12 slot may be missing after the morning issuance"
+    ]
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "0.timeSeries.0.areas.0.weathers.0",
+    "meaning": "Japanese text weather forecast for Osaka Prefecture today (e.g. clear, then cloudy in evening).",
+    "relation_to_need": "direct",
+    "question": "good_day_verdict",
+    "time_semantics": "snapshot",
+    "timestamp_key": null,
+    "evidence": "\"晴れ　夕方　から　くもり\"",
+    "confidence": 0.55,
+    "caveats": [
+     "Text, needs parsing; prefecture-wide"
+    ]
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "0.timeSeries.0.areas.0.winds.0",
+    "meaning": "Text wind forecast for today for Osaka Prefecture, including sea areas.",
+    "relation_to_need": "context",
+    "question": "drying_conditions",
+    "time_semantics": "snapshot",
+    "timestamp_key": null,
+    "evidence": "\"北西の風　後　北の風　海上　では　後　北の風　やや強く\"",
+    "confidence": 0.5,
+    "caveats": [
+     "Qualitative; 'やや強く' applies to sea areas"
+    ]
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "0.timeSeries.2.areas.0.temps.0",
+    "meaning": "Forecast temperature (°C) for Osaka city at 09:00 today; later entries are daily min/max.",
+    "relation_to_need": "context",
+    "question": "drying_conditions",
+    "time_semantics": "event_list",
+    "timestamp_key": null,
+    "evidence": "\"temps\": [\"30\",\"30\",\"20\",\"… 1 more\"]",
+    "confidence": 0.5,
+    "caveats": [
+     "Mixed time slots; the sample's time order is irregular"
+    ]
+   },
+   {
+    "endpoint": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.694&lon=135.501",
+    "path": "properties.timeseries.0.data.instant.details.relative_humidity",
+    "meaning": "Hourly forecast relative humidity (%) at Osaka coordinates; index gives hour (UTC; JST = UTC+9).",
+    "relation_to_need": "direct",
+    "question": "drying_conditions",
+    "time_semantics": "event_list",
+    "timestamp_key": "time",
+    "evidence": "\"relative_humidity\": 68.3",
+    "confidence": 0.8,
+    "caveats": [
+     "Average over 23:00-09:00 UTC (08-18 JST) needed"
+    ]
+   },
+   {
+    "endpoint": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.694&lon=135.501",
+    "path": "properties.timeseries.0.data.instant.details.wind_speed",
+    "meaning": "Hourly forecast wind speed (m/s) at Osaka.",
+    "relation_to_need": "direct",
+    "question": "drying_conditions",
+    "time_semantics": "event_list",
+    "timestamp_key": "time",
+    "evidence": "\"wind_speed\": 3.1",
+    "confidence": 0.8,
+    "caveats": []
+   },
+   {
+    "endpoint": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.694&lon=135.501",
+    "path": "properties.timeseries.0.data.instant.details.air_temperature",
+    "meaning": "Hourly forecast air temperature (°C) at Osaka.",
+    "relation_to_need": "direct",
+    "question": "drying_conditions",
+    "time_semantics": "event_list",
+    "timestamp_key": "time",
+    "evidence": "\"air_temperature\": 26.0",
+    "confidence": 0.8,
+    "caveats": []
+   },
+   {
+    "endpoint": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.694&lon=135.501",
+    "path": "properties.timeseries.0.data.instant.details.cloud_area_fraction",
+    "meaning": "Hourly forecast cloud cover (%) at Osaka, proxy for sunshine.",
+    "relation_to_need": "direct",
+    "question": "drying_conditions",
+    "time_semantics": "event_list",
+    "timestamp_key": "time",
+    "evidence": "\"cloud_area_fraction\": 7.8",
+    "confidence": 0.8,
+    "caveats": [
+     "Proxy for sunshine"
+    ]
+   },
+   {
+    "endpoint": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.694&lon=135.501",
+    "path": "properties.timeseries.0.data.next_1_hours.details.precipitation_amount",
+    "meaning": "Forecast precipitation amount (mm) in the following hour; sum over 08-18 JST gives expected amount.",
+    "relation_to_need": "direct",
+    "question": "rain_chance",
+    "time_semantics": "event_list",
+    "timestamp_key": "time",
+    "evidence": "\"precipitation_amount\": 0.0",
+    "confidence": 0.8,
+    "caveats": [
+     "Amount only, no probability; sum needed over window"
+    ]
+   },
+   {
+    "endpoint": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.694&lon=135.501",
+    "path": "properties.timeseries.0.data.next_6_hours.details.precipitation_amount",
+    "meaning": "Forecast precipitation (mm) over next 6 hours; overlaps with the hourly values.",
+    "relation_to_need": "context",
+    "question": "rain_chance",
+    "time_semantics": "event_list",
+    "timestamp_key": "time",
+    "evidence": "\"precipitation_amount\": 0.0",
+    "confidence": 0.6,
+    "caveats": [
+     "Overlapping windows; don't add with hourly"
+    ]
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/warning/data/warning/270000.json",
+    "path": "areaTypes.0.areas.0.warnings.0.code",
+    "meaning": "JMA warning/advisory code (e.g. 21 = strong wind advisory) for Osaka Prefecture area; paired with status (issued or cancelled).",
+    "relation_to_need": "direct",
+    "question": "outdoor_air_quality",
+    "time_semantics": "snapshot",
+    "timestamp_key": null,
+    "evidence": "\"code\": \"21\"",
+    "confidence": 0.6,
+    "caveats": [
+     "Check status: 解除 means cancelled; sample is stale (May)",
+     "Code meanings need JMA table; no pollen or PM2.5 here"
+    ]
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/warning/data/warning/270000.json",
+    "path": "areaTypes.0.areas.0.warnings.0.status",
+    "meaning": "Status of the warning (issued, continuing, or cancelled).",
+    "relation_to_need": "direct",
+    "question": "outdoor_air_quality",
+    "time_semantics": "snapshot",
+    "timestamp_key": null,
+    "evidence": "\"status\": \"解除\"",
+    "confidence": 0.6,
+    "caveats": []
+   }
+  ],
+  "constraints": [],
+  "other_sources": [
+   {
+    "title": "Pollen forecast (e.g. Japan Weather Association / Ministry of the Environment pollen data)",
+    "access": "Public websites or APIs; not among the observed endpoints",
+    "question": "outdoor_air_quality"
+   },
+   {
+    "title": "PM2.5 / yellow sand (kosa) data (Ministry of the Environment Soramame, JMA kosa forecast)",
+    "access": "Public data",
+    "question": "outdoor_air_quality"
+   },
+   {
+    "title": "Principal's preferences for thresholds and delivery time",
+    "access": "Principal",
+    "question": "good_day_verdict"
+   }
+  ]
+ },
+ "at": "2026-10-01T04:19:13Z"
+}

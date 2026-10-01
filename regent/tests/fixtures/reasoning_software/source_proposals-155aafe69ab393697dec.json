@@ -1,0 +1,180 @@
+{
+ "task": "source_proposals",
+ "key": "155aafe69ab393697dec",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.018204,
+ "instructions": "You advise an operational agent that must answer the principal's need with live data. Propose\n(1) public data APIs that need no key and return JSON relevant to the questions -- give exact GET URLs with every\nparameter filled in from the resolved subjects (coordinates, time zone, identifiers), and the JSON paths you expect\nin the answer; and (2) pages of existing services people already use that answer the question directly (give the\nexact page URL for this subject, plus the link texts a person would click from the site's home page to reach it,\nin case the URL has moved). Each proposal is fetched and checked; propose only what you are confident exists.\nPrefer few, reliable sources. If nothing beyond what was already observed is relevant, return empty lists.",
+ "payload": {
+  "need": {
+   "sentence": "I want to know, at a glance, how many real people are actually using LindyBooks.",
+   "questions": [
+    {
+     "id": "active_real_users",
+     "unit": "people",
+     "exclude": [
+      "bots, crawlers, scrapers and automated traffic",
+      "internal staff, developers and test accounts",
+      "duplicate accounts of the same person where detectable",
+      "registered-but-inactive accounts",
+      "spam or fake signups",
+      "uptime/health-check monitors"
+     ],
+     "windows": [
+      "24h",
+      "7d",
+      "30d"
+     ],
+     "priority": "core",
+     "quantity": "Distinct individual humans who performed at least one meaningful use action (not merely a page load, login or being registered) in LindyBooks within the window. One person counted once across devices/sessions/accounts where identifiable.",
+     "question": "How many distinct real human people actively used LindyBooks in the recent period?",
+     "population": "Distinct human users of LindyBooks who performed a meaningful engagement action within the window",
+     "answer_type": "count",
+     "acceptable_forms": [
+      "exact",
+      "estimate",
+      "range",
+      "lower_bound"
+     ]
+    },
+    {
+     "id": "real_vs_filtered_share",
+     "unit": "percent",
+     "exclude": [],
+     "windows": [
+      "7d",
+      "30d"
+     ],
+     "priority": "supporting",
+     "quantity": "Excluded non-human/internal/duplicate identities divided by all raw identities observed in the same window",
+     "question": "What share of raw observed users or traffic was excluded as non-real, to show how reliable the real-people count is?",
+     "population": "All raw observed LindyBooks visitors/accounts in the window",
+     "answer_type": "amount",
+     "acceptable_forms": [
+      "estimate",
+      "range"
+     ]
+    },
+    {
+     "id": "trend",
+     "unit": "percent change",
+     "exclude": [],
+     "windows": [
+      "7d",
+      "30d"
+     ],
+     "priority": "supporting",
+     "quantity": "Change in real active users versus the prior period of equal length",
+     "question": "Is the real active user count rising or falling relative to the previous equivalent period?",
+     "population": "Same as active_real_users",
+     "answer_type": "amount",
+     "acceptable_forms": [
+      "estimate",
+      "exact"
+     ]
+    }
+   ],
+   "deliverable": {
+    "why": "'At a glance' means a view readable in seconds showing a single headline number that stays current, with no report-reading needed.",
+    "form": "glance_view",
+    "refresh": "continuous",
+    "deliver_at_local": null,
+    "max_seconds_to_read": 5
+   }
+  },
+  "principal": {
+   "country": null,
+   "language": "en"
+  },
+  "subjects": [
+   {
+    "kind": "product",
+    "name": "LindyBooks",
+    "deployments": [
+     "lindy-books.org"
+    ]
+   }
+  ]
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "apis",
+   "existing_services"
+  ],
+  "properties": {
+   "apis": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "url",
+      "why",
+      "expected_fields",
+      "question"
+     ],
+     "properties": {
+      "url": {
+       "type": "string",
+       "description": "full GET URL, parameters filled in"
+      },
+      "why": {
+       "type": "string"
+      },
+      "expected_fields": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "dotted JSON paths, list indexes as numbers"
+      },
+      "question": {
+       "type": "string"
+      },
+      "needs_key": {
+       "type": "boolean"
+      }
+     }
+    }
+   },
+   "existing_services": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "url",
+      "name",
+      "why",
+      "question",
+      "link_texts"
+     ],
+     "properties": {
+      "url": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "why": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "link_texts": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "visible link texts a person would click, from the site's home page to this page, in the site's language"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "apis": [],
+  "existing_services": []
+ },
+ "at": "2026-10-01T04:16:38Z"
+}

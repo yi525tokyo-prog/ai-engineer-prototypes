@@ -71,6 +71,9 @@ class ReplayTransport(httpx.BaseTransport):
             # would read as "listing ended" to a recheck)
             return httpx.Response(503, text="<html><body>not recorded</body></html>", request=request,
                                   headers={"content-type": "text/html"})
+        if p.get("status") == 0:
+            # recorded as unreachable (no such host / connection refused): fail the same way
+            raise httpx.ConnectError(f"recorded as unreachable: {url}", request=request)
         final = p.get("final_url")
         if final and final != url and final in self.pages:
             # reproduce the recorded redirect: relative links must resolve against the final URL

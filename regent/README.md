@@ -87,6 +87,38 @@ All of this is exercised end to end by the test suite, against PostgreSQL and re
     See [World acquisition](docs/ARCHITECTURE.md#world-acquisition-regentacquisition) and the
     [cross-geography benchmark](docs/benchmarks/housing-cross-geography.md).
 
+19. **Software needs, from one sentence.** Told only "I want to know, at a glance, how many real
+    people are actually using LindyBooks", Regent:
+    - works out what that means (distinct humans, excluding bots, staff and duplicates; honest
+      forms when an exact count is impossible);
+    - finds LindyBooks on the live web, reads its API from its own code, and finds its public
+      promise "No ads, no accounts, no tracking", which then rules out the conventional
+      analytics-script route;
+    - composes a capability from what the product publishes, verifies it with its own acceptance
+      suite (independent reads, a real browser), and activates it as a tool, a glance view and
+      world facts;
+    - asks the principal for one thing, a read-only Cloudflare token (~3 min), with a resume
+      condition, and shows "not connected" instead of any number until then;
+    - reuses the capability when the need comes back in other words, and keeps it current on its own.
+
+    A second, different need ("Every morning, tell me whether it's a good day to dry laundry
+    outside in Osaka") goes through the same machinery: a place, third-party data, existing
+    services competing with building, a decision rule and a morning delivery. See
+    [Software needs](docs/ARCHITECTURE.md#software-needs-and-capabilities-regentsoftware) and the
+    [benchmark](docs/benchmarks/software-needs.md).
+
+## Software needs
+
+```bash
+# fresh DB, only the sentences, live web; the reasoning worker is the Claude Code CLI (tool-less)
+REGENT_DATABASE_URL=postgresql+psycopg://regent:regent@localhost:5432/regent_swbench \
+  python scripts/software_benchmark.py --out docs/benchmarks/software-needs.md
+```
+
+API: `/software/{slug}` (glance view), `/api/software/capabilities[/{slug}[/collect]]`,
+`/api/software/resources`, `/api/missions/{id}/software` (need, discovery, inventory, capability,
+human time).
+
 ## World acquisition
 
 ```bash
@@ -173,6 +205,9 @@ is used instead, and the gap is listed at `GET /api/system` and in the cockpit's
 | `REGENT_SMTP_URL`, `GOOGLE_CALENDAR_CREDENTIALS`, `GOOGLE_MAPS_API_KEY` | Real mail, calendar and maps | Persisted local mailbox, calendar and places |
 | `STRIPE_API_KEY` | Payments | Capability stays *missing*; acquisition options are listed |
 | `REGENT_AGENT_ENDPOINT`, `REGENT_GLOBAL_BRAIN_URL` | External agent delegation, distributed global brain | Unavailable / local global domain |
+| `REGENT_REASONER` (`auto` / `claude-code` / `replay:<dir>` / `off`) | Need analysis, field meanings, source proposals, decision rules via the Claude Code CLI | Local parser; software needs get weaker analyses and say so |
+| `REGENT_CODING_AGENT=claude-code` | The principal's opt-in to an autonomous coding agent (each run still needs an approved operation) | The `delegate` route is listed but cannot be started |
+| `CLOUDFLARE_API_TOKEN`, `STRIPE_RESTRICTED_KEY`, `GOOGLE_SEARCH_CONSOLE_TOKEN`, `PLAUSIBLE_API_KEY` | Platform sources for software capabilities (or provided through a credential interrupt) | The source shows "not connected"; never a number |
 
 ## Layout
 
@@ -187,6 +222,8 @@ regent/tools/        tool abstraction, registry, built-in tools
 regent/connectors/   email, calendar, maps, search, commerce, GitHub backends
 regent/browser/      Playwright driver, HTTP fallback, blocker detection
 regent/global_brain/ private/shared/global domains, privacy filter, sync interface
+regent/software/     software needs: reasoner, need analysis, discovery, sources, routes,
+                     capabilities (runtime, safe metric language), acceptance suite, reuse
 regent/sim/          seeded case study + simulated client portal
 packages/schemas/    JSON Schema for provider/tool contracts
 infra/               Dockerfiles, dev script

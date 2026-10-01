@@ -1,0 +1,1442 @@
+{
+ "pages": {
+  "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=34.69379&longitude=135.50107&hourly=pm2_5,dust,alder_pollen,birch_pollen,grass_pollen&timezone=Asia%2FTokyo&forecast_days=1": {
+   "fetched_at": "2026-10-01T04:18:23.015055+00:00",
+   "final_url": "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=34.69379&longitude=135.50107&hourly=pm2_5,dust,alder_pollen,birch_pollen,grass_pollen&timezone=Asia%2FTokyo&forecast_days=1",
+   "purpose": "proposal:api",
+   "render": "static",
+   "status": 0
+  },
+  "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.694&lon=135.501": {
+   "fetched_at": "2026-10-01T04:18:52.576301+00:00",
+   "file": "338461d5938f4ec0df64.html.gz",
+   "final_url": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=34.694&lon=135.501",
+   "headers": {
+    "accept-ranges": "bytes",
+    "access-control-allow-headers": "Origin",
+    "access-control-allow-methods": "GET",
+    "access-control-allow-origin": "*",
+    "age": "0",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-length": "2608",
+    "content-type": "application/json",
+    "expires": "Thu, 01 Oct 2026 04:49:18 GMT",
+    "last-modified": "Thu, 01 Oct 2026 04:18:52 GMT",
+    "server": "nginx/1.18.0 (Ubuntu)",
+    "vary": "Accept, Accept-Encoding",
+    "via": "1.1 dalton-a (Varnish/7.7)",
+    "x-backend-host": "b_157_249_79_114_loc",
+    "x-varnish": "72543550458"
+   },
+   "purpose": "proposal:api",
+   "render": "static",
+   "status": 200
+  },
+  "https://api.open-meteo.com/v1/forecast?latitude=34.69379&longitude=135.50107&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,cloud_cover,wind_speed_10m,wind_gusts_10m,shortwave_radiation&wind_speed_unit=ms&timezone=Asia%2FTokyo&forecast_days=1": {
+   "fetched_at": "2026-10-01T04:18:22.263559+00:00",
+   "final_url": "https://api.open-meteo.com/v1/forecast?latitude=34.69379&longitude=135.50107&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,cloud_cover,wind_speed_10m,wind_gusts_10m,shortwave_radiation&wind_speed_unit=ms&timezone=Asia%2FTokyo&forecast_days=1",
+   "purpose": "proposal:api",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/book/": {
+   "fetched_at": "2026-10-01T04:16:31.346057+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/book/",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/books": {
+   "fetched_at": "2026-10-01T04:16:29.387240+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/books",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/cover/": {
+   "fetched_at": "2026-10-01T04:16:30.440691+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/cover/",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/dam": {
+   "fetched_at": "2026-10-01T04:16:32.500422+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/dam",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/flag": {
+   "fetched_at": "2026-10-01T04:16:31.643474+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/flag",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/meta": {
+   "fetched_at": "2026-10-01T04:16:32.569623+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/meta",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/note": {
+   "fetched_at": "2026-10-01T04:16:30.743951+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/note",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/seal": {
+   "fetched_at": "2026-10-01T04:16:29.754932+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/seal",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/sealed/": {
+   "fetched_at": "2026-10-01T04:16:29.452551+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/sealed/",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/search": {
+   "fetched_at": "2026-10-01T04:16:31.043865+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/search",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/sub/claim": {
+   "fetched_at": "2026-10-01T04:16:31.948741+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/sub/claim",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/tr": {
+   "fetched_at": "2026-10-01T04:16:28.774241+00:00",
+   "final_url": "https://buy.stripe.com/aFacN58d3cDrgY3guE04803/api/tr",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/book/": {
+   "fetched_at": "2026-10-01T04:16:31.343658+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/book/",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/books": {
+   "fetched_at": "2026-10-01T04:16:29.383444+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/books",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/cover/": {
+   "fetched_at": "2026-10-01T04:16:30.438559+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/cover/",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/dam": {
+   "fetched_at": "2026-10-01T04:16:32.497493+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/dam",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/flag": {
+   "fetched_at": "2026-10-01T04:16:31.640984+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/flag",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/meta": {
+   "fetched_at": "2026-10-01T04:16:32.566578+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/meta",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/note": {
+   "fetched_at": "2026-10-01T04:16:30.741361+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/note",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/seal": {
+   "fetched_at": "2026-10-01T04:16:29.752672+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/seal",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/sealed/": {
+   "fetched_at": "2026-10-01T04:16:29.450341+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/sealed/",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/search": {
+   "fetched_at": "2026-10-01T04:16:31.041619+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/search",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/sub/claim": {
+   "fetched_at": "2026-10-01T04:16:31.945326+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/sub/claim",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/tr": {
+   "fetched_at": "2026-10-01T04:16:28.231913+00:00",
+   "final_url": "https://donate.stripe.com/aFa3cv50R32RfTZ2DO04800/api/tr",
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 0
+  },
+  "https://geocoding-api.open-meteo.com/v1/search?count=5&format=json&language=en&name=Osaka": {
+   "fetched_at": "2026-10-01T04:17:47.703175+00:00",
+   "file": "2094c395e085d67b4a57.html.gz",
+   "final_url": "https://geocoding-api.open-meteo.com/v1/search?count=5&format=json&language=en&name=Osaka",
+   "headers": {
+    "connection": "keep-alive",
+    "content-encoding": "deflate",
+    "content-length": "523",
+    "content-type": "application/json; charset=utf-8",
+    "x-encoding-time": "0.0028967857360839844 ms"
+   },
+   "purpose": "api",
+   "render": "static",
+   "status": 200
+  },
+  "https://getlindybooks.com/": {
+   "fetched_at": "2026-10-01T04:16:24.526839+00:00",
+   "final_url": "https://getlindybooks.com/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://getlindybooks.net/": {
+   "fetched_at": "2026-10-01T04:16:25.163259+00:00",
+   "final_url": "https://getlindybooks.net/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://getlindybooks.org/": {
+   "fetched_at": "2026-10-01T04:16:24.848548+00:00",
+   "final_url": "https://getlindybooks.org/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/book/": {
+   "fetched_at": "2026-10-01T04:16:31.331986+00:00",
+   "file": "8c417a10241e63cb99f0.html.gz",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/book/",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare",
+    "transfer-encoding": "chunked"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/books": {
+   "fetched_at": "2026-10-01T04:16:29.365677+00:00",
+   "file": "2857c5cdcf054164fd06.html.gz",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/books",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "cache-control": "no-cache",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare",
+    "transfer-encoding": "chunked"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/cover/": {
+   "fetched_at": "2026-10-01T04:16:30.428499+00:00",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/cover/",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-length": "18",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 400
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/dam": {
+   "fetched_at": "2026-10-01T04:16:32.483215+00:00",
+   "file": "9915fc0b1d0128391fbf.html.gz",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/dam",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare",
+    "transfer-encoding": "chunked"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/flag": {
+   "fetched_at": "2026-10-01T04:16:31.629423+00:00",
+   "file": "8c417a10241e63cb99f0.html.gz",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/flag",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare",
+    "transfer-encoding": "chunked"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/fund": {
+   "fetched_at": "2026-10-01T04:16:30.367403+00:00",
+   "file": "a04f3171618a1d0b41a7.html.gz",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/fund",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "cache-control": "no-cache",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare",
+    "transfer-encoding": "chunked"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/meta": {
+   "fetched_at": "2026-10-01T04:16:32.552466+00:00",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/meta",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-length": "24",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 400
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/note": {
+   "fetched_at": "2026-10-01T04:16:30.730730+00:00",
+   "file": "8c417a10241e63cb99f0.html.gz",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/note",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare",
+    "transfer-encoding": "chunked"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/seal": {
+   "fetched_at": "2026-10-01T04:16:29.740255+00:00",
+   "file": "8c417a10241e63cb99f0.html.gz",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/seal",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare",
+    "transfer-encoding": "chunked"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/sealed/": {
+   "fetched_at": "2026-10-01T04:16:29.437945+00:00",
+   "file": "8c417a10241e63cb99f0.html.gz",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/sealed/",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare",
+    "transfer-encoding": "chunked"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/search": {
+   "fetched_at": "2026-10-01T04:16:31.030203+00:00",
+   "file": "f7eb424a0e6340a64261.html.gz",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/search",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-length": "22",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/sub/claim": {
+   "fetched_at": "2026-10-01T04:16:31.932052+00:00",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/sub/claim",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-length": "24",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 400
+  },
+  "https://lindy-api.yi525tokyo.workers.dev/api/tr": {
+   "fetched_at": "2026-10-01T04:16:27.386450+00:00",
+   "file": "8c417a10241e63cb99f0.html.gz",
+   "final_url": "https://lindy-api.yi525tokyo.workers.dev/api/tr",
+   "headers": {
+    "access-control-allow-headers": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "application/json; charset=utf-8",
+    "server": "cloudflare",
+    "transfer-encoding": "chunked"
+   },
+   "purpose": "resolve:endpoint",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-books.ai/": {
+   "fetched_at": "2026-10-01T04:16:17.303998+00:00",
+   "final_url": "https://lindy-books.ai/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindy-books.app/": {
+   "fetched_at": "2026-10-01T04:16:16.173342+00:00",
+   "final_url": "https://lindy-books.app/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindy-books.co/": {
+   "fetched_at": "2026-10-01T04:16:16.823324+00:00",
+   "final_url": "https://lindy-books.co/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindy-books.com/": {
+   "fetched_at": "2026-10-01T04:16:14.631543+00:00",
+   "final_url": "https://lindy-books.com/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindy-books.dev/": {
+   "fetched_at": "2026-10-01T04:16:16.479937+00:00",
+   "final_url": "https://lindy-books.dev/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindy-books.firebaseapp.com/": {
+   "fetched_at": "2026-10-01T04:16:19.742111+00:00",
+   "final_url": "https://lindy-books.firebaseapp.com/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "alt-svc": "h3=\":443\";ma=86400,h3-29=\":443\";ma=86400,h3-27=\":443\";ma=86400",
+    "cache-control": "max-age=0",
+    "connection": "keep-alive",
+    "content-length": "21265",
+    "content-type": "text/html; charset=utf-8",
+    "strict-transport-security": "max-age=31556926; includeSubDomains; preload",
+    "vary": "x-fh-requested-host, accept-encoding",
+    "x-cache": "HIT",
+    "x-cache-hits": "9",
+    "x-served-by": "cache-iad-khef600082-IAD",
+    "x-timer": "S1790828180.766103,VS0,VE0"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindy-books.fly.dev/": {
+   "fetched_at": "2026-10-01T04:16:20.053127+00:00",
+   "final_url": "https://lindy-books.fly.dev/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindy-books.github.io/": {
+   "fetched_at": "2026-10-01T04:16:22.456326+00:00",
+   "final_url": "https://lindy-books.github.io/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "age": "693",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-length": "5142",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6abcf5c5-239b\"",
+    "server": "GitHub.com",
+    "vary": "Accept-Encoding",
+    "via": "1.1 varnish",
+    "x-cache": "HIT",
+    "x-cache-hits": "0",
+    "x-fastly-request-id": "ace0242f911dc583dc4ea0117e43a0a1e7a0627e",
+    "x-github-edge-region": "iad",
+    "x-github-request-id": "42EE:1B8E39:7B3EDD:92B8AD:6ABDDBE1",
+    "x-served-by": "cache-iad-kcgs7200058-IAD",
+    "x-timer": "S1790828182.480202,VS0,VE2"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindy-books.glitch.me/": {
+   "fetched_at": "2026-10-01T04:16:23.119406+00:00",
+   "final_url": "https://lindy-books.glitch.me/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "connection": "close",
+    "content-length": "228794",
+    "content-type": "text/html",
+    "refresh": "30; url=https://blog.glitch.com/post/changes-are-coming-to-glitch",
+    "retry-after": "0",
+    "server": "Varnish",
+    "via": "1.1 varnish",
+    "x-cache": "MISS",
+    "x-cache-hits": "0",
+    "x-served-by": "cache-iad-khef600030-IAD",
+    "x-timer": "S1790828183.111633,VS0,VE1"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 410
+  },
+  "https://lindy-books.herokuapp.com/": {
+   "fetched_at": "2026-10-01T04:16:21.987077+00:00",
+   "final_url": "https://lindy-books.herokuapp.com/",
+   "headers": {
+    "cache-control": "no-cache, no-store",
+    "content-length": "548",
+    "content-type": "text/html; charset=utf-8",
+    "server": "heroku-router"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindy-books.io/": {
+   "fetched_at": "2026-10-01T04:16:15.864129+00:00",
+   "final_url": "https://lindy-books.io/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindy-books.me/": {
+   "fetched_at": "2026-10-01T04:16:17.502044+00:00",
+   "final_url": "https://lindy-books.me/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindy-books.net/": {
+   "fetched_at": "2026-10-01T04:16:15.547021+00:00",
+   "final_url": "https://lindy-books.net/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindy-books.netlify.app/": {
+   "fetched_at": "2026-10-01T04:16:19.018286+00:00",
+   "final_url": "https://lindy-books.netlify.app/",
+   "headers": {
+    "cache-control": "private, max-age=0",
+    "content-length": "206",
+    "content-type": "text/plain; charset=utf-8",
+    "server": "Netlify",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "x-nf-request-id": "01M3TTTVK71X2KRSX5H0EVWYNZ"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindy-books.onrender.com/": {
+   "fetched_at": "2026-10-01T04:16:20.710456+00:00",
+   "final_url": "https://lindy-books.onrender.com/",
+   "headers": {
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "cf-cache-status": "DYNAMIC",
+    "connection": "keep-alive",
+    "content-length": "10",
+    "content-type": "text/plain; charset=utf-8",
+    "server": "cloudflare",
+    "x-content-type-options": "nosniff",
+    "x-render-routing": "no-server"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindy-books.org/": {
+   "fetched_at": "2026-10-01T04:16:15.233052+00:00",
+   "file": "33ad3be4572fa65b849e.html.gz",
+   "final_url": "https://lindy-books.org/",
+   "headers": {
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "cache-control": "public, max-age=0, must-revalidate",
+    "cf-cache-status": "DYNAMIC",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://lindy-api.yi525tokyo.workers.dev; connect-src 'self' https://lindy-api.yi525tokyo.workers.dev https://bricolage.science; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "content-type": "text/html; charset=utf-8",
+    "cross-origin-opener-policy": "same-origin",
+    "cross-origin-resource-policy": "same-site",
+    "link": "<https://fonts.googleapis.com>; rel=\"preconnect\"",
+    "permissions-policy": "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "server": "cloudflare",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "transfer-encoding": "chunked",
+    "vary": "accept-encoding",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-books.org/llms.txt": {
+   "fetched_at": "2026-10-01T04:16:26.464141+00:00",
+   "file": "b2adede7e3f3021b604a.html.gz",
+   "final_url": "https://lindy-books.org/llms.txt",
+   "headers": {
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "cache-control": "public, max-age=0, must-revalidate",
+    "cf-cache-status": "DYNAMIC",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://lindy-api.yi525tokyo.workers.dev; connect-src 'self' https://lindy-api.yi525tokyo.workers.dev https://bricolage.science; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "content-type": "text/plain; charset=utf-8",
+    "cross-origin-opener-policy": "same-origin",
+    "cross-origin-resource-policy": "same-site",
+    "etag": "W/\"65c8d53b8fbd835191f467debb12c334\"",
+    "permissions-policy": "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "server": "cloudflare",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "transfer-encoding": "chunked",
+    "vary": "accept-encoding",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY"
+   },
+   "purpose": "resolve:meta",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-books.org/manifest.json": {
+   "fetched_at": "2026-10-01T04:16:26.602055+00:00",
+   "file": "33ad3be4572fa65b849e.html.gz",
+   "final_url": "https://lindy-books.org/manifest.json",
+   "headers": {
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "cache-control": "public, max-age=0, must-revalidate",
+    "cf-cache-status": "DYNAMIC",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://lindy-api.yi525tokyo.workers.dev; connect-src 'self' https://lindy-api.yi525tokyo.workers.dev https://bricolage.science; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "content-type": "text/html; charset=utf-8",
+    "cross-origin-opener-policy": "same-origin",
+    "cross-origin-resource-policy": "same-site",
+    "link": "<https://fonts.googleapis.com>; rel=\"preconnect\"",
+    "permissions-policy": "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "server": "cloudflare",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "transfer-encoding": "chunked",
+    "vary": "accept-encoding",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY"
+   },
+   "purpose": "resolve:meta",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-books.org/manifest.webmanifest": {
+   "fetched_at": "2026-10-01T04:16:26.834001+00:00",
+   "file": "dc807510b292dd203c1f.html.gz",
+   "final_url": "https://lindy-books.org/manifest.webmanifest",
+   "headers": {
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "cache-control": "public, max-age=0, must-revalidate",
+    "cf-cache-status": "DYNAMIC",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://lindy-api.yi525tokyo.workers.dev; connect-src 'self' https://lindy-api.yi525tokyo.workers.dev https://bricolage.science; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "content-type": "application/manifest+json",
+    "cross-origin-opener-policy": "same-origin",
+    "cross-origin-resource-policy": "same-site",
+    "etag": "W/\"5b3155f17354bc0c9a44c16cded0ad85\"",
+    "permissions-policy": "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "server": "cloudflare",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "transfer-encoding": "chunked",
+    "vary": "accept-encoding",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY"
+   },
+   "purpose": "resolve:meta",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-books.pages.dev/": {
+   "fetched_at": "2026-10-01T04:16:18.107948+00:00",
+   "file": "33ad3be4572fa65b849e.html.gz",
+   "final_url": "https://lindy-books.pages.dev/",
+   "headers": {
+    "access-control-allow-origin": "*",
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "cache-control": "public, max-age=0, must-revalidate",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://lindy-api.yi525tokyo.workers.dev; connect-src 'self' https://lindy-api.yi525tokyo.workers.dev https://bricolage.science; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "content-type": "text/html; charset=utf-8",
+    "cross-origin-opener-policy": "same-origin",
+    "cross-origin-resource-policy": "same-site",
+    "etag": "W/\"d49ff409c106578a44fbcb1d4d20ac15\"",
+    "link": "<https://fonts.googleapis.com>; rel=\"preconnect\"",
+    "permissions-policy": "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "server": "cloudflare",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "transfer-encoding": "chunked",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 200
+  },
+  "https://lindy-books.replit.app/": {
+   "fetched_at": "2026-10-01T04:16:23.332614+00:00",
+   "final_url": "https://lindy-books.replit.app/",
+   "headers": {
+    "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "via": "1.1 google"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindy-books.surge.sh/": {
+   "fetched_at": "2026-10-01T04:16:24.018255+00:00",
+   "final_url": "https://lindy-books.surge.sh/",
+   "headers": {
+    "content-length": "8253",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"203d-BDTTsPJbGhhTleluWqeLfoLxZdI\"",
+    "keep-alive": "timeout=5",
+    "server": "Surge",
+    "surge-cache": "HIT",
+    "surge-stamp": "2921232"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindy-books.vercel.app/": {
+   "fetched_at": "2026-10-01T04:16:18.533167+00:00",
+   "final_url": "https://lindy-books.vercel.app/",
+   "headers": {
+    "cache-control": "public, max-age=0, must-revalidate",
+    "content-length": "107",
+    "content-type": "text/plain; charset=utf-8",
+    "server": "Vercel",
+    "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+    "x-vercel-error": "DEPLOYMENT_NOT_FOUND",
+    "x-vercel-id": "iad1::672lk-1790828178557-3ee219724e9d"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindy-books.web.app/": {
+   "fetched_at": "2026-10-01T04:16:19.271044+00:00",
+   "final_url": "https://lindy-books.web.app/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "alt-svc": "h3=\":443\";ma=86400,h3-29=\":443\";ma=86400,h3-27=\":443\";ma=86400",
+    "cache-control": "max-age=0",
+    "connection": "keep-alive",
+    "content-length": "21265",
+    "content-type": "text/html; charset=utf-8",
+    "strict-transport-security": "max-age=31556926; includeSubDomains; preload",
+    "vary": "x-fh-requested-host, accept-encoding",
+    "x-cache": "HIT",
+    "x-cache-hits": "0",
+    "x-served-by": "cache-iad-kiad7000069-IAD",
+    "x-timer": "S1790828179.290527,VS0,VE2"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindybooks.ai/": {
+   "fetched_at": "2026-10-01T04:16:06.176264+00:00",
+   "final_url": "https://lindybooks.ai/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.app/": {
+   "fetched_at": "2026-10-01T04:16:05.243317+00:00",
+   "final_url": "https://lindybooks.app/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.co/": {
+   "fetched_at": "2026-10-01T04:16:05.839797+00:00",
+   "final_url": "https://lindybooks.co/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.com/": {
+   "fetched_at": "2026-10-01T04:16:04.145407+00:00",
+   "final_url": "https://lindybooks.com/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.dev/": {
+   "fetched_at": "2026-10-01T04:16:05.534590+00:00",
+   "final_url": "https://lindybooks.dev/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.firebaseapp.com/": {
+   "fetched_at": "2026-10-01T04:16:08.647860+00:00",
+   "final_url": "https://lindybooks.firebaseapp.com/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "alt-svc": "h3=\":443\";ma=86400,h3-29=\":443\";ma=86400,h3-27=\":443\";ma=86400",
+    "cache-control": "max-age=0",
+    "connection": "keep-alive",
+    "content-length": "21265",
+    "content-type": "text/html; charset=utf-8",
+    "strict-transport-security": "max-age=31556926; includeSubDomains; preload",
+    "vary": "x-fh-requested-host, accept-encoding",
+    "x-cache": "HIT",
+    "x-cache-hits": "0",
+    "x-served-by": "cache-iad-kcgs7200142-IAD",
+    "x-timer": "S1790828169.668788,VS0,VE3"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindybooks.fly.dev/": {
+   "fetched_at": "2026-10-01T04:16:08.996394+00:00",
+   "final_url": "https://lindybooks.fly.dev/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.github.io/": {
+   "fetched_at": "2026-10-01T04:16:11.417250+00:00",
+   "final_url": "https://lindybooks.github.io/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "age": "693",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-length": "5142",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6abcf5c5-239b\"",
+    "server": "GitHub.com",
+    "vary": "Accept-Encoding",
+    "via": "1.1 varnish",
+    "x-cache": "HIT",
+    "x-cache-hits": "0",
+    "x-fastly-request-id": "07152ff989a6eeb73f84d83236ce5d5de08fedf8",
+    "x-github-edge-region": "iad",
+    "x-github-request-id": "E83A:7E677:C556ED:D56D49:6ABDDBD6",
+    "x-served-by": "cache-iad-kiad7000042-IAD",
+    "x-timer": "S1790828171.439230,VS0,VE3"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindybooks.glitch.me/": {
+   "fetched_at": "2026-10-01T04:16:12.402757+00:00",
+   "final_url": "https://lindybooks.glitch.me/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "connection": "close",
+    "content-length": "228794",
+    "content-type": "text/html",
+    "refresh": "30; url=https://blog.glitch.com/post/changes-are-coming-to-glitch",
+    "retry-after": "0",
+    "server": "Varnish",
+    "via": "1.1 varnish",
+    "x-cache": "MISS",
+    "x-cache-hits": "0",
+    "x-served-by": "cache-iad-kcgs7200046-IAD",
+    "x-timer": "S1790828172.390666,VS0,VE1"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 410
+  },
+  "https://lindybooks.herokuapp.com/": {
+   "fetched_at": "2026-10-01T04:16:10.930539+00:00",
+   "final_url": "https://lindybooks.herokuapp.com/",
+   "headers": {
+    "cache-control": "no-cache, no-store",
+    "content-length": "548",
+    "content-type": "text/html; charset=utf-8",
+    "server": "heroku-router"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindybooks.io/": {
+   "fetched_at": "2026-10-01T04:16:04.879920+00:00",
+   "final_url": "https://lindybooks.io/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.me/": {
+   "fetched_at": "2026-10-01T04:16:06.497344+00:00",
+   "final_url": "https://lindybooks.me/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.net/": {
+   "fetched_at": "2026-10-01T04:16:04.536891+00:00",
+   "final_url": "https://lindybooks.net/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.netlify.app/": {
+   "fetched_at": "2026-10-01T04:16:07.722689+00:00",
+   "final_url": "https://lindybooks.netlify.app/",
+   "headers": {
+    "cache-control": "private, max-age=0",
+    "content-length": "206",
+    "content-type": "text/plain; charset=utf-8",
+    "server": "Netlify",
+    "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+    "x-nf-request-id": "01M3TTTGJ6YWB2KGQPZPGTDMDE"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindybooks.onrender.com/": {
+   "fetched_at": "2026-10-01T04:16:09.617745+00:00",
+   "final_url": "https://lindybooks.onrender.com/",
+   "headers": {
+    "alt-svc": "h3=\":443\"; ma=86400",
+    "cf-cache-status": "DYNAMIC",
+    "connection": "keep-alive",
+    "content-length": "10",
+    "content-type": "text/plain; charset=utf-8",
+    "server": "cloudflare",
+    "x-content-type-options": "nosniff",
+    "x-render-routing": "no-server"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindybooks.org/": {
+   "fetched_at": "2026-10-01T04:16:04.397977+00:00",
+   "final_url": "https://lindybooks.org/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.pages.dev/": {
+   "fetched_at": "2026-10-01T04:16:06.807919+00:00",
+   "final_url": "https://lindybooks.pages.dev/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooks.replit.app/": {
+   "fetched_at": "2026-10-01T04:16:12.636862+00:00",
+   "final_url": "https://lindybooks.replit.app/",
+   "headers": {
+    "alt-svc": "h3=\":443\"; ma=2592000",
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "via": "1.1 google"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindybooks.surge.sh/": {
+   "fetched_at": "2026-10-01T04:16:13.602577+00:00",
+   "final_url": "https://lindybooks.surge.sh/",
+   "headers": {
+    "content-length": "8253",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"203d-BDTTsPJbGhhTleluWqeLfoLxZdI\"",
+    "keep-alive": "timeout=5",
+    "server": "Surge",
+    "surge-cache": "HIT",
+    "surge-stamp": "2921232"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindybooks.vercel.app/": {
+   "fetched_at": "2026-10-01T04:16:07.267525+00:00",
+   "final_url": "https://lindybooks.vercel.app/",
+   "headers": {
+    "cache-control": "public, max-age=0, must-revalidate",
+    "content-length": "107",
+    "content-type": "text/plain; charset=utf-8",
+    "server": "Vercel",
+    "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+    "x-vercel-error": "DEPLOYMENT_NOT_FOUND",
+    "x-vercel-id": "iad1::jjf7p-1790828167286-5eb1b24bb4b8"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindybooks.web.app/": {
+   "fetched_at": "2026-10-01T04:16:08.187877+00:00",
+   "final_url": "https://lindybooks.web.app/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "alt-svc": "h3=\":443\";ma=86400,h3-29=\":443\";ma=86400,h3-27=\":443\";ma=86400",
+    "cache-control": "max-age=0",
+    "connection": "keep-alive",
+    "content-length": "21265",
+    "content-type": "text/html; charset=utf-8",
+    "strict-transport-security": "max-age=31556926; includeSubDomains; preload",
+    "vary": "x-fh-requested-host, accept-encoding",
+    "x-cache": "HIT",
+    "x-cache-hits": "0",
+    "x-served-by": "cache-iad-kcgs7200042-IAD",
+    "x-timer": "S1790828168.210222,VS0,VE1"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://lindybooksapp.com/": {
+   "fetched_at": "2026-10-01T04:16:25.340037+00:00",
+   "final_url": "https://lindybooksapp.com/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooksapp.net/": {
+   "fetched_at": "2026-10-01T04:16:25.918242+00:00",
+   "final_url": "https://lindybooksapp.net/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://lindybooksapp.org/": {
+   "fetched_at": "2026-10-01T04:16:25.645288+00:00",
+   "final_url": "https://lindybooksapp.org/",
+   "purpose": "resolve",
+   "render": "static",
+   "status": 0
+  },
+  "https://tenki.jp/": {
+   "fetched_at": "2026-10-01T04:18:53.452198+00:00",
+   "file": "c70d94b710caf870ae84.html.gz",
+   "final_url": "https://tenki.jp/",
+   "headers": {
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "text/html; charset=UTF-8",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "server": "nginx",
+    "strict-transport-security": "max-age=300; preload",
+    "transfer-encoding": "chunked",
+    "vary": "Accept-Encoding, X-Tenki-App-Mode",
+    "via": "1.1 sac-elb, 1.1 4eed67f4be7da2537d3407735b8962a8.cloudfront.net (CloudFront)",
+    "x-amz-cf-id": "LqiixhPwSiBt1TDsgFafgAHZn9sR_lyMsjSSzntfZM-a3aoUj9A3rg==",
+    "x-amz-cf-pop": "IAD55-P4",
+    "x-cache": "Miss from cloudfront",
+    "x-cache-status": "EXPIRED",
+    "x-content-type-options": "nosniff",
+    "x-download-options": "noopen",
+    "x-frame-options": "sameorigin",
+    "x-xss-protection": "1;mode=block"
+   },
+   "purpose": "proposal:navigate",
+   "render": "static",
+   "status": 200
+  },
+  "https://tenki.jp/forecast/6/30/6200/27100/3hours.html": {
+   "fetched_at": "2026-10-01T04:18:24.128977+00:00",
+   "file": "38932bcf55de1ec14b6f.html.gz",
+   "final_url": "https://tenki.jp/forecast/6/30/6200/27100/3hours.html",
+   "headers": {
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "text/html; charset=UTF-8",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "server": "nginx",
+    "strict-transport-security": "max-age=300; preload",
+    "transfer-encoding": "chunked",
+    "vary": "Accept-Encoding, X-Tenki-App-Mode",
+    "via": "1.1 sac-elb, 1.1 e20259e84d7d881ed453b1f0e4f9a4c6.cloudfront.net (CloudFront)",
+    "x-amz-cf-id": "z28yyoutTfOoiNrD09bOuvI1ISaX8M8qmhFVrMk1rwVsPi6Mwa9XlQ==",
+    "x-amz-cf-pop": "IAD55-P4",
+    "x-cache": "Miss from cloudfront",
+    "x-cache-status": "MISS",
+    "x-content-type-options": "nosniff",
+    "x-download-options": "noopen",
+    "x-frame-options": "sameorigin",
+    "x-xss-protection": "1;mode=block"
+   },
+   "purpose": "proposal:page",
+   "render": "static",
+   "status": 200
+  },
+  "https://tenki.jp/indexes/laundry/6/30/6200/27100/": {
+   "fetched_at": "2026-10-01T04:18:53.182663+00:00",
+   "final_url": "https://tenki.jp/indexes/laundry/6/30/6200/27100/",
+   "headers": {
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-type": "text/html; charset=utf-8",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "server": "nginx",
+    "strict-transport-security": "max-age=300; preload",
+    "transfer-encoding": "chunked",
+    "vary": "Accept-Encoding",
+    "via": "1.1 sac-elb, 1.1 4eed67f4be7da2537d3407735b8962a8.cloudfront.net (CloudFront)",
+    "x-amz-cf-id": "xP49OY76obFvIb3opThauOG88Uw0PoZ-oFqVLG9Edazo47PN33oxsA==",
+    "x-amz-cf-pop": "IAD55-P4",
+    "x-cache": "Error from cloudfront",
+    "x-content-type-options": "nosniff",
+    "x-download-options": "noopen",
+    "x-frame-options": "sameorigin",
+    "x-xss-protection": "1;mode=block"
+   },
+   "purpose": "proposal:page",
+   "render": "static",
+   "status": 404
+  },
+  "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json": {
+   "fetched_at": "2026-10-01T04:18:51.521229+00:00",
+   "file": "f5b97646d737f6af942c.html.gz",
+   "final_url": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+   "headers": {
+    "access-control-allow-headers": "X-Requested-With",
+    "access-control-allow-origin": "*",
+    "cache-control": "max-age=60",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-security-policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' www.jma.go.jp www.jma-net.go.jp js.jma.go.jp www.data.jma.go.jp ds.data.jma.go.jp www.google.com www.gstatic.com jma.genieesspv.jp pagead2.googlesyndication.com code.jquery.com ajaxzip3.github.io cdn.jsdelivr.net ajax.aspnetcdn.com code.createjs.com unpkg.com cdnjs.cloudflare.com ajax.googleapis.com platform.twitter.com github.githubassets.com maps.gsi.go.jp img.gsspat.jp; frame-ancestors 'self' www.mlit.go.jp www.data.jma.go.jp ds.data.jma.go.jp www.jma-net.go.jp www.pref.tokushima.lg.jp www.cgr.mlit.go.jp river-bosai.ktr.mlit.go.jp mie-mizubosai.go.jp sim.mie-mizubosai.go.jp mobile.mie-mizubosai.go.jp yoshino-drs.skr.mlit.go.jp view.mie-mizubosai.cbr.mlit.go.jp sim.mie-mizubosai.cbr.mlit.go.jp mobile.mie-mizubosai.cbr.mlit.go.jp",
+    "content-type": "application/json",
+    "etag": "W/\"bb530470eb0747394280f05021c377af\"",
+    "last-modified": "Thu, 01 Oct 2026 01:46:38 GMT",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "server": "AmazonS3",
+    "strict-transport-security": "max-age=31536000; preload",
+    "transfer-encoding": "chunked",
+    "vary": "Accept-Encoding, Origin",
+    "via": "1.1 aacfd1aac6058be05e19c1942d013984.cloudfront.net (CloudFront)",
+    "x-amz-cf-id": "0--qyxplqchryrHrcSc73t4JkDRbZi_yd6gHqxw6Q5wrRqvYcrJmrw==",
+    "x-amz-cf-pop": "IAD61-P6",
+    "x-amz-server-side-encryption": "AES256",
+    "x-cache": "RefreshHit from cloudfront",
+    "x-content-type-options": "nosniff",
+    "x-xss-protection": "1; mode=block"
+   },
+   "purpose": "proposal:api",
+   "render": "static",
+   "status": 200
+  },
+  "https://www.jma.go.jp/bosai/warning/data/warning/270000.json": {
+   "fetched_at": "2026-10-01T04:18:52.629069+00:00",
+   "file": "23f470c1c38b18b6fa82.html.gz",
+   "final_url": "https://www.jma.go.jp/bosai/warning/data/warning/270000.json",
+   "headers": {
+    "access-control-allow-headers": "X-Requested-With",
+    "access-control-allow-origin": "*",
+    "age": "22",
+    "cache-control": "max-age=60",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-security-policy": "script-src 'self' 'unsafe-inline' 'unsafe-eval' www.jma.go.jp www.jma-net.go.jp js.jma.go.jp www.data.jma.go.jp ds.data.jma.go.jp www.google.com www.gstatic.com jma.genieesspv.jp pagead2.googlesyndication.com code.jquery.com ajaxzip3.github.io cdn.jsdelivr.net ajax.aspnetcdn.com code.createjs.com unpkg.com cdnjs.cloudflare.com ajax.googleapis.com platform.twitter.com github.githubassets.com maps.gsi.go.jp img.gsspat.jp; frame-ancestors 'self' www.mlit.go.jp www.data.jma.go.jp ds.data.jma.go.jp www.jma-net.go.jp www.pref.tokushima.lg.jp www.cgr.mlit.go.jp river-bosai.ktr.mlit.go.jp mie-mizubosai.go.jp sim.mie-mizubosai.go.jp mobile.mie-mizubosai.go.jp yoshino-drs.skr.mlit.go.jp view.mie-mizubosai.cbr.mlit.go.jp sim.mie-mizubosai.cbr.mlit.go.jp mobile.mie-mizubosai.cbr.mlit.go.jp",
+    "content-type": "application/json",
+    "etag": "W/\"719af4beb2a013f076e5fb65d28b375d\"",
+    "last-modified": "Tue, 26 May 2026 12:10:25 GMT",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "server": "AmazonS3",
+    "strict-transport-security": "max-age=31536000; preload",
+    "transfer-encoding": "chunked",
+    "vary": "Accept-Encoding, Origin",
+    "via": "1.1 aacfd1aac6058be05e19c1942d013984.cloudfront.net (CloudFront)",
+    "x-amz-cf-id": "p8kC1KGLG1H-uwgSrp5gZl2mx27pAdSO3qbf1q5MmEzdrQ4dlgBNMA==",
+    "x-amz-cf-pop": "IAD61-P6",
+    "x-amz-server-side-encryption": "AES256",
+    "x-cache": "Hit from cloudfront",
+    "x-content-type-options": "nosniff",
+    "x-xss-protection": "1; mode=block"
+   },
+   "purpose": "proposal:api",
+   "render": "static",
+   "status": 200
+  },
+  "https://yi525tokyo-prog.github.io/lindy-books/": {
+   "fetched_at": "2026-10-01T04:16:24.187649+00:00",
+   "final_url": "https://yi525tokyo-prog.github.io/lindy-books/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "age": "692",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-length": "5142",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6abcf5c5-239b\"",
+    "server": "GitHub.com",
+    "vary": "Accept-Encoding",
+    "via": "1.1 varnish",
+    "x-cache": "HIT",
+    "x-cache-hits": "0",
+    "x-fastly-request-id": "047dc5883b03fc36eab5fac20c173300d1393ba6",
+    "x-github-edge-region": "iad",
+    "x-github-request-id": "DA8A:1F42F3:F81E47:105A654:6ABDDBE4",
+    "x-served-by": "cache-iad-kiad7000162-IAD",
+    "x-timer": "S1790828184.209882,VS0,VE1"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://yi525tokyo-prog.github.io/lindybooks/": {
+   "fetched_at": "2026-10-01T04:16:13.832641+00:00",
+   "final_url": "https://yi525tokyo-prog.github.io/lindybooks/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "age": "693",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-length": "5142",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6abcf5c5-239b\"",
+    "server": "GitHub.com",
+    "vary": "Accept-Encoding",
+    "via": "1.1 varnish",
+    "x-cache": "HIT",
+    "x-cache-hits": "0",
+    "x-fastly-request-id": "fd312d37d7ebcbdab9b384acd56e736a1a2fa74f",
+    "x-github-edge-region": "iad",
+    "x-github-request-id": "82AA:24D68D:70219F:87986E:6ABDDBD9",
+    "x-served-by": "cache-iad-kcgs7200081-IAD",
+    "x-timer": "S1790828174.854633,VS0,VE1"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://yi525tokyo.github.io/lindy-books/": {
+   "fetched_at": "2026-10-01T04:16:24.348286+00:00",
+   "final_url": "https://yi525tokyo.github.io/lindy-books/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "age": "692",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-length": "5142",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6abcf5c5-239b\"",
+    "server": "GitHub.com",
+    "vary": "Accept-Encoding",
+    "via": "1.1 varnish",
+    "x-cache": "HIT",
+    "x-cache-hits": "0",
+    "x-fastly-request-id": "19646f67eaba75c1ac391c8ba85a1137cc1944bf",
+    "x-github-edge-region": "iad",
+    "x-github-request-id": "7002:1BBB53:D4FC3D:E5162D:6ABDDBE4",
+    "x-served-by": "cache-iad-kiad7000162-IAD",
+    "x-timer": "S1790828184.367452,VS0,VE2"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  },
+  "https://yi525tokyo.github.io/lindybooks/": {
+   "fetched_at": "2026-10-01T04:16:14.313558+00:00",
+   "final_url": "https://yi525tokyo.github.io/lindybooks/",
+   "headers": {
+    "accept-ranges": "bytes",
+    "age": "693",
+    "connection": "keep-alive",
+    "content-encoding": "gzip",
+    "content-length": "5142",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'",
+    "content-type": "text/html; charset=utf-8",
+    "etag": "W/\"6abcf5c5-239b\"",
+    "server": "GitHub.com",
+    "vary": "Accept-Encoding",
+    "via": "1.1 varnish",
+    "x-cache": "HIT",
+    "x-cache-hits": "0",
+    "x-fastly-request-id": "0cb004b145c50c86c9afdefc41aeca5c36818ca9",
+    "x-github-edge-region": "iad",
+    "x-github-request-id": "D070:3F53E2:10A8A2C:1180687:6ABDDBD8",
+    "x-served-by": "cache-iad-khef600075-IAD",
+    "x-timer": "S1790828174.337505,VS0,VE1"
+   },
+   "purpose": "resolve",
+   "render": "static",
+   "status": 404
+  }
+ },
+ "robots": {
+  "air-quality-api.open-meteo.com": "User-agent: *\nDisallow: /",
+  "api.met.no": "User-agent: Googlebot\nUser-agent: AdsBot-Google\nAllow:    /*/documentation\nDisallow: /weatherapi/*\n\nUser-agent: *\nDisallow:\n",
+  "api.open-meteo.com": "User-agent: *\nDisallow: /\n",
+  "buy.stripe.com": "User-agent: *\nDisallow: /\n\nUser-agent: Googlebot\nDisallow:\nUser-agent: Googlebot-Image\nDisallow:\nUser-agent: Googlebot-Video\nDisallow:\nUser-agent: Googlebot-News\nDisallow:\nUser-agent: Googlebot-Mobile\nDisallow:\n\nUser-agent: Bingbot\nDisallow:\n\nUser-agent: Slurp\nDisallow:\n\nUser-agent: DuckDuckBot\nDisallow:\n\nUser-agent: Baiduspider\nDisallow:\n\nUser-agent: Yandex\nDisallow:\n\nUser-agent: Ask Jeeves\nDisallow:\n",
+  "donate.stripe.com": "User-agent: *\nDisallow: /\n\nUser-agent: Googlebot\nDisallow:\nUser-agent: Googlebot-Image\nDisallow:\nUser-agent: Googlebot-Video\nDisallow:\nUser-agent: Googlebot-News\nDisallow:\nUser-agent: Googlebot-Mobile\nDisallow:\n\nUser-agent: Bingbot\nDisallow:\n\nUser-agent: Slurp\nDisallow:\n\nUser-agent: DuckDuckBot\nDisallow:\n\nUser-agent: Baiduspider\nDisallow:\n\nUser-agent: Yandex\nDisallow:\n\nUser-agent: Ask Jeeves\nDisallow:\n",
+  "getlindybooks.com": "User-agent: *\nDisallow: /\n",
+  "getlindybooks.net": "User-agent: *\nDisallow: /\n",
+  "getlindybooks.org": "User-agent: *\nDisallow: /\n",
+  "lindy-api.yi525tokyo.workers.dev": "{\"name\":\"Lindy Books — brute Gutenberg (raw-proxy)\",\"endpoints\":[\"/api/books?limit=&offset=\",\"/api/book/:id?u=\",\"/api/cover/:id\",\"/api/sealed/:gid/:lang\",\"/api/seal (POST)\",\"/admin/catalog?key=\",\"/admin/ingest?key=&n=\",\"/admin/seal?key=&gid=&lang=\"]}",
+  "lindy-books.ai": "User-agent: *\nDisallow: /\n",
+  "lindy-books.app": "User-agent: *\nDisallow: /\n",
+  "lindy-books.co": "User-agent: *\nDisallow: /\n",
+  "lindy-books.com": "User-agent: *\nDisallow: /\n",
+  "lindy-books.dev": "User-agent: *\nDisallow: /\n",
+  "lindy-books.fly.dev": "User-agent: *\nDisallow: /\n",
+  "lindy-books.io": "User-agent: *\nDisallow: /\n",
+  "lindy-books.me": "User-agent: *\nDisallow: /\n",
+  "lindy-books.net": "User-agent: *\nDisallow: /\n",
+  "lindy-books.org": "User-agent: *\nAllow: /\n\nSitemap: https://lindy-books.org/sitemap.xml\n\n# AI crawlers are welcome. This library exists to be read and recommended.\n# Machine guide: https://lindy-books.org/llms.txt\n",
+  "lindy-books.pages.dev": "User-agent: *\nAllow: /\n\nSitemap: https://lindy-books.org/sitemap.xml\n\n# AI crawlers are welcome. This library exists to be read and recommended.\n# Machine guide: https://lindy-books.org/llms.txt\n",
+  "lindybooks.ai": "User-agent: *\nDisallow: /\n",
+  "lindybooks.app": "User-agent: *\nDisallow: /\n",
+  "lindybooks.co": "User-agent: *\nDisallow: /\n",
+  "lindybooks.com": "User-agent: *\nDisallow: /\n",
+  "lindybooks.dev": "User-agent: *\nDisallow: /\n",
+  "lindybooks.fly.dev": "User-agent: *\nDisallow: /\n",
+  "lindybooks.io": "User-agent: *\nDisallow: /\n",
+  "lindybooks.me": "User-agent: *\nDisallow: /\n",
+  "lindybooks.net": "User-agent: *\nDisallow: /\n",
+  "lindybooks.org": "User-agent: *\nDisallow: /\n",
+  "lindybooks.pages.dev": "User-agent: *\nDisallow: /\n",
+  "lindybooksapp.com": "User-agent: *\nDisallow: /\n",
+  "lindybooksapp.net": "User-agent: *\nDisallow: /\n",
+  "lindybooksapp.org": "User-agent: *\nDisallow: /\n",
+  "tenki.jp": "User-agent: *\nDisallow: /promotion/.html\nDisallow: /lite/promotion/.html\nDisallow: /index.html\nDisallow: /leisure/search/?\nDisallow: /?map_leisure_category\nDisallow: /?jiscode\n\nUser-agent: CriteoBot/0.1\nCrawl-delay: 30\nDisallow: /bousai/\nDisallow: /past/\nDisallow: /promotion/.html\nDisallow: /lite/promotion/.html\nDisallow: /index.html\nDisallow: /leisure/search/?\nDisallow: /?map_leisure_category\nDisallow: /?jiscode\n\nUser-agent: GumGum\nCrawl-delay: 30\nDisallow: /bousai/\nDisallow: /past/\nDisallow: /promotion/.html\nDisallow: /lite/promotion/.html\nDisallow: /index.html\nDisallow: /leisure/search/?\nDisallow: /?map_leisure_category\nDisallow: /?jiscode\n\nUser-agent: peer39_crawler\nUser-agent: Leikibot\nUser-agent: ias_crawler\nUser-agent: ias_wombles\nUser-agent: proximic\nUser-agent: AudigentAdBot\nUser-agent: AssayBot\nUser-agent: AmazonAdBot\nCrawl-delay: 60\nDisallow: /bousai/\nDisallow: /past/\nDisallow: /promotion/.html\nDisallow: /lite/promotion/.html\nDisallow: /index.html\nDisallow: /leisure/search/?\nDisallow: /?map_leisure_category\nDisallow: /?jiscode\n\nSitemap: https://tenki.jp/sitemap_pc.xml\nSitemap: https://tenki.jp/sitemap_lite.xml\n"
+ }
+}

@@ -1,0 +1,294 @@
+{
+ "task": "need_analysis",
+ "key": "4b0e6b8e16162435e8a0",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.020869600000000002,
+ "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current).",
+ "payload": {
+  "sentence": "I want to know, at a glance, how many real people are actually using LindyBooks."
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "handled_as",
+   "subjects",
+   "questions",
+   "deliverable",
+   "definitions_to_state"
+  ],
+  "properties": {
+   "handled_as": {
+    "type": "string",
+    "enum": [
+     "software_capability",
+     "housing",
+     "other"
+    ],
+    "description": "software_capability: satisfying this needs some software to observe, compute, present or act on something; housing: finding a place to live; other: neither"
+   },
+   "subjects": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "name",
+      "kind",
+      "as_written"
+     ],
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "product",
+        "website",
+        "organization",
+        "person",
+        "place",
+        "dataset",
+        "other"
+       ]
+      },
+      "as_written": {
+       "type": "string",
+       "description": "the exact words in the sentence"
+      },
+      "owned_by_principal": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    }
+   },
+   "questions": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "question",
+      "answer_type",
+      "quantity",
+      "unit",
+      "population",
+      "exclude",
+      "windows"
+     ],
+     "properties": {
+      "id": {
+       "type": "string",
+       "description": "snake_case"
+      },
+      "question": {
+       "type": "string"
+      },
+      "answer_type": {
+       "type": "string",
+       "enum": [
+        "count",
+        "amount",
+        "yes_no",
+        "category",
+        "list",
+        "text"
+       ]
+      },
+      "quantity": {
+       "type": "string",
+       "description": "what is counted/measured, precisely"
+      },
+      "unit": {
+       "type": "string"
+      },
+      "population": {
+       "type": "string",
+       "description": "who/what qualifies"
+      },
+      "exclude": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "windows": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "time windows that make the answer meaningful, e.g. 24h, 7d, 30d, all_time"
+      },
+      "acceptable_forms": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "exact, lower_bound, upper_bound, range, estimate"
+      },
+      "priority": {
+       "type": "string",
+       "enum": [
+        "core",
+        "supporting"
+       ]
+      }
+     }
+    }
+   },
+   "deliverable": {
+    "type": "object",
+    "required": [
+     "form",
+     "refresh",
+     "why"
+    ],
+    "properties": {
+     "form": {
+      "type": "string",
+      "enum": [
+       "glance_view",
+       "report",
+       "alert",
+       "tool",
+       "answer_once"
+      ]
+     },
+     "refresh": {
+      "type": "string",
+      "enum": [
+       "continuous",
+       "daily",
+       "on_demand",
+       "once"
+      ]
+     },
+     "max_seconds_to_read": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "deliver_at_local": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "HH:MM local time if the wording implies when to be told (e.g. 'every morning')"
+     },
+     "why": {
+      "type": "string"
+     }
+    }
+   },
+   "definitions_to_state": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "ambiguities the answer must resolve explicitly"
+   },
+   "success_looks_like": {
+    "type": "string"
+   }
+  }
+ },
+ "output": {
+  "handled_as": "software_capability",
+  "subjects": [
+   {
+    "name": "LindyBooks",
+    "kind": "product",
+    "as_written": "LindyBooks",
+    "owned_by_principal": null
+   }
+  ],
+  "questions": [
+   {
+    "id": "active_real_users",
+    "question": "How many distinct real human people actively used LindyBooks in the recent period?",
+    "answer_type": "count",
+    "quantity": "Distinct individual humans who performed at least one meaningful use action (not merely a page load, login or being registered) in LindyBooks within the window. One person counted once across devices/sessions/accounts where identifiable.",
+    "unit": "people",
+    "population": "Distinct human users of LindyBooks who performed a meaningful engagement action within the window",
+    "exclude": [
+     "bots, crawlers, scrapers and automated traffic",
+     "internal staff, developers and test accounts",
+     "duplicate accounts of the same person where detectable",
+     "registered-but-inactive accounts",
+     "spam or fake signups",
+     "uptime/health-check monitors"
+    ],
+    "windows": [
+     "24h",
+     "7d",
+     "30d"
+    ],
+    "priority": "core",
+    "acceptable_forms": [
+     "exact",
+     "estimate",
+     "range",
+     "lower_bound"
+    ]
+   },
+   {
+    "id": "real_vs_filtered_share",
+    "question": "What share of raw observed users or traffic was excluded as non-real, to show how reliable the real-people count is?",
+    "answer_type": "amount",
+    "quantity": "Excluded non-human/internal/duplicate identities divided by all raw identities observed in the same window",
+    "unit": "percent",
+    "population": "All raw observed LindyBooks visitors/accounts in the window",
+    "exclude": [],
+    "windows": [
+     "7d",
+     "30d"
+    ],
+    "priority": "supporting",
+    "acceptable_forms": [
+     "estimate",
+     "range"
+    ]
+   },
+   {
+    "id": "trend",
+    "question": "Is the real active user count rising or falling relative to the previous equivalent period?",
+    "answer_type": "amount",
+    "quantity": "Change in real active users versus the prior period of equal length",
+    "unit": "percent change",
+    "population": "Same as active_real_users",
+    "exclude": [],
+    "windows": [
+     "7d",
+     "30d"
+    ],
+    "priority": "supporting",
+    "acceptable_forms": [
+     "estimate",
+     "exact"
+    ]
+   }
+  ],
+  "deliverable": {
+   "form": "glance_view",
+   "refresh": "continuous",
+   "why": "'At a glance' means a view readable in seconds showing a single headline number that stays current, with no report-reading needed.",
+   "deliver_at_local": null,
+   "max_seconds_to_read": 5
+  },
+  "definitions_to_state": [
+   "What 'LindyBooks' is (the principal's product, website or app) and which surfaces (web, mobile, API) count",
+   "What 'using' means: meaningful action versus a visit or login",
+   "What 'real people' means: human, deduplicated, excluding bots, staff and test accounts",
+   "What 'actually' implies: exclude registered-but-inactive and fake accounts",
+   "The time window for the headline number (default stated explicitly, e.g. last 30 days)",
+   "How identity is determined (account, device, cookie) and the error margin when exact counting is impossible",
+   "Whether the count is an exact figure, estimate, range, or lower bound, and how it is labeled",
+   "Time zone for window boundaries"
+  ],
+  "success_looks_like": "The principal glances at one view and sees a current headline count of distinct, deduplicated, human, actively engaged LindyBooks users for a stated window, labeled as exact or estimate, with bots, staff and inactive accounts excluded."
+ },
+ "at": "2026-10-01T04:16:03Z"
+}

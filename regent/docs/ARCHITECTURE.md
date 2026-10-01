@@ -296,6 +296,102 @@ provider for a tool (the local strategist has vetted templates), writes it to th
 runs its tests, and registers it in the tool registry. It is persisted in `built_tools` and
 reloaded on restart.
 
+The template path is the narrow, older mechanism: it fills a tool-sized gap that a route
+names (`invoice.generate`). Needs stated as outcomes ("I want to know…", "tell me every
+morning…") go through software capabilities, below, which choose between existing software,
+integration and building, and keep what they build verified and in use.
+
+## Software needs and capabilities (`regent/software/`)
+
+Told only "I want to know, at a glance, how many real people are actually using LindyBooks",
+Regent decides what information is needed, looks at the world, chooses a route, builds and
+verifies a capability, raises one bounded interrupt, and keeps using what it built. Nothing
+names a provider, metric, framework, database, UI or deployment.
+
+### Workers are resources, never authorities (`reasoner.py`, `resources.py`)
+
+- **Reasoning worker**: the Claude Code CLI, headless and *tool-less* (`claude -p --tools ""
+  --json-schema …`), in an empty scratch directory with a minimal environment. It answers narrow
+  schema-bound questions. Each answer is recorded (`<workspace>/reasoning`) and replayable
+  (`REGENT_REASONER=replay:<dir>`). Answers are claims: quotes must be found in what Regent
+  observed, field paths must exist, URLs must answer, regexes must reproduce their example on the
+  live page, rules must parse and evaluate. Failures are fed back once ("rejected because …").
+- **Coding agent**: Claude Code with file-edit tools only, in its own workspace. Starting it is
+  a `COMMIT`-level act: it needs the principal's opt-in (`REGENT_CODING_AGENT=claude-code`) and an
+  approved operation. Its output (a reader + spec) is run by Regent in a subprocess and put
+  through the same acceptance suite. In this environment the harness's own permission policy
+  refused to start an autonomous coding agent, so this path is implemented but not exercised;
+  the `delegate` route competes in every run and loses on authority and success probability.
+- **HTTP / browser / human**: the acquisition fetcher (robots.txt, honest UA, block detection),
+  Playwright, and interrupts. `GET /api/software/resources` lists availability.
+
+### The pipeline (the loop's ACQUIRE phase, `domain.py`)
+
+1. **analyze** (`need.py`): sentence → subjects (as written), questions with precise quantity,
+   population, exclusions, windows, honest answer forms and answer type, deliverable (glance view,
+   alert…), definitions that must be stated. Regent drops subjects not in the sentence. Then
+   **reuse** (`reuse.py`): an existing capability about the same subject and *the same need*
+   (judged separately from how well it answers today) is read instead of rebuilt.
+2. **discover** (`discover.py`, `probe.py`): products are found by name (slug variants × TLDs ×
+   hosting platforms' default domains), verified by how the page presents itself, merged with
+   their aliases, fingerprinted (platform headers, CSP, analytics signatures, service worker,
+   commitments in text and meta), and their API is read from the app's own code (GET only;
+   write-only endpoints are marked; an API that answers every path with its index is not a
+   source). Places are geocoded. Topics are not probed. Everything is stored as claims with the
+   document they came from.
+3. **inventory** (`discover.py`, `sources.py`): public data APIs and existing services are
+   proposed by the reasoning worker and admitted only by use; a robots.txt disallow is final; a
+   moved page is reached by following link texts. Each field gets a meaning and a relation to the
+   need (direct / lower bound / upper bound / activity signal / context / unrelated), backed by a
+   verbatim quote. Platform connectors the fingerprint makes applicable (Cloudflare analytics,
+   Stripe, Search Console, Plausible…) are listed with the credential and the smallest human action
+   that unlocks them. Verified commitments ("No ads, no accounts, no tracking.") become **hard
+   constraints** in the constitution. Yes/no questions get decision rules over admitted fields.
+
+### Routes (`routes.py`)
+
+reuse · compose from public data · compose now + one credential later · use an existing service ·
+build from data and cross-check against an existing service · add client-side analytics ·
+instrument the product · delegate to a coding agent · do it by hand on the platform's dashboard.
+Estimates come from the inventory: coverage of the core question by the honest form each route can
+reach (a lower and an upper bound together make a range), the principal's seconds, authority,
+reversibility, what it changes in the product. A route whose required operation fails (e.g. it
+fails verification) is taken out of contention and the next one is selected.
+
+### The capability (`capability.py`, `compose.py`, `expr.py`, `connectors.py`)
+
+A `SwCapability` is versioned and has: the need and its signatures; a spec (sources, metrics,
+unanswered questions with their unlock, definitions, refresh period, delivery, constraints); an
+implementation (`composed` by Regent's runtime, `external` reading an existing service,
+`delegated` code from a worker); a verification record; provenance per version. Metrics are
+expressions in a small safe language over observed series (`latest`, `increase` with counter
+resets, `count_items` in windows, comparisons for decisions) — nothing a worker writes is
+executed as code. Unknown is never zero: a metric over a blocked source shows "—" and says why.
+
+Once verified it is registered as a tool (`cap_<slug>.read/collect`), a glance view
+(`/software/<slug>`), JSON (`/api/software/capabilities/<slug>`) and world facts
+(`software.<slug>.<metric>`). The loop's maintenance pass keeps every usable capability current
+and delivers scheduled messages (`principal_notified`), independent of the mission that built it.
+
+### Regent's acceptance suite (`verify.py`)
+
+Well-formed metrics and an honest form for each; every core question answered or marked
+unknowable-yet; every public source read through the capability *and* independently with a plain
+HTTP client (timestamps that moved between reads tolerated); no number for a blocked source;
+non-negative counts; bounds consistent; no identifying data stored; sources read-only and adding
+nothing to the product; the registered tool returns what compute says; the glance view rendered in
+headless Chromium shows exactly the computed numbers. A capability is usable only when every
+critical check passes.
+
+### Credentials and human time
+
+A credential interrupt's response field typed `secret` goes to the secret store
+(`<workspace>/secrets.json`, mode 0600, or the environment); the world learns only
+`credential.<NAME> = present`, which is the interrupt's resume condition, and the waiting
+`upgrade` operation re-verifies the capability with the new source. `humantime.ledger` counts the
+principal's active seconds: writing the sentence (40 wpm) plus each interrupt (measured when the
+interface reports it, else Regent's estimate); open requests are reported separately.
+
 ## Global brain and skills
 
 Every row has a `domain`: private, shared or global. `LocalGlobalBrain.publish_fact` and
@@ -313,6 +409,15 @@ confidence and provenance. Before running an operation, the executor applies a l
 when the same failure mode still holds.
 
 ## Current limits
+
+- **Software needs.** The coding-agent route is implemented but was not run here (the
+  environment's permission policy refused to start an autonomous agent; it needs the principal's
+  opt-in and approval). The Cloudflare, Stripe, Search Console and Plausible connectors are real
+  clients exercised only against their documented response shapes in tests: no credentials were
+  available, and no number from them was ever shown. The reasoning worker's answers vary between
+  runs; Regent's checks make that variance visible (the benchmark records which sources were
+  admitted and why others were rejected) rather than eliminating it. Product discovery without a
+  search API relies on the product's name being in its hostname.
 
 - **No web-search engine.** Every HTML search engine reachable from this environment disallows
   bots in robots.txt or serves a bot challenge. Discovery therefore navigates from known portal
