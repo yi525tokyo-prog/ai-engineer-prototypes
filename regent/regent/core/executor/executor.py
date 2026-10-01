@@ -210,23 +210,43 @@ class Executor:
         self.db.flush()
         return rep
 
+    # Tools that write the same shared world (acquisition runs) execute one after another in plan
+    # order: run in parallel they would only queue on a lock in whatever order threads arrive, and
+    # the world they leave behind would depend on thread scheduling.
+    SEQUENTIAL_TOOLS = ("acquire",)
+
     def _invoke_all(self, mission: Mission, batch, facts, wctx) -> list[ToolResult]:
-        results: list[ToolResult] = []
+        def ctx_for(op: Operation) -> ToolContext:
+            return ToolContext(mission_id=mission.id, operation_id=op.id, workspace=self.services.workspace,
+                               facts=facts, world=wctx, services=self.services)
+
+        def run_serial(items):
+            return [self.services.tools.get(t).invoke(a, i, ctx_for(o)) for o, t, a, i in items]
+
+        serial = [b for b in batch if b[1] in self.SEQUENTIAL_TOOLS]
+        results: dict[str, ToolResult] = {}
         with ThreadPoolExecutor(max_workers=self.max_parallel) as pool:
             futures = []
             for op, tool_name, action, inputs in batch:
-                ctx = ToolContext(mission_id=mission.id, operation_id=op.id, workspace=self.services.workspace,
-                                  facts=facts, world=wctx, services=self.services)
+                if tool_name in self.SEQUENTIAL_TOOLS:
+                    continue
                 tool = self.services.tools.get(tool_name)
-                futures.append((op, pool.submit(tool.invoke, action, inputs, ctx)))
-            for op, fut in futures:
+                futures.append(([op], pool.submit(tool.invoke, action, inputs, ctx_for(op))))
+            if serial:
+                futures.append(([b[0] for b in serial], pool.submit(run_serial, serial)))
+            for ops, fut in futures:
+                timeout = max(sum(o.timeout_s or 60 for o in ops), 1)
                 try:
-                    results.append(fut.result(timeout=max(op.timeout_s or 60, 1)))
+                    out = fut.result(timeout=timeout)
+                    for o, r in zip(ops, out if isinstance(out, list) else [out]):
+                        results[o.id] = r
                 except FutureTimeout:
-                    results.append(ToolResult(status="failed", error=f"timeout after {op.timeout_s}s"))
+                    for o in ops:
+                        results[o.id] = ToolResult(status="failed", error=f"timeout after {o.timeout_s}s")
                 except Exception as e:  # pragma: no cover - Tool.invoke already guards
-                    results.append(ToolResult(status="failed", error=f"{type(e).__name__}: {e}"))
-        return results
+                    for o in ops:
+                        results[o.id] = ToolResult(status="failed", error=f"{type(e).__name__}: {e}")
+        return [results[op.id] for op, *_ in batch]
 
     def _record(self, mission: Mission, op: Operation, tool_name: str, action: str, inputs: dict[str, Any],
                 res: ToolResult, rep: ExecutionReport) -> None:

@@ -121,7 +121,7 @@ def collect_http_json(params: dict[str, Any]) -> Reading:
 
 def json_path(data: Any, path: str) -> Any:
     cur = data
-    for part in path.split("."):
+    for part in path.strip(".").split("."):
         if isinstance(cur, dict):
             cur = cur.get(part)
         elif isinstance(cur, list) and part.isdigit() and int(part) < len(cur):
@@ -138,6 +138,56 @@ HTTP_JSON = Connector(
     measures="whatever the endpoint publishes; semantics are established per field",
     population="depends on the field", footprint="read-only GET of a public endpoint the product already serves",
     collect=collect_http_json)
+
+
+# ------------------------------------------------------------------ an existing service's page
+
+def page_text(html_: str) -> str:
+    from regent.acquisition.fetch import html_to_text
+
+    return html_to_text(html_)[1]
+
+
+def extract_patterns(text: str, patterns: dict[str, str]) -> dict[str, Any]:
+    import re
+
+    out: dict[str, Any] = {}
+    for name, rx in (patterns or {}).items():
+        m = re.search(rx, text, re.S)
+        if not m:
+            out[name] = None
+            continue
+        v = (m.group(1) if m.groups() else m.group(0)).strip()
+        try:
+            out[name] = float(v.replace(",", "")) if re.fullmatch(r"-?[\d,]+(?:\.\d+)?", v) else v
+            if isinstance(out[name], float) and out[name].is_integer():
+                out[name] = int(out[name])
+        except ValueError:
+            out[name] = v
+    return out
+
+
+def collect_html(params: dict[str, Any]) -> Reading:
+    """Read what an existing service already shows people: GET the page, pull named values out of
+    its visible text with the patterns Regent verified against the live page."""
+    url = params["url"]
+    r = _get(url, {"Accept": "text/html"})
+    if r.status_code in (401, 403, 429):
+        raise ConnectorBlocked("access_denied", f"HTTP {r.status_code} from {url}")
+    if r.status_code != 200:
+        raise ConnectorBlocked("http_error", f"HTTP {r.status_code} from {url}")
+    text = page_text(r.text)
+    fields = extract_patterns(text, params.get("patterns") or {})
+    missing = [k for k, v in fields.items() if v is None]
+    if missing and len(missing) == len(fields):
+        raise ConnectorBlocked("layout_changed", f"none of {missing} found on {url}: the page changed")
+    return Reading(fields=fields, url=url, status=r.status_code, raw_excerpt=text[:1500])
+
+
+HTML_PAGE = Connector(
+    id="html_page", title="A page of an existing service", access="public", credentials=[],
+    measures="what the service already shows people", population="as defined by that service",
+    footprint="read-only GET of a public page, like a person visiting it", collect=collect_html)
 
 
 # ------------------------------------------------------------------ Cloudflare
@@ -353,14 +403,14 @@ SCRIPT = Connector(
     collect=collect_script)
 
 
-CONNECTORS: dict[str, Connector] = {c.id: c for c in (HTTP_JSON, CLOUDFLARE, STRIPE, SEARCH_CONSOLE, PLAUSIBLE,
-                                                      CLIENT_ANALYTICS, SCRIPT)}
+CONNECTORS: dict[str, Connector] = {c.id: c for c in (HTTP_JSON, HTML_PAGE, CLOUDFLARE, STRIPE, SEARCH_CONSOLE,
+                                                      PLAUSIBLE, CLIENT_ANALYTICS, SCRIPT)}
 
 
 def applicable(fp: dict[str, Any]) -> list[tuple[Connector, dict[str, Any]]]:
     out = []
     for c in CONNECTORS.values():
-        if c.id in ("http_json", "script"):
+        if c.id in ("http_json", "html_page", "script"):
             continue
         for params in c.detect(fp):
             out.append((c, params))

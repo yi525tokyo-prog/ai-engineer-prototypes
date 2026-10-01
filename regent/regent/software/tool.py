@@ -42,11 +42,12 @@ def software_tool() -> Tool:
                 if not need or not inv:
                     return ToolResult(status="failed", error="need analysis and inventory are required first")
                 include = list(inputs.get("include") or [])
-                spec = P.compose(need, inv, include=include)
+                use = tuple(inputs.get("use") or P.ORIGINS)
+                spec = P.compose(need, inv, include=include, use=use)
                 existing = s.scalar(select(K.SwCapability).where(
                     K.SwCapability.mission_id == ctx.mission_id, K.SwCapability.status != "retired"))
                 cap = K.save_version(s, mission_id=ctx.mission_id, need=need, signature=signature(need), spec=spec,
-                                     implementation="composed", reason=f"composed (include={include})",
+                                     implementation="composed", reason=f"composed (use={list(use)}, include={include})",
                                      provenance={"need_analysis": need.get("analysis"),
                                                  "field_semantics": inv.get("semantics"),
                                                  "composer": "regent.software.compose (deterministic)",

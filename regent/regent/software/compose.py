@@ -14,37 +14,51 @@ from __future__ import annotations
 
 import re
 from typing import Any
+from urllib.parse import urlparse
 
 from regent.software import capability as K
 from regent.software import connectors as C
 from regent.software import expr as X
 
 RELATION_FORM = {"direct": "estimate", "lower_bound": "lower_bound", "upper_bound": "upper_bound",
-                 "activity_signal": "activity"}
-FORM_RANK = {"exact": 5, "estimate": 4, "range": 3, "lower_bound": 2, "upper_bound": 2, "activity": 1}
+                 "activity_signal": "activity", "context": "context"}
+FORM_RANK = {"exact": 5, "estimate": 4, "decision": 4, "range": 3, "lower_bound": 2, "upper_bound": 2, "activity": 1,
+             "context": 0}
+ORIGINS = ("product", "api", "page")
 
 
 def _sid(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")[:64] or "src"
 
 
-def _source_id(endpoint: str) -> str:
+def source_id(endpoint: str) -> str:
+    """Stable, readable id for a source: the connector, or host label + path ("lindy_api_fund")."""
     if endpoint.startswith("connector:"):
         return _sid(endpoint.split(":", 1)[1])
-    path = re.sub(r"^https?://[^/]+", "", endpoint)
-    return _sid(path.replace("/api/", "/")) or "api"
+    u = urlparse(endpoint)
+    host = u.netloc.split(":")[0]
+    label = next((p for p in host.split(".") if p not in ("www", "api", "m")), host.split(".")[0])
+    path = [p for p in u.path.split("/") if p and p not in ("api", "v1", "v2", "v3")]
+    return _sid("_".join([label] + path[-2:]))[:40]
 
 
-def metrics_for(field: dict[str, Any], sid: str, windows: list[str]) -> list[dict[str, Any]]:
-    """Metrics a field supports, chosen from how it behaves over time."""
+_source_id = source_id
+
+
+def metrics_for(field: dict[str, Any], sid: str, windows: list[str], unit: str = "") -> list[dict[str, Any]]:
+    """Metrics a field supports, chosen from how it behaves over time. ``unit`` is the unit of the
+    question the field bears on ("people", "yes/no", ...)."""
     path, ts = field["path"], field.get("time_semantics")
     ref = f"{sid}:{path}"
     form = RELATION_FORM.get(field.get("relation_to_need"), "activity")
-    base = {"answers": field.get("question"), "form": form, "unit": "people" if form != "activity" else "events",
+    noun = "people" if field.get("counts") == "people" or "people" in (unit or "").lower() else (unit or "")
+    base = {"answers": field.get("question"), "form": form,
+            "unit": "events" if form == "activity" else ("people" if field.get("counts") == "people" else unit),
             "caveats": list(dict.fromkeys(field.get("caveats") or [])),
             "source_field": {"source": sid, "path": path, "meaning": field.get("meaning"),
                              "confidence": field.get("confidence"), "evidence": field.get("evidence")}}
-    mid = _sid(f"{sid}_{path}")
+    tail = [p for p in path.split(".") if not p.isdigit() and p not in ("data", "details", "properties", "areas")]
+    mid = _sid(f"{sid}_{'_'.join(tail[-2:]) or path}")
     out = []
     if ts == "event_list":
         key = field.get("timestamp_key")
@@ -65,7 +79,8 @@ def metrics_for(field: dict[str, Any], sid: str, windows: list[str]) -> list[dic
     window = "all_time" if ts == "cumulative" else "now"
     if form == "lower_bound" and field.get("counts") not in (None, "people"):
         # a count of *actions* proves only that someone acted: N payments may all be one person
-        return [{**base, "id": f"{mid}_people", "label": "People, at least", "expr": f'min(latest("{ref}"), 1)',
+        return [{**base, "id": f"{mid}_people", "label": f"{(noun or 'count').capitalize()}, at least",
+                 "unit": noun or base["unit"], "expr": f'min(latest("{ref}"), 1)',
                  "window": window,
                  "definition": f"At least one real person, because {path} counts {field.get('counts')} that only "
                                f"people perform ({field['meaning']}); the actions may all be one person's.",
@@ -75,22 +90,27 @@ def metrics_for(field: dict[str, Any], sid: str, windows: list[str]) -> list[dic
     # cumulative totals and snapshots: the current value is the answer
     label = {"lower_bound": "People, at least", "upper_bound": "People, at most", "estimate": "People (estimate)"}.get(
         form) if field.get("counts") == "people" else None
+    if field.get("service") and form != "context":
+        label = f"{_short(field['meaning'], 48)} ({field['service'].split()[0]})"
     return [{**base, "id": mid, "label": label or _short(field["meaning"]), "expr": f'latest("{ref}")',
              "window": window, "definition": field["meaning"]}]
 
 
-def _short(s: str, n: int = 60) -> str:
+def _short(s: str, n: int = 48) -> str:
     s = re.split(r"[;(]", s or "")[0].strip()
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
 def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[str] | None = None,
-            title: str | None = None) -> dict[str, Any]:
+            title: str | None = None, use: tuple[str, ...] | list[str] = ORIGINS) -> dict[str, Any]:
     """Build a capability spec from the inventory. ``include`` lists platform connector ids to
-    wire in (they stay blocked until their credential exists)."""
+    wire in (they stay blocked until their credential exists); ``use`` the kinds of public
+    sources to read: the subject's own endpoints, public data APIs, existing services' pages."""
     include = include or []
+    units = {q["id"]: q.get("unit") or "" for q in need.get("questions", [])}
     fields = [f for f in inventory.get("public_fields", []) if f.get("path_exists")
-              and f.get("relation_to_need") != "unrelated" and float(f.get("confidence") or 0) >= 0.3]
+              and f.get("relation_to_need") != "unrelated" and float(f.get("confidence") or 0) >= 0.3
+              and (str(f.get("endpoint", "")).startswith("connector:") or f.get("origin", "product") in use)]
     windows = sorted({w for q in need.get("questions", []) for w in q.get("windows", [])},
                      key=lambda w: (X.window_s(w) or 1e12) if re.fullmatch(r"\d+[smhdw]", w or "") else 1e13)
     sources: dict[str, dict[str, Any]] = {}
@@ -109,16 +129,37 @@ def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[st
                 sources[sid] = {"id": sid, "connector": cid, "title": ps["title"], "params": ps["params"],
                                 "access": "credential", "credentials": ps["credentials"],
                                 "footprint": ps["footprint"], "fields": []}
+        elif f.get("connector") == "html_page":
+            sid = _source_id(ep)
+            sources.setdefault(sid, {"id": sid, "connector": "html_page", "title": f"{f.get('service') or 'page'}: {ep}",
+                                     "params": {"url": ep, "patterns": {}}, "access": "public", "credentials": [],
+                                     "footprint": C.HTML_PAGE.footprint, "origin": "page", "fields": []})
+            sources[sid]["params"]["patterns"][f["path"]] = f["pattern"]
         else:
             sid = _source_id(ep)
             sources.setdefault(sid, {"id": sid, "connector": "http_json", "title": f"GET {ep}",
                                      "params": {"url": ep, "fields": []}, "access": "public", "credentials": [],
-                                     "footprint": C.HTTP_JSON.footprint, "fields": []})
+                                     "footprint": C.HTTP_JSON.footprint, "origin": f.get("origin", "product"),
+                                     "fields": []})
             if f["path"] not in sources[sid]["params"]["fields"]:
                 sources[sid]["params"]["fields"].append(f["path"])
         sources[sid]["fields"].append({"path": f["path"], "meaning": f.get("meaning"),
                                        "relation": f.get("relation_to_need"), "time_semantics": f.get("time_semantics")})
-        metrics += metrics_for(f, sid, windows)
+        metrics += metrics_for(f, sid, windows, units.get(f.get("question") or "", ""))
+    # decision rules over the fields this capability reads
+    readable = {f"{sid}:{fl['path']}" for sid, src in sources.items() for fl in src["fields"]}
+    for rule in inventory.get("decision_rules", []):
+        if not set(rule.get("refs") or []) <= readable:
+            continue
+        qtext = next((q.get("question") for q in need.get("questions", []) if q["id"] == rule["question"]), "")
+        metrics.append({"id": _sid(f"rule_{rule['id']}"), "label": _short(qtext or "Verdict", 70),
+                        "answers": rule["question"], "form": "decision", "unit": "yes/no", "expr": rule["expr"],
+                        "yes": rule.get("yes_label"), "no": rule.get("no_label"), "window": "now",
+                        "definition": rule.get("rationale", "") + " Rule: " + "; ".join(
+                            f"{t['ref'].split(':', 1)[1].split('.')[-1]} {t['threshold']} ({t['why']})"
+                            for t in rule.get("thresholds", [])),
+                        "caveats": ["a stated rule, not a measurement; thresholds are conventions"],
+                        "source_field": {"rule": rule["id"], "refs": rule.get("refs")}})
     # both ends known for a question: the honest headline is the range between them
     for q in need.get("questions", []):
         lows = [m for m in metrics if m.get("answers") == q["id"] and m["form"] == "lower_bound"]
@@ -151,12 +192,18 @@ def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[st
         return any(r.split(":", 1)[0] in gated for r in refs)
 
     for q in core[:1]:
+        prefer = "decision" if q.get("answer_type") == "yes_no" else None
         cands = sorted([m for m in metrics if m.get("answers") == q["id"]],
-                       key=lambda m: (-FORM_RANK.get(m["form"], 0), m.get("window") != "all_time"))
-        # the best answer, and the best answer readable today (so the view never opens on blanks)
-        picks = cands[:1] + [m for m in cands if not needs_credential(m)][:1]
-        for m in picks:
-            m["headline"] = True
+                       key=lambda m: (-FORM_RANK.get(m["form"], 0), m["form"] != prefer,
+                                      m.get("window") != "all_time"))
+        # the best answer, and the best answer readable today (so the view never opens on blanks); a
+        # stated rule is shown next to the strongest independent answer to the same question
+        picks = cands[:1] + [m for m in cands if not needs_credential(m) and m is not cands[0]
+                             and (m["form"] != cands[0]["form"] or not prefer)][:1]
+        if cands and not picks[1:] and not needs_credential(cands[0]):
+            picks = cands[:1]
+        for i, m in enumerate(picks, 1):
+            m["headline"] = i
     unanswered = []
     platform = {p["id"]: p for p in inventory.get("platform_sources", [])}
     for q in need.get("questions", []):
@@ -184,8 +231,7 @@ def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[st
         "slug": f"{subj}-{core[0]['id'] if core else 'need'}",
         "purpose": need.get("sentence"), "subjects": [s["name"] for s in need.get("subjects", [])],
         "sources": list(sources.values()), "metrics": metrics, "unanswered": unanswered,
-        "definitions": definitions, "refresh_s": 900 if need.get("deliverable", {}).get("refresh") == "continuous"
-        else 86400, "constraints": ["read_only", "aggregates_only", "no_client_code"]
+        "definitions": definitions, "refresh_s": _refresh_s(need), "delivery": _delivery(need, inventory), "constraints": ["read_only", "aggregates_only", "no_client_code"]
         + [f"respects: {c['statement']}" for c in inventory.get("constraints", []) if c.get("evidence_found")],
         "composed_from": {"fields": len(fields), "include": include},
     }
@@ -193,6 +239,23 @@ def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[st
 
 _FORM_PHRASE = {"range": "a range", "activity": "an activity signal", "lower_bound": "a lower bound",
                 "upper_bound": "an upper bound", "estimate": "an estimate", "exact": "an exact count"}
+
+
+def _refresh_s(need: dict[str, Any]) -> int:
+    refresh = (need.get("deliverable") or {}).get("refresh")
+    return {"continuous": 900, "daily": 3 * 3600, "on_demand": 3600}.get(refresh, 86400)
+
+
+def _delivery(need: dict[str, Any], inventory: dict[str, Any]) -> dict[str, Any] | None:
+    """A deliverable the principal is *told* (an alert, a morning report) is pushed, not just viewable."""
+    d = need.get("deliverable") or {}
+    if d.get("form") not in ("alert", "report") and d.get("refresh") != "daily":
+        return None
+    tz = next((x["place"].get("timezone") for x in inventory.get("subjects", []) if x.get("place")), None)
+    when = d.get("deliver_at_local") or "07:00"
+    return {"schedule": "daily" if d.get("refresh") == "daily" else "on_change", "local_time": when,
+            "timezone": tz or "UTC", "channel": "regent_inbox",
+            "channels_needing_setup": ["email (SMTP credential)", "phone push (an app the principal installs)"]}
 
 
 def _answer_weight(forms: set[str]) -> float:
@@ -233,8 +296,9 @@ def _unlock_for(q: dict[str, Any], inventory: dict[str, Any], platform: dict[str
     return best[1] if best else None
 
 
-def coverage_estimate(need: dict[str, Any], inventory: dict[str, Any], include: list[str]) -> float:
+def coverage_estimate(need: dict[str, Any], inventory: dict[str, Any], include: list[str],
+                      use: tuple[str, ...] = ORIGINS) -> float:
     """Coverage a composed capability would reach if every included source delivered."""
-    spec = compose(need, inventory, include=include)
+    spec = compose(need, inventory, include=include, use=use)
     if_delivered = [{**m, "status": "ok", "value": 1} for m in spec["metrics"]]
     return K.coverage(need, if_delivered)[0]

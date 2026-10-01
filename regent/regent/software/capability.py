@@ -33,8 +33,9 @@ from regent.software import expr as X
 from regent.software.tables import SwCapability, SwCapabilityVersion, SwObservation
 
 CLOCK: Any = None            # test hook
-FORMS = ("exact", "estimate", "range", "lower_bound", "upper_bound", "activity")
-FORM_WEIGHT = {"exact": 1.0, "estimate": 0.9, "range": 0.8, "upper_bound": 0.4, "lower_bound": 0.5, "activity": 0.25}
+FORMS = ("exact", "estimate", "range", "lower_bound", "upper_bound", "activity", "decision", "context")
+FORM_WEIGHT = {"exact": 1.0, "estimate": 0.9, "decision": 0.9, "range": 0.8, "upper_bound": 0.4, "lower_bound": 0.5,
+               "activity": 0.25, "context": 0.1}
 
 
 def now() -> datetime:
@@ -170,10 +171,10 @@ def compute(db: Session, cap: SwCapability) -> list[dict[str, Any]]:
     for m in (cap.spec or {}).get("metrics", []):
         ctx = X.EvalContext(series=series, now=now())
         res: dict[str, Any] = {k: m.get(k) for k in ("id", "label", "unit", "form", "answers", "definition",
-                                                      "caveats", "window", "headline")}
+                                                      "caveats", "window", "headline", "yes", "no")}
         try:
             v = X.evaluate(m["expr"], ctx)
-            if isinstance(v, float) and v.is_integer():
+            if isinstance(v, float) and v.is_integer() and not isinstance(v, bool):
                 v = int(v)
             if m.get("expr_hi"):
                 hi = X.evaluate(m["expr_hi"], ctx)
@@ -211,6 +212,12 @@ def display(m: dict[str, Any]) -> str:
     v = m.get("value")
     if v is None:
         return "—"
+    if isinstance(v, bool):
+        return (m.get("yes") or "Yes") if v else (m.get("no") or "No")
+    if isinstance(v, list):
+        return " / ".join(_fmt(x) for x in v[:3]) + (" …" if len(v) > 3 else "")
+    if isinstance(v, dict):
+        return ", ".join(f"{k}: {_fmt(x)}" for k, x in list(v.items())[:3])
     s = _fmt(v)
     form = m.get("form")
     if form == "range" and m.get("value_hi") is not None:
@@ -280,7 +287,7 @@ def render_html(r: dict[str, Any], *, refresh_s: int = 120) -> str:
     number with its definition, the definitions, the sources. Server-rendered, no scripts."""
     e = html.escape
     c = r["capability"]
-    heads = [m for m in r["metrics"] if m.get("headline")] or r["metrics"][:1]
+    heads = sorted([m for m in r["metrics"] if m.get("headline")], key=lambda m: m["headline"]) or r["metrics"][:1]
     rest = [m for m in r["metrics"] if m not in heads]
 
     def card(m: dict[str, Any], big: bool) -> str:
@@ -291,7 +298,8 @@ def render_html(r: dict[str, Any], *, refresh_s: int = 120) -> str:
         blocked = status in ("blocked", "no_data", "error")
         return (f'<section class="card{" big" if big else ""}{" off" if blocked else ""}" data-metric="{e(m["id"])}" '
                 f'data-status="{e(str(status))}"><div class="label">{e(m.get("label") or m["id"])}</div>'
-                f'<div class="value" data-value="{e("" if m.get("value") is None else str(m["value"]))}">'
+                f'<div class="value{" long" if len(m["display"]) > 9 else ""}" '
+                f'data-value="{e("" if m.get("value") is None else str(m["value"]))}">'
                 f'{e(m["display"])}</div>'
                 f'<div class="form">{e(_form_text(m))}{" · " + e(_window(m.get("window"))) if m.get("window") else ""}'
                 f'{" · " + ("not connected" if status == "blocked" else e(str(status))) if status != "ok" else ""}</div>'
@@ -325,8 +333,8 @@ body{{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,san
 main{{max-width:900px;margin:0 auto;padding:20px 16px 40px}} h1{{font-size:18px;margin:0 0 4px}}
 .sub{{color:var(--mut);margin:0 0 16px;font-size:13px}} .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}}
 .card{{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}}
-.big .value{{font-size:52px;line-height:1.1}} .value{{font-size:26px;font-weight:650;color:var(--acc);font-variant-numeric:tabular-nums}}
-.off .value{{color:var(--off)}} .label{{font-weight:600}} .form{{color:var(--mut);font-size:13px}} .def{{font-size:13px;margin:.5em 0 0}}
+.big .value{{font-size:52px;line-height:1.1}} .big .value.long{{font-size:30px}} .value.long{{font-size:20px}} .value{{font-size:26px;font-weight:650;color:var(--acc);font-variant-numeric:tabular-nums}}
+.off .value{{color:var(--off)}} .label{{font-weight:600}} .def{{overflow-wrap:anywhere}} .form{{color:var(--mut);font-size:13px}} .def{{font-size:13px;margin:.5em 0 0}}
 .why,.note{{font-size:12px;color:var(--warn);margin:.3em 0 0}} .caveats{{font-size:12px;color:var(--mut);padding-left:18px;margin:.4em 0 0}}
 h2{{font-size:15px;margin:22px 0 8px}} .next{{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:10px;padding:10px 14px 10px 30px;margin:14px 0 0}}
 .next li{{margin:4px 0}} table{{width:100%;border-collapse:collapse;font-size:12px}} td,th{{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}}
@@ -351,7 +359,8 @@ def _window(w: str | None) -> str:
 
 def _form_text(m: dict[str, Any]) -> str:
     return {"lower_bound": "at least (lower bound)", "upper_bound": "at most (upper bound)", "exact": "exact",
-            "estimate": "estimate", "range": "range", "activity": "activity signal, not a count of people"}.get(
+            "estimate": "estimate", "range": "range", "activity": "activity signal, not a count of people",
+            "decision": "decision by a stated rule", "context": "context"}.get(
         m.get("form") or "", m.get("form") or "")
 
 
@@ -402,6 +411,40 @@ def load_all(db: Session, services: Any) -> int:
         register_tool(services, c)
         n += 1
     return n
+
+
+def delivery_due(cap: SwCapability) -> str | None:
+    """The local date a scheduled delivery is due for, if it is due now and not yet delivered."""
+    d = (cap.spec or {}).get("delivery")
+    if not d or d.get("schedule") != "daily":
+        return None
+    from zoneinfo import ZoneInfo
+
+    try:
+        tz = ZoneInfo(d.get("timezone") or "UTC")
+    except Exception:
+        tz = ZoneInfo("UTC")
+    local = now().astimezone(tz)
+    hh, mm = (int(x) for x in (d.get("local_time") or "07:00").split(":")[:2])
+    if (local.hour, local.minute) < (hh, mm):
+        return None
+    day = local.date().isoformat()
+    delivered = ((cap.provenance or {}).get("deliveries") or {})
+    return None if day in delivered else day
+
+
+def digest(r: dict[str, Any]) -> str:
+    """One message a person can read in seconds: the headline answers, then what is unknown."""
+    heads = sorted([m for m in r["metrics"] if m.get("headline")], key=lambda m: m["headline"]) or r["metrics"][:1]
+    parts = [f"{m['display']}" if m.get("form") == "decision" else f"{m['label']}: {m['display']}"
+             for m in heads if m.get("value") is not None]
+    if not parts:
+        parts = [f"{m['label']}: unknown ({m.get('why') or m.get('status')})" for m in heads]
+    support = [m for m in r["metrics"] if not m.get("headline") and m.get("value") is not None
+               and m.get("form") in ("context", "estimate", "decision") and m.get("answers")][:3]
+    if support:
+        parts.append("(" + "; ".join(f"{m['label']} {m['display']}" for m in support) + ")")
+    return " — ".join(parts)
 
 
 def due(cap: SwCapability) -> bool:

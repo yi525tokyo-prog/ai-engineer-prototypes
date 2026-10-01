@@ -17,6 +17,8 @@ count_items(ref, key, window) items of list-valued fields whose timestamp ``key`
 distinct_items(ref)           distinct list items ever observed
 observed_for(ref)             seconds of history available
 max(a, b...), min(a, b...), round(x, n), coalesce(a, b...)
+if_else(cond, a, b)           comparisons (< <= > >= == !=) and ``and`` / ``or`` / ``not`` give
+                              yes/no answers (decision rules stay inspectable expressions)
 
 Windows: "15m", "24h", "7d", "30d", "all".
 """
@@ -63,7 +65,9 @@ def _num(v: Any) -> float | None:
     try:
         return float(str(v).replace(",", ""))
     except ValueError:
-        return None
+        # values read from pages carry units: "0%", "29℃", "3 m/s" -> their number
+        m = re.fullmatch(r"\s*[^\d+-]{0,6}?([+-]?\d+(?:\.\d+)?)\s*(%|℃|°C|°|mm|m/s|km/h|cm|hPa)?\s*", str(v))
+        return float(m.group(1)) if m else None
 
 
 def _within(ctx: EvalContext, s: Series, w: str) -> Series:
@@ -137,6 +141,8 @@ def _fns(ctx: EvalContext) -> dict[str, Callable[..., Any]]:
         return list(seen.values())
 
     def count_items(ref, key, w="all"):
+        if not ser(ref):
+            return None                 # nothing observed is "unknown", never "zero"
         ws = window_s(w)
         n = 0
         for it in _items(ref):
@@ -148,6 +154,8 @@ def _fns(ctx: EvalContext) -> dict[str, Callable[..., Any]]:
         return n
 
     def distinct_items(ref):
+        if not ser(ref):
+            return None
         return len(_items(ref))
 
     def observed_for(ref):
@@ -168,13 +176,16 @@ def _fns(ctx: EvalContext) -> dict[str, Callable[..., Any]]:
     def _round(x, n=0):
         return None if x is None else round(float(x), int(n))
 
+    def if_else(c, a, b):
+        return None if c is None else (a if c else b)
+
     return {"latest": latest, "increase": increase, "delta": delta, "max_over": max_over, "min_over": min_over,
             "count_items": count_items, "distinct_items": distinct_items, "observed_for": observed_for,
-            "coalesce": coalesce, "max": _max, "min": _min, "round": _round}
+            "coalesce": coalesce, "max": _max, "min": _min, "round": _round, "if_else": if_else}
 
 
 FUNCTIONS = ("latest", "increase", "delta", "max_over", "min_over", "count_items", "distinct_items", "observed_for",
-             "coalesce", "max", "min", "round")
+             "coalesce", "max", "min", "round", "if_else")
 
 
 def parse(expr: str) -> ast.Expression:
@@ -184,7 +195,8 @@ def parse(expr: str) -> ast.Expression:
         raise ExprError(f"syntax: {e.msg}") from e
     for node in ast.walk(tree):
         if isinstance(node, (ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant, ast.Load, ast.Add, ast.Sub,
-                             ast.Mult, ast.Div, ast.USub, ast.UAdd, ast.FloorDiv, ast.Mod)):
+                             ast.Mult, ast.Div, ast.USub, ast.UAdd, ast.FloorDiv, ast.Mod, ast.Compare, ast.Lt,
+                             ast.LtE, ast.Gt, ast.GtE, ast.Eq, ast.NotEq, ast.BoolOp, ast.And, ast.Or, ast.Not)):
             continue
         if isinstance(node, ast.Call):
             if not isinstance(node.func, ast.Name) or node.func.id not in FUNCTIONS or node.keywords:
@@ -213,7 +225,29 @@ def evaluate(expr: str, ctx: EvalContext) -> Any:
             return n.value
         if isinstance(n, ast.UnaryOp):
             v = ev(n.operand)
+            if isinstance(n.op, ast.Not):
+                return None if v is None else (not v)
             return None if v is None else (-v if isinstance(n.op, ast.USub) else v)
+        if isinstance(n, ast.Compare):
+            left = ev(n.left)
+            for op, right_n in zip(n.ops, n.comparators):
+                right = ev(right_n)
+                if left is None or right is None:
+                    return None
+                a, b = (_num(left), _num(right)) if not isinstance(op, (ast.Eq, ast.NotEq)) else (left, right)
+                if a is None or b is None:
+                    return None
+                ok = {ast.Lt: a < b, ast.LtE: a <= b, ast.Gt: a > b, ast.GtE: a >= b, ast.Eq: a == b,
+                      ast.NotEq: a != b}[type(op)]
+                if not ok:
+                    return False
+                left = right
+            return True
+        if isinstance(n, ast.BoolOp):
+            vals = [ev(v) for v in n.values]
+            if any(v is None for v in vals):
+                return None          # an unknown input makes the decision unknown, never a guess
+            return all(vals) if isinstance(n.op, ast.And) else any(vals)
         if isinstance(n, ast.BinOp):
             a, b = ev(n.left), ev(n.right)
             a, b = _num(a) if a is not None else None, _num(b) if b is not None else None

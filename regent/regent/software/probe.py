@@ -50,6 +50,13 @@ def candidate_urls(name: str, *, country: str | None = None, accounts: list[str]
     return list(dict.fromkeys(out))
 
 
+def looks_like_name(s: str) -> bool:
+    """'LindyBooks', 'Notion', 'Lindy Books' are names; 'laundry drying outside' is a topic."""
+    words = s.split()
+    return bool(words) and len(words) <= 4 and all(w[:1].isupper() or any(c.isdigit() for c in w) for w in words) \
+        or bool(re.search(r"[a-z][A-Z]|\.[a-z]{2,}$", s))
+
+
 def normalized(s: str) -> str:
     return re.sub(r"[^0-9a-z]+", "", unicodedata.normalize("NFKC", s).lower())
 
@@ -242,7 +249,7 @@ def find_promises(text: str) -> list[dict[str, str]]:
 def json_shape(data: Any, prefix: str = "", depth: int = 0) -> dict[str, str]:
     """Dotted paths of a JSON document with their types (lists summarized by their first item)."""
     out: dict[str, str] = {}
-    if depth > 4:
+    if depth > 8:
         return out
     if isinstance(data, dict):
         for k, v in list(data.items())[:60]:
@@ -251,5 +258,5 @@ def json_shape(data: Any, prefix: str = "", depth: int = 0) -> dict[str, str]:
             if isinstance(v, (dict, list)):
                 out.update(json_shape(v, p, depth + 1))
     elif isinstance(data, list) and data:
-        out.update(json_shape(data[0], f"{prefix}.0", depth + 1))
+        out.update(json_shape(data[0], f"{prefix}.0" if prefix else "0", depth + 1))
     return out

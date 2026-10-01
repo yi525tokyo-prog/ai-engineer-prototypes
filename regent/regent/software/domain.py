@@ -86,7 +86,10 @@ class SoftwareAdapter(DomainAdapter):
         out = []
         disc = _done(s, mission.id, "discover")
         inv = _done(s, mission.id, "inventory")
-        if disc is None:
+        reusing = bool(need.get("reuse")) and not self._reuse_failed(s, mission)
+        if reusing:
+            pass                     # an existing capability answers: no need to look at the world again
+        elif disc is None:
             out.append({"action": "discover", "params": {}, "blocking": True, "priority": 5,
                         "reason": "unknown where " + ", ".join(x["name"] for x in need.get("subjects", []))
                                   + " runs, what it publishes and what it promises"})
@@ -96,11 +99,18 @@ class SoftwareAdapter(DomainAdapter):
         self._observe_credentials(s, mission)
         due = [c for c in s.scalars(select(K.SwCapability).where(K.SwCapability.mission_id == mission.id,
                                                                  K.SwCapability.status.in_(("usable", "degraded"))))
-               if K.due(c)]
+               if K.due(c) or K.delivery_due(c)]
         if due:
             out.append({"action": "observe", "params": {"capabilities": [c.id for c in due]}, "blocking": False,
                         "priority": 1, "reason": f"{len(due)} capability(ies) past their refresh period"})
         return out
+
+    @staticmethod
+    def _reuse_failed(s: Session, mission) -> bool:
+        from regent.db import Route
+
+        return s.scalar(select(Route.id).where(Route.mission_id == mission.id, Route.archetype == "reuse",
+                                               Route.status.in_(("failed", "invalidated"))).limit(1)) is not None
 
     def _observe_credentials(self, s: Session, mission) -> None:
         """A credential the principal provided (through an interrupt or the environment) becomes a
@@ -133,6 +143,13 @@ class SoftwareAdapter(DomainAdapter):
 
             need = analyze(params.get("sentence") or (m.objective if m else ""), mission_id=mission_id)
             need["principal"] = _principal_hint(need["sentence"])
+            if need.get("handled_as") == "software_capability":
+                from regent.software.reuse import match
+
+                need["reuse"] = match(s, need, mission_id=mission_id)
+                if need["reuse"]:
+                    note("analyze", "existing capabilities answer this: "
+                                    + ", ".join(f"{x['slug']} (judged by {x['judged_by']})" for x in need["reuse"]))
             req.plan = need
             if m is not None:
                 self._adopt(s, m, need)
@@ -154,7 +171,7 @@ class SoftwareAdapter(DomainAdapter):
 
             need = (m.attrs or {}).get("need") or {}
             res = latest_plan(s, m.id, "discover") or {}
-            inv = inventory(s, need, res, mission_id=mission_id, log=note)
+            inv = inventory(s, need, res, mission_id=mission_id, log=note, request_id=req.id, transport=transport)
             req.plan = inv
             self._project_inventory(s, m, need, inv)
             stats = {"public_fields": sum(1 for f in inv["public_fields"] if f["relation_to_need"] != "unrelated"),
@@ -173,6 +190,18 @@ class SoftwareAdapter(DomainAdapter):
                               mission_id=mission_id)
                 n += 1
                 note("observe", f"{cap.slug}: {', '.join(f'{o.source_id}={o.status}' for o in obs)}")
+                day = K.delivery_due(cap)
+                if day:
+                    text = K.digest(r)
+                    events.append("principal_notified", {"capability": cap.slug, "channel": "regent_inbox",
+                                                         "for_date": day, "text": text,
+                                                         "view": f"/software/{cap.slug}"},
+                                  source=f"capability:{cap.slug}", mission_id=mission_id)
+                    prov = dict(cap.provenance or {})
+                    prov["deliveries"] = {**(prov.get("deliveries") or {}), day: {"at": K.now().isoformat(),
+                                                                                   "text": text}}
+                    cap.provenance = prov
+                    note("deliver", f"{cap.slug} -> principal ({day}): {text[:200]}")
             stats = {"capabilities_observed": n}
         else:
             raise ValueError(f"unknown software action {action}")
@@ -249,7 +278,10 @@ class SoftwareAdapter(DomainAdapter):
         finally:
             s.close()
         if not inv:
-            return []
+            if need.get("reuse"):
+                inv = {"existing_capabilities": need["reuse"]}
+            else:
+                return []
         return strategies(mission, need, inv)
 
     # ------------------------------------------ listing pipeline (unused here)
@@ -274,6 +306,21 @@ class SoftwareAdapter(DomainAdapter):
 
     def project(self, engine, request):
         return []
+
+
+def maintain(s: Session) -> list[str]:
+    """Capabilities are Regent's own assets: keep every usable one current and deliver what is
+    scheduled, whether or not the mission that created it is still open."""
+    from regent.acquisition import service
+
+    done = []
+    for c in s.scalars(select(K.SwCapability).where(K.SwCapability.status.in_(("usable", "degraded")))):
+        if not (K.due(c) or K.delivery_due(c)):
+            continue
+        out = service.run_action("observe", mission_id=c.mission_id, params={"capabilities": [c.id]},
+                                 domain="software")
+        done.append(f"{c.slug}: {out.get('status')}")
+    return done
 
 
 def _principal_hint(sentence: str) -> dict[str, Any]:

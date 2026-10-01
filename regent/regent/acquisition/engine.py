@@ -265,9 +265,12 @@ class AcquisitionEngine:
                                                       AcqJob.status.in_(("pending", "done"))).limit(1))
             if dup is not None and not s.params.get("force"):
                 continue
+            # strictly increasing in plan order (an injected clock is constant): equal-priority jobs then
+            # run in the order they were planned, not in whatever order the database returns ties
+            self._job_seq = getattr(self, "_job_seq", 0) + 1
             j = AcqJob(id=new_id("job"), request_id=self.request.id, entity_id=s.entity_id, kind=s.kind,
                        params=s.params, reason=s.reason, priority=s.priority, due_at=due_at, status="pending",
-                       created_at=self.claims.now())
+                       created_at=self.claims.now() + timedelta(microseconds=self._job_seq))
             self.db.add(j)
             out.append(j)
         self.db.flush()

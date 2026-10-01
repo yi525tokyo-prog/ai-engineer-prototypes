@@ -36,10 +36,13 @@ NEED_SCHEMA: dict[str, Any] = {
                                                    "description": "the exact words in the sentence"},
                                     "owned_by_principal": {"type": ["boolean", "null"]}}}},
         "questions": {"type": "array", "items": {"type": "object",
-                      "required": ["id", "question", "quantity", "unit", "population", "exclude", "windows"],
+                      "required": ["id", "question", "answer_type", "quantity", "unit", "population", "exclude",
+                                   "windows"],
                       "properties": {
                           "id": {"type": "string", "description": "snake_case"},
                           "question": {"type": "string"},
+                          "answer_type": {"type": "string", "enum": ["count", "amount", "yes_no", "category",
+                                                                    "list", "text"]},
                           "quantity": {"type": "string", "description": "what is counted/measured, precisely"},
                           "unit": {"type": "string"},
                           "population": {"type": "string", "description": "who/what qualifies"},
@@ -55,6 +58,9 @@ NEED_SCHEMA: dict[str, Any] = {
                                        "refresh": {"type": "string", "enum": ["continuous", "daily", "on_demand",
                                                                               "once"]},
                                        "max_seconds_to_read": {"type": ["integer", "null"]},
+                                       "deliver_at_local": {"type": ["string", "null"],
+                                                            "description": "HH:MM local time if the wording implies "
+                                                                           "when to be told (e.g. 'every morning')"},
                                        "why": {"type": "string"}}},
         "definitions_to_state": {"type": "array", "items": {"type": "string"},
                                  "description": "ambiguities the answer must resolve explicitly"},
@@ -124,7 +130,8 @@ def local_parse(sentence: str) -> dict[str, Any]:
     low = s.lower()
     questions = []
     if re.search(r"how many|how much|number of|何人|いくつ|何件", low):
-        questions.append({"id": "count", "question": sentence, "quantity": "count implied by the sentence",
+        questions.append({"id": "count", "question": sentence, "answer_type": "count",
+                          "quantity": "count implied by the sentence",
                           "unit": "count", "population": "as written (not further defined: no reasoning worker)",
                           "exclude": [], "windows": ["all_time"], "acceptable_forms": ["lower_bound", "exact"],
                           "priority": "core"})
@@ -135,6 +142,25 @@ def local_parse(sentence: str) -> dict[str, Any]:
                             "refresh": "continuous" if glance else "once", "max_seconds_to_read": 10 if glance else None,
                             "why": "wording" if glance else "no recurring wording"},
             "definitions_to_state": [], "success_looks_like": ""}
+
+
+def question_id(need: dict[str, Any], ref: Any) -> str | None:
+    """Workers refer to a question by id or by (a paraphrase of) its text: map it to the id."""
+    if not ref:
+        return None
+    qs = need.get("questions", [])
+    for q in qs:
+        if ref == q["id"]:
+            return q["id"]
+    def content(t: str) -> set[str]:
+        return {w for w in re.findall(r"\w+", t.lower()) if len(w) >= 4 or not w.isascii()}
+
+    words = content(str(ref))
+    best = max(qs, key=lambda q: len(words & content(q.get("question", ""))), default=None)
+    if best is None or not words:
+        return None
+    overlap = len(words & content(best.get("question", "")))
+    return best["id"] if overlap >= max(2, (len(words) + 1) // 2) else None
 
 
 def signature(need: dict[str, Any]) -> list[str]:

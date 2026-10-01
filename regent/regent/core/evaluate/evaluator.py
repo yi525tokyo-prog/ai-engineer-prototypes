@@ -213,6 +213,8 @@ class Evaluator:
                     ev.blocked.append(f"missing capability {blk.capability}")
             ev.missing_capabilities = [c for c in (r.required_capabilities or []) if not world.capability_available(c)]
             ev.invalid += self.constitution.hard_constraint_violations(r)
+            if r.status == "failed":
+                ev.invalid.append(f"tried and failed: {r.invalidated_reason or 'an operation failed'}")
             if eff.get("success_probability", 1) <= 0.0:
                 ev.invalid.append("success probability is zero")
             ev.selectable = not ev.invalid and not ev.blocked

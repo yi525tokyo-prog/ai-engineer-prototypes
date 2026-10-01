@@ -35,10 +35,11 @@ from regent.schemas import (
 from regent.software.compose import coverage_estimate
 
 
-def _ops_compose(include: list[str]) -> list[OperationSpec]:
+def _ops_compose(include: list[str], use: tuple[str, ...] | None = None) -> list[OperationSpec]:
     return [
         OperationSpec(key="sw.compose", goal="Compose the capability from verified sources", tool="software",
-                      action="compose", inputs={"include": include}, timeout_s=300,
+                      action="compose", inputs={"include": include, **({"use": list(use)} if use else {})},
+                      timeout_s=300,
                       verification=VerificationSpec(method="schema", required_keys=["capability_id", "version"]),
                       cost_estimate=CostEstimate(minutes=1)),
         OperationSpec(key="sw.verify", goal="Run Regent's acceptance suite on the capability", tool="software",
@@ -80,6 +81,7 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
     mid = mission["id"]
     scale = float(mission.get("value_scale") or 1.0)
     routes: list[RouteProposal] = []
+    reuse_only = "public_fields" not in inv       # the world was not re-examined: an existing capability answers
     hosts = [d["host"] for d in inv.get("deployments", [])]
     host = hosts[0] if hosts else "product"
     forbids = {f for c in inv.get("constraints", []) if c.get("evidence_found") for f in c.get("forbids", [])}
@@ -94,7 +96,9 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
     for cap in inv.get("existing_capabilities", []):
         routes.append(RouteProposal(
             key=f"software-reuse-{cap['slug']}", archetype="reuse", title=f"Use the existing capability '{cap['title']}'",
-            thesis="Regent already built and verified a capability answering this need; reading it costs nothing.",
+            thesis=(f"Regent already built and verified a capability answering this need (judged by "
+                    f"{cap.get('judged_by')}; it answered with {cap.get('live_values')} live values just now). "
+                    "Reading it costs nothing; gaps: " + ("; ".join(cap.get("gaps") or []) or "none stated")),
             tags=["software", "reuse"],
             estimates=RouteEstimates(expected_upside=scale * max(cap.get("coverage") or 0.3, 0.3),
                                      success_probability=0.95, time_cost_hours=0.0, reversibility=1.0,
@@ -104,7 +108,54 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
                                       verification=VerificationSpec(method="predicate", predicate={
                                           "path": "passed", "op": "eq", "value": True}))]))
 
-    if public_cov > 0 or not readable:
+    if reuse_only:
+        return routes
+    origins = {f.get("origin", "product") for f in inv.get("public_fields", [])
+               if f.get("path_exists") and f.get("relation_to_need") != "unrelated"
+               and not str(f.get("endpoint", "")).startswith("connector:")}
+    pages = [p for p in inv.get("proposals", {}).get("pages", [])]
+    if "page" in origins and origins - {"page"}:
+        data = tuple(o for o in ("product", "api") if o in origins)
+        own_cov = coverage_estimate(need, inv, [], data)
+        page_cov = coverage_estimate(need, inv, [], ("page",))
+        both_cov = max(public_cov, own_cov, page_cov)
+        names = ", ".join(p.get("name") or "" for p in pages)
+        routes.append(RouteProposal(
+            key="software-use-existing", archetype="use_existing",
+            title=f"Use what {names} already shows people",
+            thesis=(f"An existing service already answers this ({names}); Regent reads its answer from its page with "
+                    f"extraction patterns verified against the live page. Nothing to build, but the answer is that "
+                    f"service's own judgement and breaks if its page layout changes. Coverage {page_cov:.0%}."),
+            tags=["software", "use_existing", "read_only"],
+            estimates=RouteEstimates(expected_upside=scale * max(page_cov, 0.05), success_probability=0.85,
+                                     time_cost_hours=0.05, reversibility=1.0, optionality=0.8, risk=0.25,
+                                     authority_cost=0.0, information_gain=0.3),
+            estimate_rationale={"risk": "third-party page read by pattern: layout changes break it",
+                                "information_gain": "the service's own rule is not visible"},
+            operations=_ops_compose([], ("page",))))
+        routes.append(RouteProposal(
+            key="software-compose-data", archetype="compose",
+            title="Build the answer from public data with a stated rule",
+            thesis=(f"Read public data services directly and decide with an explicit, inspectable rule. Coverage "
+                    f"{own_cov:.0%}; no dependence on another service's judgement."),
+            tags=["software", "compose", "read_only"],
+            estimates=RouteEstimates(expected_upside=scale * max(own_cov, 0.05), success_probability=0.88,
+                                     time_cost_hours=0.1, reversibility=1.0, optionality=0.9, risk=0.12,
+                                     authority_cost=0.0, information_gain=0.5),
+            operations=_ops_compose([], data)))
+        routes.append(RouteProposal(
+            key="software-compose-crosscheck", archetype="hybrid",
+            title=f"Build from public data and cross-check against {names}",
+            thesis=("Decide with Regent's own stated rule over public data and show the existing service's answer "
+                    "next to it: two independent sources, so a broken source or a disagreement is visible instead "
+                    f"of silently wrong. Coverage {both_cov:.0%}."),
+            tags=["software", "compose", "use_existing", "read_only"],
+            estimates=RouteEstimates(expected_upside=scale * max(both_cov, 0.05), success_probability=0.93,
+                                     time_cost_hours=0.12, reversibility=1.0, optionality=0.9, risk=0.08,
+                                     authority_cost=0.0, information_gain=0.6),
+            estimate_rationale={"success_probability": "either source alone still answers; disagreement is shown"},
+            operations=_ops_compose([], tuple(sorted(origins)))))
+    elif public_cov > 0 or not readable:
         routes.append(RouteProposal(
             key="software-compose-public", archetype="compose",
             title=f"Compose a live answer from what {host} already publishes",
@@ -166,24 +217,25 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
                                                                      "kind": "physical"},
                                           verification=VerificationSpec(method="human_confirmed"))]))
 
-    routes.append(RouteProposal(
-        key="software-instrument", archetype="build",
-        title="Change the product to count its own readers first-party",
-        thesis=("Add aggregate, cookieless counting to the product's server code and deploy it. Most direct "
-                "measure, but it needs the product's source and deploy credentials, changes production, and every "
-                "reader's visit becomes something the product records."),
-        tags=["software", "changes_product", f"writes_to_product:{host}", "commit"],
-        estimates=RouteEstimates(expected_upside=scale * 0.95, success_probability=0.35, time_cost_hours=6.0,
-                                 reversibility=0.5, optionality=0.5, risk=0.45, authority_cost=0.85,
-                                 information_gain=0.5),
-        estimate_rationale={"success_probability": "the product's source is not reachable from here; deploy "
-                                                   "credentials and a production change need the principal"},
-        operations=[OperationSpec(key="sw.human.source", goal="Grant access to the product's source and deployment",
-                                  tool="human", action="perform",
-                                  inputs={"required_action": f"Give Regent write access to {host}'s source repository"
-                                                             " and a deploy token", "estimated_time_seconds": 900,
-                                          "kind": "identity"},
-                                  verification=VerificationSpec(method="human_confirmed"))]))
+    if hosts:
+        routes.append(RouteProposal(
+            key="software-instrument", archetype="build",
+            title="Change the product to count its own readers first-party",
+            thesis=("Add aggregate, cookieless counting to the product's server code and deploy it. Most direct "
+                    "measure, but it needs the product's source and deploy credentials, changes production, and every "
+                    "reader's visit becomes something the product records."),
+            tags=["software", "changes_product", f"writes_to_product:{host}", "commit"],
+            estimates=RouteEstimates(expected_upside=scale * 0.95, success_probability=0.35, time_cost_hours=6.0,
+                                     reversibility=0.5, optionality=0.5, risk=0.45, authority_cost=0.85,
+                                     information_gain=0.5),
+            estimate_rationale={"success_probability": "the product's source is not reachable from here; deploy "
+                                                       "credentials and a production change need the principal"},
+            operations=[OperationSpec(key="sw.human.source", goal="Grant access to the product's source and deployment",
+                                      tool="human", action="perform",
+                                      inputs={"required_action": f"Give Regent write access to {host}'s source repository"
+                                                                 " and a deploy token", "estimated_time_seconds": 900,
+                                              "kind": "identity"},
+                                      verification=VerificationSpec(method="human_confirmed"))]))
 
     best = max(readable, key=lambda p: coverage_estimate(need, inv, [p["id"]]), default=None)
     routes.append(RouteProposal(

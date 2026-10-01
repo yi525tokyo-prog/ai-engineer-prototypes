@@ -83,15 +83,46 @@ def resolve(db: Session, need: dict[str, Any], *, request_id: str, transport=Non
     out: dict[str, Any] = {"subjects": [], "principal": principal.evidence()}
     try:
         for subj in need.get("subjects", []):
+            if subj.get("kind") == "place":
+                out["subjects"].append(_resolve_place(fetcher, subj, log))
+                continue
             if subj.get("kind") not in ("product", "website", "organization", "dataset", "other"):
                 out["subjects"].append({"name": subj["name"], "kind": subj.get("kind"), "skipped":
-                                        "not a software subject: resolved by other acquisition"})
+                                        "a person: nothing to look up on the public web"})
+                continue
+            if subj.get("kind") == "other" and not probe.looks_like_name(subj["name"]):
+                out["subjects"].append({"name": subj["name"], "kind": "topic", "skipped":
+                                        "a topic, not a named thing: it has no site of its own to find",
+                                        "deployments": []})
                 continue
             out["subjects"].append(_resolve_one(db, fetcher, store, subj, request_id, country, log, max_probes))
     finally:
         fetcher.close()
     db.flush()
     return out
+
+
+GEOCODER = "https://geocoding-api.open-meteo.com/v1/search?count=5&format=json&language=en&name="
+
+
+def _resolve_place(fetcher, subj, log) -> dict[str, Any]:
+    """A place becomes coordinates, country and time zone (public geocoder, GeoNames data); the
+    most populous match wins and the alternatives are kept."""
+    from urllib.parse import quote
+
+    data = fetcher.get_json(GEOCODER + quote(subj["name"])) or {}
+    hits = sorted(data.get("results") or [], key=lambda h: -(h.get("population") or 0))
+    if not hits:
+        log("resolve", f"place '{subj['name']}' not found by the geocoder")
+        return {"name": subj["name"], "kind": "place", "resolved": False, "deployments": []}
+    h = hits[0]
+    place = {k: h.get(k) for k in ("name", "latitude", "longitude", "country_code", "country", "admin1", "timezone",
+                                   "population", "elevation")}
+    log("resolve", f"place '{subj['name']}' -> {place['name']}, {place.get('admin1')}, {place.get('country_code')} "
+                   f"({place['latitude']:.3f}, {place['longitude']:.3f}, {place.get('timezone')})")
+    return {"name": subj["name"], "kind": "place", "resolved": True, "place": place, "deployments": [],
+            "alternatives": [f"{x.get('name')}, {x.get('admin1')}, {x.get('country_code')}" for x in hits[1:4]],
+            "source": GEOCODER + subj["name"]}
 
 
 def _resolve_one(db, fetcher, store, subj, request_id, country, log, max_probes) -> dict[str, Any]:
@@ -246,7 +277,7 @@ def _read_endpoints(db, fetcher, store, dep, fp, request_id, log) -> list[dict[s
 
 
 def _trim(data: Any, depth: int = 0) -> Any:
-    if depth > 3:
+    if depth > 8:
         return "…"
     if isinstance(data, dict):
         return {k: _trim(v, depth + 1) for k, v in list(data.items())[:40]}
@@ -269,7 +300,7 @@ SEMANTICS_SCHEMA: dict[str, Any] = {
                 "meaning": {"type": "string"},
                 "counts": {"type": "string", "enum": ["people", "actions", "items", "money", "time", "other"]},
                 "relation_to_need": {"type": "string", "enum": ["direct", "lower_bound", "upper_bound",
-                                                                "activity_signal", "unrelated"]},
+                                                                "activity_signal", "context", "unrelated"]},
                 "question": {"type": ["string", "null"], "description": "id of the need question it bears on"},
                 "time_semantics": {"type": "string", "enum": ["cumulative", "resets_daily", "snapshot",
                                                               "event_list", "unknown"]},
@@ -296,7 +327,9 @@ need (questions with precise definitions) and what was observed (public JSON end
 with the code around each call and a sample response; the product's stated commitments; platform sources that exist
 but need the principal's access, described by their documented fields), say for each numeric or event-list field
 that could bear on the questions what it measures and how it relates to the need. For a platform source use its
-"endpoint" value (connector:<id>) and the field name as path, and quote its documentation as evidence. Be strict: a
+"endpoint" value (connector:<id>) and the field name as path, and quote its documentation as evidence. For a value
+inside a JSON array give the element's path with its index (e.g. "daily.temperature_2m_max.0" for the first day);
+use relation "direct" for a value that answers a question as it stands and "context" for inputs to a decision. Be strict: a
 number that counts something other than people using this product (e.g. counts from an upstream catalogue, sizes,
 budgets, caps) is 'unrelated' even if large. Distinct paying or contributing people are a 'lower_bound' on real
 users; counts of actions are an 'activity_signal', not people. Quote evidence verbatim from the input. Also list the
@@ -304,12 +337,23 @@ product's commitments that constrain how usage may be measured, and any other so
 
 
 def inventory(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, reasoner: Reasoner | None = None,
-              mission_id: str | None = None, log=None) -> dict[str, Any]:
+              mission_id: str | None = None, log=None, request_id: str | None = None,
+              transport=None) -> dict[str, Any]:
+    from regent.software import sources as S
+    from regent.software.compose import source_id
+
     log = log or (lambda *a, **k: None)
     r = reasoner or get_reasoner()
     deployments = [d for s in resolved.get("subjects", []) for d in s.get("deployments", [])]
-    endpoints = [ep for d in deployments for ep in d["endpoints"]
+    endpoints = [{**ep, "origin": "product"} for d in deployments for ep in d["endpoints"]
                  if ep.get("json") and ep.get("status") == 200 and not ep.get("same_as_index")]
+    fetcher = Fetcher(db, request_id=request_id, transport=transport, allow_browser=transport is None,
+                      min_interval_s=0.5)
+    try:
+        proposals = S.propose(fetcher, need, resolved, r, mission_id=mission_id, log=log)
+    finally:
+        fetcher.close()
+    endpoints += proposals["apis"]
     promises = [p for d in deployments for p in d["fingerprint"].get("promises", [])]
     payload = {
         "need": {"sentence": need.get("sentence"), "questions": need.get("questions"),
@@ -353,11 +397,51 @@ def inventory(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, re
             conn = C.CONNECTORS.get(f["endpoint"].split(":", 1)[1])
             f["path_exists"] = bool(conn and f.get("path") in conn.fields)
         else:
-            f["path_exists"] = bool(ep and _shape_has(ep["shape"], f.get("path", "")))
+            f["path_exists"] = bool(ep and S.shape_has(ep["shape"], f.get("path", "")))
+            f["origin"] = ep.get("origin", "product") if ep else "product"
         if not f["path_exists"]:
             f["relation_to_need"] = "unrelated"
             f.setdefault("caveats", []).append("no such field in the observed response")
         fields.append(f)
+    # readings of existing services' pages: already verified against the live page text
+    for page in proposals["pages"]:
+        for rd in page["readings"]:
+            if rd.get("relation_to_need") == "unrelated":
+                continue
+            fields.append({"endpoint": page["url"], "connector": "html_page", "path": rd["name"],
+                           "pattern": rd["pattern"], "meaning": rd["meaning"], "question": rd.get("question"),
+                           "relation_to_need": rd.get("relation_to_need", "context"), "counts": rd.get("counts"),
+                           "time_semantics": "snapshot", "evidence": rd["evidence"], "evidence_found": True,
+                           "path_exists": True, "confidence": 0.7, "origin": "page", "service": page.get("name"),
+                           "caveats": [f"read from {page.get('name')}'s page; breaks if its layout changes"]})
+    # questions referred to by text become ids; values' actual types decide how they behave over time
+    from regent.software.need import question_id
+
+    for f in fields:
+        f["question"] = question_id(need, f.get("question"))
+        if f.get("origin") in ("product", "api") and not str(f.get("endpoint", "")).startswith("connector:"):
+            ep = next((e for e in endpoints if e["url"] == f["endpoint"]), None)
+            v = C.json_path(ep["sample"], f["path"]) if ep else None
+            f["value_type"] = "list" if isinstance(v, list) else type(v).__name__
+            if f.get("time_semantics") == "event_list" and not isinstance(v, list):
+                f["time_semantics"] = "snapshot"
+    # live values of every admitted field, for decision rules
+    refs: dict[str, Any] = {}
+    for f in fields:
+        if f.get("relation_to_need") == "unrelated" or not f.get("path_exists") or \
+                str(f.get("endpoint", "")).startswith("connector:") or float(f.get("confidence") or 0) < 0.3:
+            continue          # rules may only read fields the composer will accept
+        ref = f"{source_id(f['endpoint'])}:{f['path']}"
+        f["_ref"] = ref
+        if f.get("origin") == "page":
+            page = next(p for p in proposals["pages"] if p["url"] == f["endpoint"])
+            refs[ref] = next(rd["value"] for rd in page["readings"] if rd["name"] == f["path"])
+        else:
+            ep = next((e for e in endpoints if e["url"] == f["endpoint"]), None)
+            v = C.json_path(ep["sample"], f["path"]) if ep else None
+            if isinstance(v, (int, float, str, bool)):
+                refs[ref] = v
+    rules = S.decision_rules(need, fields, refs, r, mission_id=mission_id)
     constraints = []
     for c in sem.get("constraints", []):
         ev = (c.get("evidence") or "").strip()
@@ -372,12 +456,17 @@ def inventory(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, re
                 (conn.adds_client_code and {"adds_client_code", "third_party_tracking"} & set(c["forbids"])))]
             platform_sources.append({**conn.describe(), "params": params, "host": d["host"],
                                      "forbidden_by": forbidden})
-    existing = [{"id": c.id, "slug": c.slug, "title": c.title, "status": c.status, "coverage": c.coverage,
-                 "signature": c.signature} for c in K.find(db, signature(need))]
+    existing = need.get("reuse") or []
     inv = {"public_fields": fields, "public_endpoints": [{k: ep[k] for k in ("url", "status", "shape")}
                                                         for ep in endpoints],
            "platform_sources": platform_sources, "constraints": constraints,
            "other_sources": sem.get("other_sources", []), "existing_capabilities": existing, "semantics": meta,
+           "proposals": {"apis": [a["url"] for a in proposals["apis"]],
+                         "pages": [{k: p[k] for k in ("url", "name", "answers_question")} for p in proposals["pages"]],
+                         "rejected": proposals["rejected"], "meta": proposals["meta"]},
+           "decision_rules": rules.get("rules", []), "rejected_rules": rules.get("rejected", []),
+           "subjects": [{k: v for k, v in x.items() if k in ("name", "kind", "place", "resolved")}
+                        for x in resolved.get("subjects", [])],
            "deployments": [{"host": d["host"], "url": d["url"], "platforms": d["fingerprint"]["platforms"],
                             "analytics": d["fingerprint"]["analytics"], "owner_evidence": d["owner_evidence"]}
                            for d in deployments]}

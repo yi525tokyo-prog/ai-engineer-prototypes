@@ -38,7 +38,7 @@ from regent.runtime import Services, get_services
 SELF_EVENTS = {"loop_tick", "routes_ranked", "operation_planned", "operation_started", "operation_verified",
                "evidence_recorded", "route_selected", "plan_changed", "routes_generated", "mission_status_changed",
                "operation_cancelled", "route_invalidated", "capability_missing", "tool_succeeded", "tool_failed",
-               "operation_rerouted", "human_interrupt_raised"}
+               "operation_rerouted", "human_interrupt_raised", "principal_notified"}
 
 
 @dataclass
@@ -227,7 +227,9 @@ class RegentLoop:
         m.last_event_seq_seen = self.events.head()
         m.attrs = {**(m.attrs or {}), "last_tick": {"tick": m.tick_count, "phases": rep.phases, "status": status}}
         m.updated_at = utcnow()
-        self.log.record_model_calls(self.services.providers.drain_calls())
+        from regent.software.reasoner import get_reasoner
+
+        self.log.record_model_calls(self.services.providers.drain_calls() + get_reasoner().drain_calls())
         self.events.append("loop_tick", {"mission_id": m.id, "tick": m.tick_count, "status": status,
                                          "progress": rep.progress}, source="regent", mission_id=m.id)
         m.last_event_seq_seen = self.events.head()
@@ -248,6 +250,7 @@ class RegentLoop:
 
     def run_all(self, max_passes: int = 6, max_ticks: int = 8) -> dict[str, list[TickReport]]:
         out: dict[str, list[TickReport]] = {}
+        self.maintain()
         for _ in range(max_passes):
             progressed = False
             for m in self.graph.active():
@@ -265,6 +268,17 @@ class RegentLoop:
             if not progressed:
                 break
         return out
+
+    def maintain(self) -> list[str]:
+        """Keep the capabilities Regent built current, independent of any mission's status."""
+        try:
+            from regent.software.domain import maintain
+
+            self.db.commit()
+            return maintain(self.db)
+        except Exception as e:                      # maintenance must never stop the loop
+            self.db.rollback()
+            return [f"maintenance failed: {type(e).__name__}: {e}"[:200]]
 
     # --------------------------------------------------------------- helpers
 

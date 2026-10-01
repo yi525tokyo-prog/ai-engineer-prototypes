@@ -77,7 +77,8 @@ def run(db: Session, cap: SwCapability, *, services: Any = None, collect: bool =
 def _spec_checks(spec: dict[str, Any], need: dict[str, Any]) -> list[dict[str, Any]]:
     out = []
     declared = {f"{s['id']}:{p}" for s in spec.get("sources", []) for p in
-                ((s.get("params") or {}).get("fields") or [f["path"] for f in s.get("fields", [])])}
+                ((s.get("params") or {}).get("fields") or list(((s.get("params") or {}).get("patterns") or {}))
+                 or [f["path"] for f in s.get("fields", [])])}
     bad = []
     for m in spec.get("metrics", []):
         try:
@@ -122,11 +123,11 @@ def _source_checks(db: Session, cap: SwCapability) -> list[dict[str, Any]]:
         if ob is None or ob.status != "ok":
             out.append(_check(f"source {s['id']} answers", False, ob.error if ob else "never read", source=s["id"]))
             continue
-        fields = (s.get("params") or {}).get("fields") or []
+        fields = (s.get("params") or {}).get("fields") or list(((s.get("params") or {}).get("patterns") or {}).keys())
         missing = [f for f in fields if (ob.fields or {}).get(f) is None]
         out.append(_check(f"source {s['id']} answers with every declared field", not missing,
                           f"missing {missing}" if missing else f"{len(fields)} fields", source=s["id"]))
-        if s["connector"] == "http_json":
+        if s["connector"] in ("http_json", "html_page"):
             out.append(_independent_read(s, ob))
         else:
             out.append(_rerun_agrees(s, ob))
@@ -149,25 +150,43 @@ def _rerun_agrees(s: dict[str, Any], ob: SwObservation) -> dict[str, Any]:
 def _independent_read(s: dict[str, Any], ob: SwObservation) -> dict[str, Any]:
     """Regent re-reads the source itself with a plain HTTP client and compares."""
     url = (s.get("params") or {}).get("url")
+    html_page = s["connector"] == "html_page"
     try:
         with httpx.Client(timeout=20, follow_redirects=True, transport=TRANSPORT,
                           headers={"User-Agent": C.USER_AGENT}) as c:
-            data = c.get(url).json()
+            resp = c.get(url)
+            data = C.extract_patterns(C.page_text(resp.text), (s.get("params") or {}).get("patterns") or {}) \
+                if html_page else resp.json()
     except Exception as e:
         return _check(f"independent read of {s['id']} agrees", False, f"{type(e).__name__}: {e}", source=s["id"])
     diffs = []
-    for f in (s.get("params") or {}).get("fields") or []:
-        a, b = (ob.fields or {}).get(f), C.json_path(data, f)
+    names = list(((s.get("params") or {}).get("patterns") or {}).keys()) if html_page else \
+        (s.get("params") or {}).get("fields") or []
+    for f in names:
+        a, b = (ob.fields or {}).get(f), (data.get(f) if html_page else C.json_path(data, f))
         if isinstance(a, (int, float)) and isinstance(b, (int, float)):
             if abs(a - b) > max(1.0, 0.05 * abs(b)):
                 diffs.append(f"{f}: capability {a} vs direct {b}")
         elif isinstance(a, list) and isinstance(b, list):
             if a and b and json.dumps(a[0], sort_keys=True) != json.dumps(b[0], sort_keys=True) and len(a) == len(b):
                 diffs.append(f"{f}: first item differs")
+        elif isinstance(a, str) and isinstance(b, str) and _close_times(a, b):
+            continue                       # a timestamp that moved between two reads moments apart
         elif a != b and not (a is None and b is None):
             diffs.append(f"{f}: {str(a)[:40]} vs {str(b)[:40]}")
     return _check(f"independent read of {s['id']} agrees", not diffs,
                   "; ".join(diffs) or "every field matches a direct read", source=s["id"])
+
+
+def _close_times(a: str, b: str, tolerance_s: float = 3600) -> bool:
+    from datetime import datetime
+
+    try:
+        ta = datetime.fromisoformat(a.replace("Z", "+00:00"))
+        tb = datetime.fromisoformat(b.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return abs((ta - tb).total_seconds()) <= tolerance_s
 
 
 IDENTIFYING = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+|\b(?:\d{1,3}\.){3}\d{1,3}\b|\bcus_[A-Za-z0-9]{8,}")
