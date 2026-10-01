@@ -542,8 +542,13 @@ def propose(mission: Mission, world: World) -> list[RouteProposal]:
                 routes.extend(pb(mission, world))
     from regent.acquisition.domain import for_mission
 
+    complete = False
     for adapter in for_mission(mission):
-        routes.extend(adapter.strategies(mission, world))
-    if len(routes) < 3:
+        own = adapter.strategies(mission, world)
+        routes.extend(own)
+        # a domain that analysed the mission and says its alternatives are the whole considered set
+        # (it re-examines the world itself when they fail) is not padded with generic placeholders
+        complete = complete or bool(own and getattr(adapter, "routes_are_complete", False))
+    if len(routes) < 3 and not complete:
         routes.extend(generic_archetypes(mission, world))
     return routes

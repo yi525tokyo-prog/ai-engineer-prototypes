@@ -63,7 +63,10 @@ DESIGN_SCHEMA: dict[str, Any] = {
                "properties": {"testid": {"type": "string"}, "purpose": {"type": "string"},
                               "page": {"type": "string"}}}},
         "scenarios": {"type": "array", "items": {"type": "object", "required": ["id", "requirement", "kind", "steps"],
-                      "properties": {"id": {"type": "string"}, "requirement": {"type": "string"},
+                      "properties": {"id": {"type": "string"},
+                                     "requirement": {"type": "string", "description": "the id(s) of the "
+                                                     "requirement(s) this scenario proves, exactly as given, "
+                                                     "space-separated"},
                                      "kind": {"type": "string", "enum": ["api", "browser", "negative"]},
                                      "steps": {"type": "array", "items": STEP}}}},
         "external_hosts": {"type": "array", "items": {"type": "string"},
@@ -100,8 +103,25 @@ def design(need: dict[str, Any], context: dict[str, Any], *, reasoner: Reasoner 
         return {"ok": False, "error": str(e)[:300]}
     d = ans.output
     problems = check(d, need, previous)
-    return {"ok": not problems, "design": d, "problems": problems,
+    first = None
+    if problems:      # rejected once, with Regent's reasons; the second answer is checked the same way
+        first = {"design": d, "problems": problems}
+        try:
+            ans = r.ask("app_design", INSTRUCTIONS + ("\n\n" + UPGRADE if previous else ""),
+                        {**payload, "rejected_design": d, "rejected_because": problems}, DESIGN_SCHEMA,
+                        budget_usd=2.0, mission_id=mission_id)
+            d = ans.output
+            problems = check(d, need, previous)
+        except ReasonerUnavailable:
+            pass
+    return {"ok": not problems, "design": d, "problems": problems, "first_rejected": first,
             "meta": {"by": ans.provider, "cost_usd": ans.cost_usd, "answer_key": ans.key}}
+
+
+def scenario_requirements(sc: dict[str, Any], ids: set[str]) -> set[str]:
+    """The requirement ids a scenario says it proves (designers write ``"r2 r3 browser flow"`` as
+    readily as ``"r2"``)."""
+    return {tok for tok in re.findall(r"[A-Za-z0-9_.-]+", str(sc.get("requirement") or "")) if tok in ids}
 
 
 def check(d: dict[str, Any], need: dict[str, Any], previous: dict[str, Any] | None = None) -> list[str]:
@@ -120,7 +140,8 @@ def check(d: dict[str, Any], need: dict[str, Any], previous: dict[str, Any] | No
                 problems.append(f"scenario {sc['id']} calls undeclared endpoint {st.get('api')}")
             if st["do"] in ("fill", "click") and st.get("target") not in testids:
                 problems.append(f"scenario {sc['id']} uses undeclared hook {st.get('target')}")
-    covered = {sc.get("requirement") for sc in d.get("scenarios", [])}
+    ids = {r["id"] for r in need.get("requirements", [])}
+    covered = {x for sc in d.get("scenarios", []) for x in scenario_requirements(sc, ids)}
     for r in need.get("requirements", []):
         if r.get("priority", "core") == "core" and r["id"] not in covered:
             problems.append(f"core requirement {r['id']} has no acceptance scenario")
@@ -147,9 +168,10 @@ def requirement_coverage(d: dict[str, Any], need: dict[str, Any], results: dict[
     core = [r["id"] for r in need.get("requirements", []) if r.get("priority", "core") == "core"]
     if not core:
         return 0.0
+    ids = {r["id"] for r in need.get("requirements", [])}
     ok = 0
     for rid in core:
-        scs = [sc["id"] for sc in d.get("scenarios", []) if sc.get("requirement") == rid]
+        scs = [sc["id"] for sc in d.get("scenarios", []) if rid in scenario_requirements(sc, ids)]
         if scs and all(results.get(s) for s in scs):
             ok += 1
     return round(ok / len(core), 3)

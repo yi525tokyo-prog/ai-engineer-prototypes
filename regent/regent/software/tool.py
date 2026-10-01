@@ -187,11 +187,12 @@ def _app_action(s, action: str, inputs: dict[str, Any], ctx: ToolContext) -> Too
         attrs["app_design"] = d["design"]
         m.attrs = attrs
         s.commit()
-        return ToolResult(status="ok", outputs={"designed": True, "endpoints": len(d["design"]["api"]),
+        return ToolResult(status="ok", outputs={"designed": True, "design": d["design"],
+                                                "endpoints": len(d["design"]["api"]),
                                                 "scenarios": len(d["design"]["scenarios"]), "name": d["design"]["name"]},
                           claims=[f"design {d['design']['name']}: {len(d['design']['api'])} endpoints, "
                                   f"{len(d['design']['scenarios'])} acceptance scenarios"])
-    design = attrs.get("app_design")
+    design = _accepted_design(s, ctx.mission_id) or attrs.get("app_design")
     if not design:
         return ToolResult(status="failed", error="no accepted design")
     agent = coding_agent()
@@ -244,6 +245,19 @@ def _app_action(s, action: str, inputs: dict[str, Any], ctx: ToolContext) -> Too
                              {"key": f"software.need.{ctx.mission_id}.coverage", "value": cov},
                              {"key": f"software.need.{ctx.mission_id}.capability", "value": cap.slug}],
                       claims=[f"application {cap.slug} v{version} live at {promo['url']}; coverage {cov:.2f}"])
+
+
+def _accepted_design(s, mission_id: str) -> dict[str, Any] | None:
+    """The design the mission's own design_app operation produced and Regent checked (the
+    operation record is the durable copy; the mission's attrs may be rewritten by the loop)."""
+    from regent.db import Operation
+
+    for o in s.scalars(select(Operation).where(Operation.mission_id == mission_id, Operation.tool == "software",
+                                               Operation.action == "design_app")
+                       .order_by(Operation.created_at.desc())):
+        if o.status in ("succeeded", "verified") and (o.outputs or {}).get("design"):
+            return o.outputs["design"]
+    return None
 
 
 USE_SCHEMA = {"type": "object", "required": ["calls", "verify"], "properties": {

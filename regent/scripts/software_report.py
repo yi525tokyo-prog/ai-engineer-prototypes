@@ -16,6 +16,32 @@ def _cost(run: dict[str, Any]) -> float:
     return round(sum(c["cost"] or 0 for c in run.get("model_calls", [])), 3)
 
 
+def _people_claims_earned(A: dict) -> bool:
+    metrics = (A.get("read") or {}).get("metrics", [])
+    for m in metrics:
+        rel = ((m.get("audit") or {}).get("relation")) or m.get("form")
+        if m.get("form") in ("lower_bound", "upper_bound", "exact", "range") and rel == "proxy":
+            return False
+        if m.get("form") == "proxy" and not str(m.get("label", "")).lower().startswith("proxy"):
+            return False
+    head = [m for m in metrics if m.get("headline")]
+    return bool(head)
+
+
+def _credential_check(inv: dict, open_hi: list[dict]) -> tuple[bool, str]:
+    """Asking the principal for a credential is worth their time only if what it unlocks earns a
+    bound or a measure; a credential that unlocks only proxies is not requested."""
+    earning = sorted({f["endpoint"].split(":", 1)[1] for f in inv.get("public_fields", [])
+                      if str(f.get("endpoint", "")).startswith("connector:")
+                      and f.get("relation_to_need") in ("measure", "lower_bound", "upper_bound", "direct")})
+    if earning:
+        ok = len(open_hi) == 1 and open_hi[0]["kind"] == "credential"
+        return ok, (f"exactly one human interrupt, for a credential that unlocks an earned answer ({', '.join(earning)})"
+                    + (f" (~{open_hi[0]['seconds']} s)" if open_hi else ""))
+    return (not open_hi, "no credential requested: every platform source the principal could unlock is only a proxy "
+                         f"for the question (open interrupts: {len(open_hi)})")
+
+
 def checks_lindy(A: dict, B: dict, C: dict) -> list[tuple[bool, str]]:
     cap = A.get("capability") or {}
     ver = cap.get("verification") or {}
@@ -35,9 +61,9 @@ def checks_lindy(A: dict, B: dict, C: dict) -> list[tuple[bool, str]]:
                                                       f"`{cap.get('tool')}`, coverage {cap.get('coverage')}"),
         (all(m.get("value") is None for m in blocked_metrics),
          f"no number is shown for a source Regent cannot read ({len(blocked_metrics)} metrics honestly blocked)"),
-        (len(open_hi) == 1 and open_hi[0]["kind"] == "credential",
-         "exactly one human interrupt, for a credential only the principal holds, with a machine-checkable resume "
-         "condition" + (f" (~{open_hi[0]['seconds']} s)" if open_hi else "")),
+        (_people_claims_earned(A), "every number about people is a form its audited premises earn; anything "
+                                   "else is labelled a proxy (the headline says Unknown when only proxies exist)"),
+        _credential_check(inv, open_hi),
         (A["human_time"]["active_seconds_spent"] < 30, f"active human time so far: "
                                                        f"{A['human_time']['active_seconds_spent']} s"),
         ("software.reuse" in {o["tool"] for o in B["operations"]} and "acquire.discover" not in

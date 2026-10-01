@@ -47,6 +47,9 @@ def _done(s: Session, mission_id: str, goal: str) -> AcqRequest | None:
 
 class SoftwareAdapter(DomainAdapter):
     name = "software"
+    # reuse, build, use-existing and by-hand routes are the considered set; when reuse fails the
+    # world is examined again and the full set is generated
+    routes_are_complete = True
     tags = ("software_need",)
     keywords = ()
 
