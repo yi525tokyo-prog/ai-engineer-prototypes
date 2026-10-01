@@ -316,12 +316,12 @@ names a provider, metric, framework, database, UI or deployment.
   (`REGENT_REASONER=replay:<dir>`). Answers are claims: quotes must be found in what Regent
   observed, field paths must exist, URLs must answer, regexes must reproduce their example on the
   live page, rules must parse and evaluate. Failures are fed back once ("rejected because …").
-- **Coding agent**: Claude Code with file-edit tools only, in its own workspace. Starting it is
-  a `COMMIT`-level act: it needs the principal's opt-in (`REGENT_CODING_AGENT=claude-code`) and an
-  approved operation. Its output (a reader + spec) is run by Regent in a subprocess and put
-  through the same acceptance suite. In this environment the harness's own permission policy
-  refused to start an autonomous coding agent, so this path is implemented but not exercised;
-  the `delegate` route competes in every run and loses on authority and success probability.
+- **Coding agent**: Claude Code with file-edit tools only (`Read,Write,Edit,Glob,Grep`), in its
+  own workspace with a minimal environment. It cannot run anything. Starting it is a
+  `COMMIT`-level act: it needs the principal's opt-in (`REGENT_CODING_AGENT=claude-code`) and an
+  approved operation (an authorization interrupt, or a standing grant). What it writes is an
+  untrusted artifact that Regent inspects, builds, tests, runs and accepts itself (see
+  *Applications* below).
 - **HTTP / browser / human**: the acquisition fetcher (robots.txt, honest UA, block detection),
   Playwright, and interrupts. `GET /api/software/resources` lists availability.
 
@@ -342,8 +342,28 @@ names a provider, metric, framework, database, UI or deployment.
 3. **inventory** (`discover.py`, `sources.py`): public data APIs and existing services are
    proposed by the reasoning worker and admitted only by use; a robots.txt disallow is final; a
    moved page is reached by following link texts. Each field gets a meaning and a relation to the
-   need (direct / lower bound / upper bound / activity signal / context / unrelated), backed by a
-   verbatim quote. Platform connectors the fingerprint makes applicable (Cloudflare analytics,
+   need, and Regent's **premise audit** (`semantics.py`) decides what it may claim. The worker
+   states, for each field, whether the premises a claim needs hold, each with a verbatim quote
+   that must be found in what Regent observed:
+   - membership: what is counted is the population asked about. For "real people" that means
+     human, external, and excluding bots, the operator and tests.
+   - distinctness: one unit per person.
+   - coverage: every member is counted.
+   - no merging: distinct people are never one unit.
+   - window.
+
+   Regent then derives the relation:
+   - a **measure** needs all of them;
+   - a **lower bound** needs membership, distinctness and window;
+   - an **upper bound** needs coverage, no merging and window;
+   - membership without distinctness earns only "at least one";
+   - everything else is a **proxy**, labelled as one, with what it lacks.
+
+   So payment events are not active users, distinct IPs are not an upper bound on humans (NAT
+   merges people, and bots and the operator are counted too), and test-mode events never become
+   real users. When only proxies remain, the headline is "Unknown" and the proxies sit below it.
+   The acceptance suite rejects any spec that states a bound its premises do not earn.
+   Platform connectors the fingerprint makes applicable (Cloudflare analytics,
    Stripe, Search Console, Plausible…) are listed with the credential and the smallest human action
    that unlocks them. Verified commitments ("No ads, no accounts, no tracking.") become **hard
    constraints** in the constitution. Yes/no questions get decision rules over admitted fields.
@@ -392,6 +412,80 @@ A credential interrupt's response field typed `secret` goes to the secret store
 principal's active seconds: writing the sentence (40 wpm) plus each interrupt (measured when the
 interface reports it, else Regent's estimate); open requests are reported separately.
 
+### Applications (`appdesign.py`, `appbuild.py`, `appservice.py`, `appaccept.py`, `appcap.py`)
+
+Some needs are not information at all. The analysis classifies each need:
+- **information**: wants to know something;
+- **tool**: wants an ability they keep using;
+- **action**: wants something done once.
+
+A tool or action need comes with requirements, each with an observable acceptance check, tied to
+the words it came from. Implied requirements are kept and marked.
+
+The inventory for a tool need is different:
+- the live endpoints the application could integrate;
+- existing products that could serve instead, with which requirements each meets as it is, what
+  account it needs and where the data would live;
+- existing capabilities.
+
+Routes compete as usual:
+- have it built;
+- use an existing product (an identity interrupt to sign up);
+- keep it by hand.
+
+When Regent already runs an application, the reuse judge (`reuse.py`) decides whether a new
+sentence is *the same need*, *can be done with it as it is* (`use_app`), or *belongs in it but needs
+a new version* (`extend_app`, which competes with "build a separate one").
+
+**design_app**: Regent's interface contract. It holds the entities, the endpoints with their ids,
+the UI's `data-testid` hooks, the auth scheme, the external hosts the app may call, and Regent's
+**own acceptance scenarios**. These are API calls, real-browser steps, `restart_app` and negative
+checks, tied to requirements. The design is a claim, so Regent checks it:
+- there is a health endpoint;
+- every scenario uses only declared endpoints and hooks;
+- every core requirement has a scenario;
+- a privacy requirement implies a credential and a negative scenario;
+- some scenario proves data survives a restart;
+- an upgrade drops no endpoint of the version in use.
+
+**build_app / extend_app** (`appbuild.AppBuild`):
+1. **delegate**: the worker gets the design, the scenarios Regent will run and the runtime
+   contract. The contract covers:
+   - `regent.json` with build/test/start/health commands;
+   - `PORT` and `DATA_DIR`;
+   - a passphrase login returning a bearer token;
+   - no tracking, CDNs or undeclared hosts.
+
+   No framework, language or database is prescribed.
+2. **inspect**: manifest valid, tests present, no analytics signatures, no calls to undeclared
+   hosts; files, lines and languages are recorded.
+3. **build** (dependency install, with a timeout), then **test** (the worker's own suite).
+4. **stage**: the app starts on a scratch data directory with a passphrase Regent generated and
+   keeps in its secret store. For an upgrade it starts on a *copy of the live data*.
+5. **accept**: Regent runs its scenarios against the running process: HTTP, headless Chromium
+   on the real UI, a process restart in the middle, and negative checks. For an upgrade, every
+   record the live version returns must still be returned.
+6. **isolate**: the running app wrote nothing outside `DATA_DIR`.
+7. **repair**: every failure goes back to the worker as `REPAIR-n.md`, with the failing step,
+   the page content and the server log. Rounds are bounded.
+8. **promote**:
+   - the live data is backed up and the previous version stopped;
+   - the new version starts on the live data at the same port;
+   - every record is compared;
+   - if anything is lost, the backup is restored and the previous version restarted.
+9. **register**: a `SwCapability` with `implementation="application"`. Its spec carries the design,
+   version, workspace, data directory, port and URL; its verification is Regent's acceptance
+   record; its coverage is the share of core requirements whose scenarios all passed. Each
+   endpoint becomes a tool action (`app_<slug>.<endpoint>`), and the principal is told the URL and
+   where the passphrase is kept.
+
+**use_app**: the reasoning worker plans the calls for the new request. It sees only the
+application's endpoints and its current data, and uses `{var}` references between calls. Regent
+rejects calls to endpoints that do not exist, makes the calls, and then **reads back** that the
+request took effect.
+
+The maintenance pass restarts a live application that is down.
+
 ## Global brain and skills
 
 Every row has a `domain`: private, shared or global. `LocalGlobalBrain.publish_fact` and
@@ -410,14 +504,16 @@ when the same failure mode still holds.
 
 ## Current limits
 
-- **Software needs.** The coding-agent route is implemented but was not run here (the
-  environment's permission policy refused to start an autonomous agent; it needs the principal's
-  opt-in and approval). The Cloudflare, Stripe, Search Console and Plausible connectors are real
-  clients exercised only against their documented response shapes in tests: no credentials were
-  available, and no number from them was ever shown. The reasoning worker's answers vary between
-  runs; Regent's checks make that variance visible (the benchmark records which sources were
-  admitted and why others were rejected) rather than eliminating it. Product discovery without a
-  search API relies on the product's name being in its hostname.
+- **Software needs.** The Cloudflare, Stripe, Search Console and Plausible connectors are real
+  clients. They were exercised only against their documented response shapes in tests: no
+  credentials were available, and no number from them was ever shown. The reasoning worker's
+  answers vary between runs. Regent's checks make that variance visible (the benchmark records
+  which sources were admitted and why others were rejected) rather than eliminating it. Without a
+  search API, product discovery relies on the product's name being in its hostname.
+- **Applications run on this machine only.** "Usable from any browser" also needs public hosting
+  (a domain, TLS, a host account). That is an identity and payment decision for the principal,
+  and it is reported as not done. Acceptance covers only what the scenarios cover. The worker's
+  own tests are evidence about its intent, not Regent's verdict.
 
 - **No web-search engine.** Every HTML search engine reachable from this environment disallows
   bots in robots.txt or serves a bot challenge. Discovery therefore navigates from known portal

@@ -29,6 +29,8 @@ class MissionGraph:
                tags: list[str] | None = None, value_scale: float = 1.0, horizon_days: float = 30.0,
                parent_id: str | None = None, attrs: dict[str, Any] | None = None, mission_id: str | None = None,
                source: str = "user") -> Mission:
+        if len(title) > 200:       # the title is a label; the full sentence stays in the objective
+            title = title[:197].rsplit(" ", 1)[0] + "..."
         m = Mission(id=mission_id or new_id("mis"), parent_id=parent_id, title=title, objective=objective,
                     success_criteria=success_criteria or [], tags=tags or [], value_scale=value_scale,
                     horizon_days=horizon_days, attrs=attrs or {})

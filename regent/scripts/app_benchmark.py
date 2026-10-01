@@ -36,7 +36,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 M1 = ("I read old books on LindyBooks on my phone and keep losing track of where I stopped and what I thought about "
-      "them. I want a private place, usable from any browser, to keep my reading and my notes.")
+      "them. I want my own private place, usable from any browser, where I can pick books from the LindyBooks "
+      "catalogue and keep my place and my notes - not in some other company's app.")
 M2 = "Put The Odyssey on my reading list - I'm on book 3 - and note that the Butler translation reads well."
 M2B = "Add Moby-Dick too: I'm at chapter 12, and the whale-anatomy chapters drag."
 M3 = "I want to send a friend a link to my notes on one book, without them seeing anything else."
