@@ -64,6 +64,12 @@ def _find(data: Any, key: str, value: Any) -> bool:
 
 
 def _match(actual: Any, expected: Any) -> bool:
+    """Structural containment: an expected object is a subset of the actual one, an expected list
+    is matched item by item by some actual item; strings match case-insensitively as substrings."""
+    if isinstance(expected, dict):
+        return isinstance(actual, dict) and all(k in actual and _match(actual[k], v) for k, v in expected.items())
+    if isinstance(expected, list):
+        return isinstance(actual, list) and all(any(_match(a, e) for a in actual) for e in expected)
     if isinstance(expected, str) and isinstance(actual, str):
         return expected.lower() in actual.lower()
     if isinstance(expected, (int, float)) and not isinstance(expected, bool) and isinstance(actual, (int, float)):

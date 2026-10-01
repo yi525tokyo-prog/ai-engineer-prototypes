@@ -370,3 +370,10 @@ def test_fields_that_change_between_two_reads_are_not_records():
     after = {"/api/export": {"exported_at": "t3", "books": [{"id": 1, "title": "The Odyssey", "shared": False}]}}
     assert A.preserved(a, after, ignore=v) == [] and A.preserved(a, after) != []
     assert A.preserved(a, {"/api/export": {"exported_at": "t3", "books": []}}, ignore=v)
+
+
+def test_read_back_matches_structure_not_exact_lists():
+    data = {"notes": [{"id": 1, "book_id": 1, "text": "The Butler translation reads well.", "position": None}]}
+    assert A.contains(data, {"notes": [{"text": "The Butler translation reads well."}]}) == []
+    assert A.contains(data, {"notes": [{"text": "Pope"}]}) != []
+    assert A.contains(data, {"notes": []}) == []
