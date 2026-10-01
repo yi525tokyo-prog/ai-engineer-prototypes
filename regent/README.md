@@ -97,8 +97,11 @@ All of this is exercised end to end by the test suite, against PostgreSQL and re
     - composes a capability from what the product publishes, verifies it with its own acceptance
       suite (independent reads, a real browser), and activates it as a tool, a glance view and
       world facts;
-    - asks the principal for one thing, a read-only Cloudflare token (~3 min), with a resume
-      condition, and shows "not connected" instead of any number until then;
+    - audits what each measurement can support (`semantics.py`). Payment events are not active
+      users, distinct IPs are not an upper bound on humans, and test-mode events are not real
+      users. Every such figure is shown as a labelled **proxy**, and the headline says
+      "Unknown". Regent therefore does not ask the principal for a credential that would only
+      unlock another proxy;
     - reuses the capability when the need comes back in other words, and keeps it current on its own.
 
     A second, different need ("Every morning, tell me whether it's a good day to dry laundry
@@ -107,12 +110,36 @@ All of this is exercised end to end by the test suite, against PostgreSQL and re
     [Software needs](docs/ARCHITECTURE.md#software-needs-and-capabilities-regentsoftware) and the
     [benchmark](docs/benchmarks/software-needs.md).
 
+  - **Applications Regent has built, runs and keeps using.** The starting sentence is "I want my
+    own private place, usable from any browser, where I can pick books from the LindyBooks
+    catalogue and keep my place and my notes - not in some other company's app". Regent finds
+    that no existing product does this; Notion and Memos compete and lose. It then:
+    - designs the interface and its own acceptance scenarios;
+    - delegates construction to a file-only coding worker, which delivered a Node app of 2,152
+      lines;
+    - inspects, builds, tests, runs and browser-accepts it. Its privacy check caught the first
+      version exposing the shelf; the worker repaired it in 3 rounds;
+    - promotes it, registers it as a tool and keeps it running.
+
+    Later sentences use it through its API ("Put The Odyssey on my reading list…"), and a
+    sharing need **extends it to v2**. v2 is tested on a copy of the real data against v1's
+    scenarios, promoted with a backup, and loses no record. Opened by a stranger, the share link
+    shows that book's notes and nothing else. When the live process is killed, maintenance
+    brings it back. This was run for real from cold state; see the
+    [benchmark](docs/benchmarks/application-capability.md) and
+    [Applications](docs/ARCHITECTURE.md#applications-appdesignpy-appbuildpy-appservicepy-appacceptpy-appcappy).
+
 ## Software needs
 
 ```bash
 # fresh DB, only the sentences, live web; the reasoning worker is the Claude Code CLI (tool-less)
 REGENT_DATABASE_URL=postgresql+psycopg://regent:regent@localhost:5432/regent_swbench \
   python scripts/software_benchmark.py --out docs/benchmarks/software-needs.md
+
+# applications: the coding worker runs for real (principal opt-in), approvals are counted as human time
+REGENT_DATABASE_URL=postgresql+psycopg://regent:regent@localhost:5432/regent_appbench \
+REGENT_WORKSPACE=var/appbench REGENT_CODING_AGENT=claude-code \
+  python scripts/app_benchmark.py --out docs/benchmarks/application-capability.md
 ```
 
 API: `/software/{slug}` (glance view), `/api/software/capabilities[/{slug}[/collect]]`,
@@ -206,7 +233,7 @@ is used instead, and the gap is listed at `GET /api/system` and in the cockpit's
 | `STRIPE_API_KEY` | Payments | Capability stays *missing*; acquisition options are listed |
 | `REGENT_AGENT_ENDPOINT`, `REGENT_GLOBAL_BRAIN_URL` | External agent delegation, distributed global brain | Unavailable / local global domain |
 | `REGENT_REASONER` (`auto` / `claude-code` / `replay:<dir>` / `off`) | Need analysis, field meanings, source proposals, decision rules via the Claude Code CLI | Local parser; software needs get weaker analyses and say so |
-| `REGENT_CODING_AGENT=claude-code` | The principal's opt-in to an autonomous coding agent (each run still needs an approved operation) | The `delegate` route is listed but cannot be started |
+| `REGENT_CODING_AGENT=claude-code` | The principal's opt-in to an autonomous coding agent (each run still needs an approved operation) | Application-building routes are listed but cannot be started |
 | `CLOUDFLARE_API_TOKEN`, `STRIPE_RESTRICTED_KEY`, `GOOGLE_SEARCH_CONSOLE_TOKEN`, `PLAUSIBLE_API_KEY` | Platform sources for software capabilities (or provided through a credential interrupt) | The source shows "not connected"; never a number |
 
 ## Layout

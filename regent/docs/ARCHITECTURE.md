@@ -439,16 +439,28 @@ a new version* (`extend_app`, which competes with "build a separate one").
 
 **design_app**: Regent's interface contract. It holds the entities, the endpoints with their ids,
 the UI's `data-testid` hooks, the auth scheme, the external hosts the app may call, and Regent's
-**own acceptance scenarios**. These are API calls, real-browser steps, `restart_app` and negative
-checks, tied to requirements. The design is a claim, so Regent checks it:
+**own acceptance scenarios**. These are API calls (with query strings), real-browser steps,
+`restart_app`, `expect_visible` on hooks, and negative checks, tied to requirements. Each scenario
+runs against a freshly started, *empty* instance, so it creates what it relies on. `{passphrase}`
+stands for the credential.
+
+The design is a claim, so Regent checks it:
 - there is a health endpoint;
 - every scenario uses only declared endpoints and hooks;
 - every core requirement has a scenario;
 - a privacy requirement implies a credential and a negative scenario;
 - some scenario proves data survives a restart;
+- no scenario contains a placeholder value or a literal credential;
 - an upgrade drops no endpoint of the version in use.
 
-**build_app / extend_app** (`appbuild.AppBuild`):
+A rejected design is sent back once with the reasons.
+
+For an upgrade, Regent itself carries the version in use's scenarios into the new design as
+**regressions**, with endpoint ids mapped by method and path. Its UI hooks and allowed hosts
+carry over too. The new mission's requirement ids are namespaced, so the capability keeps both
+sets.
+
+**build_app / extend_app** (`appbuild.AppBuild`) run once each; the repair loop is inside:
 1. **delegate**: the worker gets the design, the scenarios Regent will run and the runtime
    contract. The contract covers:
    - `regent.json` with build/test/start/health commands;
@@ -457,34 +469,62 @@ checks, tied to requirements. The design is a claim, so Regent checks it:
    - no tracking, CDNs or undeclared hosts.
 
    No framework, language or database is prescribed.
-2. **inspect**: manifest valid, tests present, no analytics signatures, no calls to undeclared
-   hosts; files, lines and languages are recorded.
+2. **inspect**: manifest valid, tests present, no analytics signatures, nothing loaded from or
+   called on undeclared hosts. A plain link is not a call; stylesheets, scripts, fetch, XHR and
+   sockets are. Files, lines and languages are recorded. Only a missing manifest stops the round
+   here.
 3. **build** (dependency install, with a timeout), then **test** (the worker's own suite).
-4. **stage**: the app starts on a scratch data directory with a passphrase Regent generated and
-   keeps in its secret store. For an upgrade it starts on a *copy of the live data*.
-5. **accept**: Regent runs its scenarios against the running process: HTTP, headless Chromium
-   on the real UI, a process restart in the middle, and negative checks. For an upgrade, every
-   record the live version returns must still be returned.
+4. **accept**: Regent starts the app with a passphrase it generated and keeps in its secret
+   store, then runs every scenario on its own fresh instance. Steps go over HTTP and through
+   headless Chromium at a phone-sized viewport, with process restarts mid-scenario. Read-back
+   is structural: expected objects are subsets, and expected list items must be found.
+5. **migration** (upgrades): this version starts on a *copy of the live data* and must return
+   every record the version in use returns. Fields that differ between two reads of unchanged
+   data, such as `exported_at`, are recognised as volatile and ignored.
 6. **isolate**: the running app wrote nothing outside `DATA_DIR`.
 7. **repair**: every failure goes back to the worker as `REPAIR-n.md`, with the failing step,
-   the page content and the server log. Rounds are bounded.
-8. **promote**:
+   the page and the server log. Rounds are bounded.
+8. **disputes**: the worker may contest a check in `DISPUTES.json` instead of working around
+   it. Regent judges each dispute against the design and the observed failure (a reasoning
+   question). A corrected scenario is applied only if it keeps the same id and kind, covers the
+   same requirements, has no fewer checks, and adds no design problem (`not_weaker`). Every
+   dispute is recorded with the capability, upheld or not.
+
+   In the first real runs, the worker declined to make the server accept a placeholder
+   passphrase ("that would be a backdoor") and disputed the scenario instead. Most disputes
+   were upheld. They exposed Regent's own defects:
+   - shared scenario state;
+   - placeholder values;
+   - a missing query-string step;
+   - volatile fields.
+9. **promote**:
    - the live data is backed up and the previous version stopped;
    - the new version starts on the live data at the same port;
    - every record is compared;
-   - if anything is lost, the backup is restored and the previous version restarted.
-9. **register**: a `SwCapability` with `implementation="application"`. Its spec carries the design,
-   version, workspace, data directory, port and URL; its verification is Regent's acceptance
-   record; its coverage is the share of core requirements whose scenarios all passed. Each
-   endpoint becomes a tool action (`app_<slug>.<endpoint>`), and the principal is told the URL and
-   where the passphrase is kept.
+   - on loss, the backup is restored and the previous version restarted.
+10. **register**: a `SwCapability` with `implementation="application"`. Its spec carries the
+    design (with any scenario revisions), version, workspace, data directory, port and URL; its
+    verification is Regent's acceptance record. Each endpoint becomes a tool action
+    (`app_<slug>.<endpoint>`), and the principal is told the URL and where the passphrase is
+    kept.
 
-**use_app**: the reasoning worker plans the calls for the new request. It sees only the
-application's endpoints and its current data, and uses `{var}` references between calls. Regent
-rejects calls to endpoints that do not exist, makes the calls, and then **reads back** that the
-request took effect.
+**use_app**: the reasoning worker sees only the application's endpoints and its current data.
+It may ask for GET lookups first (e.g. find a catalogue id), then plans the calls with the
+answers. Regent:
+- rejects endpoints that do not exist;
+- makes the calls;
+- reads back that the request took effect;
+- tells the principal the outcome, for example the share link.
 
-The maintenance pass restarts a live application that is down.
+Lookups stay GET-only. An application judged "the same need" is used through its API, not read
+like a dashboard.
+
+**Lifecycle**: a running instance writes a pid file. A restarted Regent adopts a healthy instance
+of the expected version and stops anything else holding the port. The maintenance pass restarts
+a live application that is down.
+
+Benchmark: [`docs/benchmarks/application-capability.md`](benchmarks/application-capability.md).
+It covers five sentences, a real coding worker, a cold start, and the code that was delivered.
 
 ## Global brain and skills
 
