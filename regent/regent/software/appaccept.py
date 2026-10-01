@@ -108,7 +108,7 @@ class Runner:
                                    params={k: v for k, v in (query or {}).items() if v is not None} or None,
                                    headers=headers)
 
-    def run(self, scenarios: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    def run(self, scenarios: list[dict[str, Any]] | None = None, before_each=None) -> dict[str, Any]:
         results = []
         browser_needed = any(st["do"] in ("goto", "fill", "click", "expect_text", "expect_no_text", "reload",
                                           "login", "logout")
@@ -126,6 +126,14 @@ class Runner:
                 except Exception:
                     browser = pw.chromium.launch(headless=True, executable_path=_chromium_executable())
             for sc in scenarios or self.design.get("scenarios", []):
+                if before_each is not None:
+                    try:
+                        before_each(sc)
+                        self.token = None
+                    except Exception as e:      # noqa: BLE001 -- the scenario fails, the others still run
+                        results.append({"id": sc["id"], "requirement": sc.get("requirement"), "kind": sc.get("kind"),
+                                        "passed": False, "failed_step": 0, "error": str(e)[:300], "log": []})
+                        continue
                 # a phone-sized screen: the people these applications are for use them on phones
                 ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True) if browser else None
                 page = ctx.new_page() if ctx else None
@@ -292,14 +300,39 @@ def records(data: Any) -> list[dict[str, Any]]:
     return out
 
 
-def preserved(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
+def volatile(a: dict[str, Any], b: dict[str, Any]) -> set[str]:
+    """Field names whose values differ between two reads of the same, unchanged data (e.g. the
+    time of the request): they describe the response, not a record."""
+    out: set[str] = set()
+
+    def walk(x: Any, y: Any) -> None:
+        if isinstance(x, dict) and isinstance(y, dict):
+            for k in x:
+                if k in y and not isinstance(x[k], (dict, list)) and x[k] != y[k]:
+                    out.add(k)
+                elif k in y:
+                    walk(x[k], y[k])
+        elif isinstance(x, list) and isinstance(y, list):
+            for p, q in zip(x, y):
+                walk(p, q)
+
+    walk(a, b)
+    return out
+
+
+def preserved(before: dict[str, Any], after: dict[str, Any], ignore: set[str] | None = None) -> list[str]:
     """Every record an endpoint returned before must still be returned after, with its fields
-    (new fields may be added; volatile timestamps of the update itself are ignored)."""
+    (new fields may be added; volatile fields -- see ``volatile`` -- and timestamps of the update
+    itself are ignored)."""
     lost = []
+    ignore = ignore or set()
     for path, data in before.items():
         new = records(after.get(path))
         for rec in records(data):
-            keep = {k: v for k, v in rec.items() if not re.search(r"updated|modified|token|expires", k, re.I)}
+            keep = {k: v for k, v in rec.items() if k not in ignore
+                    and not re.search(r"updated|modified|token|expires", k, re.I)}
+            if not keep:
+                continue
             if not any(all(n.get(k) == v for k, v in keep.items()) for n in new):
                 lost.append(f"{path}: {json.dumps(keep, ensure_ascii=False)[:160]}")
     return lost

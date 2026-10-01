@@ -360,3 +360,13 @@ def test_the_next_version_is_held_to_everything_the_current_one_was_accepted_for
     need = _scoped_need({"requirements": [{"id": "share", "capability": "x", "acceptance": "y"}]}, 2)
     assert need["requirements"][0]["id"] == "v2-share"
     assert D.check(merged, need, DESIGN) == []
+
+
+def test_fields_that_change_between_two_reads_are_not_records():
+    a = {"/api/export": {"exported_at": "t1", "books": [{"id": 1, "title": "The Odyssey"}]}}
+    b = {"/api/export": {"exported_at": "t2", "books": [{"id": 1, "title": "The Odyssey"}]}}
+    v = A.volatile(a, b)
+    assert v == {"exported_at"}
+    after = {"/api/export": {"exported_at": "t3", "books": [{"id": 1, "title": "The Odyssey", "shared": False}]}}
+    assert A.preserved(a, after, ignore=v) == [] and A.preserved(a, after) != []
+    assert A.preserved(a, {"/api/export": {"exported_at": "t3", "books": []}}, ignore=v)

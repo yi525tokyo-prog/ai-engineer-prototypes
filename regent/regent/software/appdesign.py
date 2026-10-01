@@ -85,7 +85,8 @@ run itself against a running instance -- API scenarios, browser scenarios (log i
 restart_app to prove data survives), and negative scenarios proving what must NOT be possible (for privacy: content
 unreachable without the credential). Every core requirement needs at least one scenario. Use realistic data from the
 supplied sources where the app integrates them. Keep it as small as the requirements allow.
-Scenarios are run literally: write {passphrase} wherever the credential goes (the agent substitutes the real one);
+Each scenario runs against a freshly started, EMPTY application (only the credential exists): it must create every
+record it relies on, and may not rely on any other scenario. Scenarios are run literally: write {passphrase} wherever the credential goes (the agent substitutes the real one);
 pass GET parameters in "query"; assert only text the scenario itself entered or the supplied data contains -- for a
 message whose wording you cannot know (an error, an empty state) declare a data-testid and use expect_visible. Never
 write placeholder values. State creation responses as you specify them in the endpoint (e.g. 201)."""

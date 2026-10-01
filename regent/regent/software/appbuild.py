@@ -83,7 +83,9 @@ def inspect(ws: Path, design: dict[str, Any]) -> dict[str, Any]:
     if not tests:
         problems.append("no automated tests")
     allowed = {h.lower() for h in design.get("external_hosts", [])} | {"127.0.0.1", "localhost", "0.0.0.0"}
-    calls = re.compile(r"(fetch\(|requests\.|httpx\.|urlopen|urllib|https?\.get\(|axios|src=|href=|@import)")
+    # what loads or calls something; a plain <a href> is a link the reader may follow, not a call
+    calls = re.compile(r"(fetch\(|requests\.|httpx\.|urlopen|urllib|https?\.get\(|axios|src=|<link[^>]+href=|@import|"
+                       r"XMLHttpRequest|EventSource|WebSocket\()", re.I)
     undeclared = set()
     tracking = []
     lines = 0
@@ -316,7 +318,8 @@ class AppBuild:
         if not insp["ok"]:
             failures.append({"stage": "inspect", "summary": "; ".join(insp["problems"])[:300],
                              "detail": "\n".join(insp["problems"])})
-            return {**out, "passed": False, "failures": failures}
+            if insp.get("manifest") is None:          # nothing Regent could run
+                return {**out, "passed": False, "failures": failures}
         man = insp["manifest"]
         env = S.runtime_env(self.ws)
         if man.get("build"):
@@ -331,26 +334,30 @@ class AppBuild:
         if not t["ok"]:
             failures.append({"stage": "tests", "summary": f"your tests failed (`{man['test']}`, exit {t['code']})",
                              "detail": t["tail"]})
-        staging_dir = self.root / "data" / f"staging-v{self.version}-r{round_}"
-        if staging_dir.exists():
-            shutil.rmtree(staging_dir)
-        before = None
-        if self.previous:
-            live = self._previous_live()
-            if live is not None:
-                before = A.snapshot(live, self.previous["design"], self.passphrase)
-                out["records_before"] = sum(len(A.records(v)) for v in before.values())
-            shutil.copytree(self.root / "data" / "live", staging_dir)
+        scratch = self.root / "data" / f"staging-v{self.version}-r{round_}"
+        if scratch.exists():
+            shutil.rmtree(scratch)
         tree0 = _snapshot_tree(self.ws)
-        svc = S.AppService(self.slug, "staging", self.ws, staging_dir, credential=self.passphrase)
+        # every scenario starts from empty state of its own: scenarios cannot depend on, or trip over,
+        # each other's records (or the principal's)
+        svc = S.AppService(self.slug, "staging", self.ws, scratch / "s0", credential=self.passphrase)
         st = svc.start()
         out["start"] = st
         if not st["ok"]:
             failures.append({"stage": "start", "summary": st.get("error", "did not start"),
                              "detail": st.get("log_tail", "")})
             return {**out, "passed": False, "failures": failures}
+        n = iter(range(1, 10_000))
+
+        def fresh(sc: dict[str, Any]) -> None:
+            svc.stop()
+            svc.data_dir = scratch / f"s{next(n)}-{re.sub(r'[^A-Za-z0-9_-]+', '_', sc['id'])[:40]}"
+            res = svc.start()
+            if not res["ok"]:
+                raise AssertionError(f"did not start for this scenario: {res.get('error')}")
+
         try:
-            acc = A.Runner(svc, self.design, self.passphrase).run()
+            acc = A.Runner(svc, self.design, self.passphrase).run(before_each=fresh)
             out["acceptance"] = acc
             for sc in acc["scenarios"]:
                 if not sc["passed"]:
@@ -359,22 +366,43 @@ class AppBuild:
                                      f"{sc.get('kind')}) failed at step {sc.get('failed_step')}: {sc.get('error')}",
                                      "detail": "\n".join(sc.get("log", [])) + "\n" + (sc.get("page") or "")
                                      + "\n--- server log ---\n" + svc.logs(1500)})
-            if before is not None:
-                after = A.snapshot(svc, self.design, self.passphrase)
-                lost = A.preserved(before, after)
-                out["migration"] = {"records_before": out.get("records_before"), "lost": lost[:20]}
-                if lost:
-                    failures.append({"stage": "migration", "summary": f"{len(lost)} records of the version in use "
-                                     "are missing after starting this version on a copy of the real data",
-                                     "detail": "\n".join(lost[:30])})
         finally:
             svc.stop()
+        if self.previous:
+            mig = self._migration_check(scratch / "migrate")
+            out["migration"] = mig
+            if mig.get("lost") or mig.get("error"):
+                failures.append({"stage": "migration", "summary": mig.get("error") or (
+                                 f"{len(mig['lost'])} records of the version in use are missing after starting this "
+                                 "version on a copy of the real data"),
+                                 "detail": "\n".join(mig.get("lost") or [])[:3000] + "\n" + mig.get("log_tail", "")})
         changed = [k for k, v in _snapshot_tree(self.ws).items() if tree0.get(k) != v]
         out["isolation"] = {"written_outside_data_dir": changed[:20]}
         if changed:
             failures.append({"stage": "isolation", "summary": "the running application wrote outside DATA_DIR",
                              "detail": "\n".join(changed[:30])})
         return {**out, "passed": not failures, "failures": failures}
+
+    def _migration_check(self, data_dir: Path) -> dict[str, Any]:
+        """This version, started on a copy of the live data, must still return every record the
+        version in use returns (fields that change between two reads of unchanged data -- the time
+        of the request, say -- are not records)."""
+        live = self._previous_live()
+        if live is None:
+            return {"error": "the version in use does not run, so its data cannot be compared"}
+        before = A.snapshot(live, self.previous["design"], self.passphrase)
+        volatile = A.volatile(before, A.snapshot(live, self.previous["design"], self.passphrase))
+        shutil.copytree(self.root / "data" / "live", data_dir)
+        svc = S.AppService(self.slug, "staging", self.ws, data_dir, credential=self.passphrase)
+        st = svc.start()
+        if not st["ok"]:
+            return {"error": f"does not start on the real data: {st.get('error')}", "log_tail": st.get("log_tail", "")}
+        try:
+            lost = A.preserved(before, A.snapshot(svc, self.design, self.passphrase), ignore=volatile)
+        finally:
+            svc.stop()
+        return {"records_before": sum(len(A.records(v)) for v in before.values()), "lost": lost[:20],
+                "ignored_volatile": sorted(volatile)}
 
     def _previous_live(self) -> S.AppService | None:
         """The version in use, running (started from its own workspace on the live data if this
@@ -398,15 +426,18 @@ class AppBuild:
         prev = self._previous_live() if self.previous else S.get(self.slug, "live")
         before = None
         backup = None
+        volatile: set[str] = set()
         if prev is not None:
             before = A.snapshot(prev, self.previous["design"], self.passphrase) if self.previous else None
+            volatile = A.volatile(before, A.snapshot(prev, self.previous["design"], self.passphrase)) \
+                if before is not None else set()
             prev.stop()
             backup = S.backup(live_dir, f"before-v{self.version}")
         svc = S.AppService(self.slug, "live", self.ws, live_dir, credential=self.passphrase,
                            port=prev.port if prev is not None else 0)
         st = svc.start()
         if st["ok"] and before is not None:
-            lost = A.preserved(before, A.snapshot(svc, self.design, self.passphrase))
+            lost = A.preserved(before, A.snapshot(svc, self.design, self.passphrase), ignore=volatile)
             if lost:
                 st = {"ok": False, "error": f"{len(lost)} live records missing after upgrade", "lost": lost[:10]}
         if not st["ok"]:

@@ -274,6 +274,7 @@ def with_regression(new: dict[str, Any], old: dict[str, Any]) -> dict[str, Any]:
         carried.append({**sc, "id": sid, "steps": steps, "regression": True})
     hooks = {u["testid"] for u in new.get("ui", [])}
     return {**new, "scenarios": new.get("scenarios", []) + carried,
+            "external_hosts": sorted(set(new.get("external_hosts") or []) | set(old.get("external_hosts") or [])),
             "ui": new.get("ui", []) + [u for u in old.get("ui", []) if u["testid"] not in hooks]}
 
 
