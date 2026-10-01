@@ -1,0 +1,12 @@
+{
+  "name": "lindy-reading-place",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private single-owner reading shelf for the LindyBooks catalogue",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/"
+  },
+  "engines": { "node": ">=22" }
+}

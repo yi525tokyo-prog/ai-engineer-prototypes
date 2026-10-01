@@ -34,13 +34,66 @@ def _build_section(o: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _ops(run: dict[str, Any] | None, tool: str) -> list[dict[str, Any]]:
+    return [o for o in (run or {}).get("operations") or [] if o["tool"] == tool]
+
+
+def path_checks(out: dict[str, Any]) -> list[tuple[bool, str]]:
+    """The bar: intent -> software is missing -> design -> delegate -> inspect -> test -> run -> use
+    -> repair -> register -> reuse later (read from what Regent recorded, not from what it claimed)."""
+    m1, m2, m3, m4 = (out.get(k) or {} for k in ("M1", "M2", "M3", "M4"))
+    build = next((o["outputs"] for o in _ops(m1, "software.build_app") if o["status"] == "succeeded"), {}) or {}
+    ext = next((o["outputs"] for o in _ops(m3, "software.extend_app") if o["status"] == "succeeded"), {}) or {}
+    routes = {r["key"]: r for r in m1.get("routes") or []}
+    alts = [r for k, r in routes.items() if k.startswith("software-existing-")]
+    apps = ((out.get("K") or {}).get("after") or {}).get("applications") or []
+    app = apps[0] if apps else {}
+    ver = app.get("verification") or {}
+    acc = ver.get("acceptance") or {}
+    v2_design = next(((o.get("outputs") or {}).get("design") for o in _ops(m3, "software.design_app")
+                      if o["status"] == "succeeded"), None) or m3.get("design") or {}
+    regressions = sum(1 for s in v2_design.get("scenarios", []) if s.get("regression"))
+    st = out.get("stranger") or {}
+    uses = [o for k in ("M2", "M2b", "M4") for o in _ops(out.get(k), "software.use_app") if o["status"] == "succeeded"]
+    return [
+        (m1.get("selected") == "software-build-app" and bool(alts),
+         f"software was found missing: {len(alts)} existing products competed and lost "
+         f"({', '.join(r['title'] for r in alts)}), building was selected"),
+        (bool(_ops(m1, "software.design_app")), "Regent designed the interface and its own acceptance scenarios before "
+                                                "any code existed"),
+        (bool(build.get("rounds")), f"construction was delegated to a coding worker: {(build.get('inspect') or {}).get('lines')} "
+                                    f"lines in {(build.get('inspect') or {}).get('files')} files, worker cost "
+                                    f"${build.get('worker_cost_usd')}"),
+        (bool(build.get("rounds")) and len(build.get("failures_by_round") or []) > 1,
+         f"Regent's checks failed the delivered software and it was repaired: {len(build.get('failures_by_round') or [])} "
+         "rounds before acceptance"),
+        (bool(build.get("passed")), "Regent inspected, ran the worker's tests, started it, and accepted it only after its own "
+                                    "API, browser (phone-sized), restart and negative scenarios passed"),
+        (bool(app.get("tool")), f"registered as a capability and a tool (`{app.get('tool')}`), live, the principal told "
+                                "where it is and where the passphrase is kept"),
+        (len(uses) >= 2, f"later missions used it through its API with read-back checks ({len(uses)} uses)"),
+        (m3.get("selected", "").startswith("software-extend-") and bool(ext.get("passed")) and regressions > 0,
+         f"a need it could not meet extended it: v{app.get('version')} built on a copy of the real data, held to "
+         f"{regressions} regression scenarios "
+         "of the version in use, promoted with a backup"),
+        (not (ver.get("migration") or {}).get("lost") and (ver.get("migration") or {}).get("records_before") is not None,
+         f"no record of the version in use was lost ({(ver.get('migration') or {}).get('records_before')} compared)"),
+        (bool(st.get("shows_shared_note")) and not st.get("leaks_other_book"),
+         "the shared link, opened by a stranger, shows that book's notes and nothing else"),
+        ("restarted" in " ".join((out.get("K") or {}).get("maintenance") or []),
+         "the live process was killed; Regent's maintenance pass brought it back on the same data"),
+    ]
+
+
 def render(out: dict[str, Any]) -> str:
     L = ["# Application capability benchmark (coding worker run for real)", "",
          f"Started {out.get('started')}; {out.get('seconds')} s wall clock. Workspace `{out.get('workspace')}`.", "",
          "Only sentences were given. Regent analysed each one, looked at the world, chose a route, and for the "
          "application routes delegated code to a file-only coding worker. Regent then built, tested, ran, "
          "browser-accepted, repaired, promoted and registered what came back, and later missions used that "
-         "application. Every figure below was read back from Regent's own records (`app-benchmark.json`).", ""]
+         "application. Every figure below was read back from Regent's own records ([`application-capability.json`](application-capability.json)); the code the worker delivered, with Regent's briefs and repair rounds, is in [`application-capability-app/`](application-capability-app).", ""]
+    L += ["## Result: " + ("PASS" if all(ok for ok, _ in path_checks(out)) else "FAIL"), ""]
+    L += [f"- [{'x' if ok else ' '}] {text}" for ok, text in path_checks(out)] + [""]
     total_h = 0.0
     total_cost = 0.0
     for key, label in MISSIONS:
@@ -101,8 +154,23 @@ def render(out: dict[str, Any]) -> str:
               f"- killed: {k.get('killed')}; maintenance pass: {k.get('maintenance')}",
               f"- afterwards running: " + ", ".join(f"{a['slug']} v{a['version']}" for a in
                                                      (k.get('after') or {}).get('applications') or []), ""]
-    L += ["## Totals", "", f"- principal's active time across missions: {total_h:.0f} s",
-          f"- coding-worker spend: ${total_cost:.2f}", ""]
+    L += ["## Totals", "", f"- principal's active time across missions: {total_h:.0f} s (typing five sentences at "
+          "40 wpm, plus two 20-second approvals of the coding agent)",
+          f"- coding-worker spend: ${total_cost:.2f}", "",
+          "## What this does not show", "",
+          "- **Hosting.** \"Usable from any browser\" on the principal's phone needs public hosting: a domain, "
+          "TLS and a host account. That is an identity and payment decision, and it was not taken. The application "
+          "runs on this machine, and Regent told the principal so.",
+          "- **One browser engine.** Browser acceptance ran in Chromium at a phone-sized viewport only. The "
+          "requirement coverage figure counts the scenarios that ran; it does not count engines that were never "
+          "tried.",
+          "- **Edition choice.** For \"the Butler translation\", Regent chose the catalogue entry titled exactly "
+          "\"The Odyssey\" and said it could not confirm the translator. It offered to swap in entry 1727, which "
+          "is in fact Butler's. It was honest about the uncertainty, but it did not resolve it.",
+          "- **Approvals are simulated.** The benchmark resolves the two authorization interrupts on the "
+          "principal's behalf, following the instruction to run the coding worker for real. They are counted at 20 "
+          "seconds each.",
+          ""]
     return "\n".join(L)
 
 
