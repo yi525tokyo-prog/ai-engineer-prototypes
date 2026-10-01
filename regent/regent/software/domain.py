@@ -99,7 +99,7 @@ class SoftwareAdapter(DomainAdapter):
         self._observe_credentials(s, mission)
         due = [c for c in s.scalars(select(K.SwCapability).where(K.SwCapability.mission_id == mission.id,
                                                                  K.SwCapability.status.in_(("usable", "degraded"))))
-               if K.due(c) or K.delivery_due(c)]
+               if c.implementation != "application" and (K.due(c) or K.delivery_due(c))]
         if due:
             out.append({"action": "observe", "params": {"capabilities": [c.id for c in due]}, "blocking": False,
                         "priority": 1, "reason": f"{len(due)} capability(ies) past their refresh period"})
@@ -167,15 +167,17 @@ class SoftwareAdapter(DomainAdapter):
             stats = {"subjects": [{"name": x["name"], "deployments": [d["host"] for d in x.get("deployments", [])],
                                    "probes": x.get("probes")} for x in res["subjects"]]}
         elif action == "inventory":
-            from regent.software.discover import inventory
+            from regent.software.discover import inventory, inventory_tool
 
             need = (m.attrs or {}).get("need") or {}
             res = latest_plan(s, m.id, "discover") or {}
-            inv = inventory(s, need, res, mission_id=mission_id, log=note, request_id=req.id, transport=transport)
+            fn = inventory_tool if need.get("need_type") in ("tool", "action") else inventory
+            inv = fn(s, need, res, mission_id=mission_id, log=note, request_id=req.id, transport=transport)
             req.plan = inv
             self._project_inventory(s, m, need, inv)
-            stats = {"public_fields": sum(1 for f in inv["public_fields"] if f["relation_to_need"] != "unrelated"),
-                     "platform_sources": len(inv["platform_sources"]), "constraints": len(inv["constraints"]),
+            stats = {"public_fields": sum(1 for f in inv.get("public_fields", []) if f["relation_to_need"] != "unrelated"),
+                     "platform_sources": len(inv.get("platform_sources", [])), "constraints": len(inv["constraints"]),
+                     "app_sources": len(inv.get("app_sources", [])), "alternatives": len(inv.get("alternatives", [])),
                      "existing_capabilities": len(inv["existing_capabilities"])}
         elif action == "observe":
             events = EventStore(s)
@@ -258,8 +260,8 @@ class SoftwareAdapter(DomainAdapter):
                     source={"kind": "observed_commitment", "evidence": c["evidence"][:300], "mission_id": m.id})
         ev.append("fact_observed", {"facts": [
             {"key": f"software.need.{m.id}.inventory", "value": {
-                "public_fields": sum(1 for f in inv["public_fields"] if f["relation_to_need"] != "unrelated"),
-                "platform_sources": [p["id"] for p in inv["platform_sources"]],
+                "public_fields": sum(1 for f in inv.get("public_fields", []) if f["relation_to_need"] != "unrelated"),
+                "platform_sources": [p["id"] for p in inv.get("platform_sources", [])],
                 "constraints": [c["statement"][:160] for c in inv["constraints"] if c.get("evidence_found")]},
              "confidence": 1.0, "source": "software:inventory"}]}, source="software:inventory", mission_id=m.id)
 
@@ -315,12 +317,14 @@ def maintain(s: Session) -> list[str]:
 
     done = []
     for c in s.scalars(select(K.SwCapability).where(K.SwCapability.status.in_(("usable", "degraded")))):
-        if not (K.due(c) or K.delivery_due(c)):
+        if c.implementation == "application" or not (K.due(c) or K.delivery_due(c)):
             continue
         out = service.run_action("observe", mission_id=c.mission_id, params={"capabilities": [c.id]},
                                  domain="software")
         done.append(f"{c.slug}: {out.get('status')}")
-    return done
+    from regent.software import appcap
+
+    return done + appcap.maintain(s)
 
 
 def _principal_hint(sentence: str) -> dict[str, Any]:

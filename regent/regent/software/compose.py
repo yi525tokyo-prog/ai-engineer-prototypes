@@ -20,10 +20,11 @@ from regent.software import capability as K
 from regent.software import connectors as C
 from regent.software import expr as X
 
-RELATION_FORM = {"direct": "estimate", "lower_bound": "lower_bound", "upper_bound": "upper_bound",
-                 "activity_signal": "activity", "context": "context"}
+RELATION_FORM = {"direct": "estimate", "measure": "estimate", "lower_bound": "lower_bound",
+                 "at_least_one": "lower_bound", "upper_bound": "upper_bound", "proxy": "proxy",
+                 "activity_signal": "proxy", "context": "context"}
 FORM_RANK = {"exact": 5, "estimate": 4, "decision": 4, "range": 3, "lower_bound": 2, "upper_bound": 2, "activity": 1,
-             "context": 0}
+             "proxy": 1, "context": 0}
 ORIGINS = ("product", "api", "page")
 
 
@@ -53,7 +54,8 @@ def metrics_for(field: dict[str, Any], sid: str, windows: list[str], unit: str =
     form = RELATION_FORM.get(field.get("relation_to_need"), "activity")
     noun = "people" if field.get("counts") == "people" or "people" in (unit or "").lower() else (unit or "")
     base = {"answers": field.get("question"), "form": form,
-            "unit": "events" if form == "activity" else ("people" if field.get("counts") == "people" else unit),
+            "unit": "events" if form in ("activity", "proxy") else ("people" if field.get("counts") == "people"
+                                                                     or field.get("audit") else unit),
             "caveats": list(dict.fromkeys(field.get("caveats") or [])),
             "source_field": {"source": sid, "path": path, "meaning": field.get("meaning"),
                              "confidence": field.get("confidence"), "evidence": field.get("evidence")}}
@@ -67,29 +69,40 @@ def metrics_for(field: dict[str, Any], sid: str, windows: list[str], unit: str =
                      "window": "all_time", "definition": f"Distinct items observed in {path}: {field['meaning']}"}]
         for w in [w for w in windows if w not in ("all_time", "now")][:2] + ["all_time"]:
             wexpr = "all" if w == "all_time" else w
-            out.append({**base, "id": f"{mid}_{w}", "label": f"{_short(field['meaning'])} ({w.replace('_', ' ')})",
+            out.append({**base, "id": f"{mid}_{w}", "label": ("Proxy: " if form == "proxy" else "")
+                        + f"{_short(field['meaning'])} ({w.replace('_', ' ')})",
                         "expr": f'count_items("{ref}", "{key}", "{wexpr}")', "window": w,
                         "definition": f"Events listed in {path} with {key} inside the window: {field['meaning']}"})
         return out
     if ts == "resets_daily":
-        return [{**base, "id": f"{mid}_24h", "label": f"{_short(field['meaning'])} (last 24h)",
+        return [{**base, "id": f"{mid}_24h", "label": ("Proxy: " if form == "proxy" else "")
+                 + f"{_short(field['meaning'])} (last 24h)",
                  "expr": f'increase("{ref}", "24h")', "window": "24h",
                  "definition": f"Increase of the daily counter {path} over the last 24 hours (resets counted): "
                                f"{field['meaning']}"}]
     window = "all_time" if ts == "cumulative" else "now"
-    if form == "lower_bound" and field.get("counts") not in (None, "people"):
-        # a count of *actions* proves only that someone acted: N payments may all be one person
+    audit = field.get("audit") or {}
+    base["source_field"]["audit"] = {k: audit.get(k) for k in ("claimed", "relation", "missing")} if audit else None
+    if field.get("relation_to_need") == "at_least_one":
+        # someone in the population acted; how many is not established
         return [{**base, "id": f"{mid}_people", "label": f"{(noun or 'count').capitalize()}, at least",
-                 "unit": noun or base["unit"], "expr": f'min(latest("{ref}"), 1)',
-                 "window": window,
-                 "definition": f"At least one real person, because {path} counts {field.get('counts')} that only "
-                               f"people perform ({field['meaning']}); the actions may all be one person's.",
-                 "caveats": base["caveats"] + [f"{path} counts {field.get('counts')}, not distinct people"]},
-                {**base, "id": mid, "form": "activity", "unit": "events", "label": _short(field["meaning"]),
-                 "expr": f'latest("{ref}")', "window": window, "definition": field["meaning"]}]
+                 "unit": noun or base["unit"], "expr": f'min(latest("{ref}"), 1)', "window": window,
+                 "definition": f"At least one, because {path} counts {field.get('counts_unit') or 'units'} that only "
+                               f"members of the population produce ({field['meaning']}); that they are distinct "
+                               "people is not established.",
+                 "caveats": base["caveats"]},
+                {**base, "id": mid, "form": "proxy", "unit": field.get("counts_unit") or "units",
+                 "label": f"Proxy: {_short(field['meaning'], 40)}", "expr": f'latest("{ref}")', "window": window,
+                 "definition": field["meaning"]}]
+    if form == "proxy":
+        return [{**base, "id": mid, "unit": field.get("counts_unit") or "units",
+                 "label": f"Proxy: {_short(field['meaning'], 40)}", "expr": f'latest("{ref}")', "window": window,
+                 "definition": f"{field['meaning']}. A signal that may move with the answer; no number of "
+                               f"{noun or 'the population'} follows from it."
+                               + (f" Missing: {', '.join(audit.get('missing') or [])}." if audit.get('missing') else "")}]
     # cumulative totals and snapshots: the current value is the answer
     label = {"lower_bound": "People, at least", "upper_bound": "People, at most", "estimate": "People (estimate)"}.get(
-        form) if field.get("counts") == "people" else None
+        form) if field.get("counts") == "people" or audit else None
     if field.get("service") and form != "context":
         label = f"{_short(field['meaning'], 48)} ({field['service'].split()[0]})"
     return [{**base, "id": mid, "label": label or _short(field["meaning"]), "expr": f'latest("{ref}")',
@@ -175,7 +188,9 @@ def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[st
                 "definition": "Lower end: " + "; ".join(m["definition"] for m in lows) + " Upper end: "
                               + "; ".join(m["definition"] for m in highs) + ". The true number is between them.",
                 "caveats": sorted({c for m in lows + highs for c in m.get("caveats", [])})[:6],
-                "source_field": {"combines": [m["id"] for m in lows + highs]}})
+                "source_field": {"combines": [m["id"] for m in lows + highs],
+                                 "audit": {"relation": "range", "parts": [(m.get("source_field") or {}).get("audit")
+                                                                          for m in lows + highs]}}})
     # one metric per id
     seen, uniq = set(), []
     for m in metrics:
@@ -185,6 +200,16 @@ def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[st
     metrics = uniq
     core = [q for q in need.get("questions", []) if q.get("priority", "core") == "core"] or need.get("questions", [])
     # headline: the most direct answer to the first core question, then its lower bounds
+    # a count of people nobody measures is shown as unknown -- a proxy is never the headline number
+    for q in core[:1]:
+        best_form = max((FORM_RANK.get(m["form"], 0) for m in metrics if m.get("answers") == q["id"]), default=0)
+        if q.get("answer_type", "count") == "count" and best_form < FORM_RANK["lower_bound"]:
+            metrics.insert(0, {"id": f"{_sid(q['id'])}_answer", "label": _short(q.get("question") or "Answer", 70),
+                               "answers": q["id"], "form": "context", "unit": q.get("unit") or "", "expr": "coalesce()",
+                               "unknowable": True, "window": "now", "headline": 1,
+                               "why": "nothing Regent can read counts these people: only proxies (below), each "
+                                      "missing a premise that would turn it into a bound",
+                               "definition": f"{q.get('quantity')}. Population: {q.get('population')}."})
     gated = {sid for sid, src in sources.items() if src["access"] == "credential"}
 
     def needs_credential(m: dict[str, Any]) -> bool:
@@ -198,6 +223,8 @@ def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[st
                                       m.get("window") != "all_time"))
         # the best answer, and the best answer readable today (so the view never opens on blanks); a
         # stated rule is shown next to the strongest independent answer to the same question
+        if any(m.get("unknowable") and m.get("answers") == q["id"] for m in metrics):
+            continue                       # the unknown is the headline; proxies stay below
         picks = cands[:1] + [m for m in cands if not needs_credential(m) and m is not cands[0]
                              and (m["form"] != cands[0]["form"] or not prefer)][:1]
         if cands and not picks[1:] and not needs_credential(cands[0]):
@@ -213,7 +240,8 @@ def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[st
             continue
         unlock = _unlock_for(q, inventory, platform, now_forms, include)
         why = ("no source Regent can read answers this" if not now_forms else
-               "only activity signals, which are not counts of people" if now_forms <= {"activity"} else
+               "only proxies: signals that move with the answer but are not counts of the people asked about"
+               if now_forms <= {"activity", "proxy", "context"} else
                "only a bound, not a count" if best_now <= K.FORM_WEIGHT["lower_bound"] else "only a partial answer")
         if unlock and unlock["connector"] in include:
             why += (f"; {unlock['title']} is wired in and turns this into "
@@ -277,7 +305,7 @@ def _unlock_for(q: dict[str, Any], inventory: dict[str, Any], platform: dict[str
         if not ep.startswith("connector:") or f.get("question") != q["id"] or not f.get("path_exists"):
             continue
         rel = f.get("relation_to_need")
-        if rel == "unrelated":
+        if rel in ("unrelated", "context"):
             continue
         p = platform.get(ep.split(":", 1)[1])
         if p is None or p.get("forbidden_by"):

@@ -1,10 +1,11 @@
 """The ``software`` tool: building, verifying and activating capabilities as Regent operations.
 
 Every action runs in its own DB session (tools run in worker threads). ``verify`` is Regent's
-acceptance suite -- its ``passed`` output is what the loop's verifier checks -- and
-``delegate_build`` hands a brief to a coding-agent worker only under the principal's
-authorization (COMMIT authority: an agent writing and running code is not something Regent
-may start on its own).
+acceptance suite -- its ``passed`` output is what the loop's verifier checks. ``design_app``,
+``build_app``, ``extend_app`` and ``use_app`` are the application lifecycle: Regent designs the
+interface and its own acceptance scenarios, a coding agent writes the code (only under the
+principal's authorization: COMMIT authority), Regent builds, tests, runs, accepts, repairs,
+promotes and registers it, and later missions use it through its API.
 """
 
 from __future__ import annotations
@@ -119,15 +120,10 @@ def software_tool() -> Tool:
                                       {"key": f"software.need.{ctx.mission_id}.usable", "value": passed},
                                       {"key": f"software.need.{ctx.mission_id}.coverage", "value": r["coverage"]},
                                       {"key": f"software.need.{ctx.mission_id}.capability", "value": cap.slug}])
-            if action == "delegate_build":
-                from regent.software.resources import coding_agent
-
-                agent = coding_agent()
-                if not agent.authorized():
-                    return ToolResult(status="failed", error="coding agent not authorized by the principal",
-                                      outputs={"authorization_needed": agent.describe()})
-                need, inv = mission_context(s, ctx.mission_id)
-                return agent.build_capability(s, ctx.mission_id, need, inv, list(inputs.get("include") or []))
+            if action in ("design_app", "build_app", "extend_app"):
+                return _app_action(s, action, inputs, ctx)
+            if action == "use_app":
+                return _use_app(s, inputs, ctx)
             return ToolResult(status="failed", error=f"unknown action {action}")
         finally:
             s.close()
@@ -144,9 +140,160 @@ def software_tool() -> Tool:
                               capabilities=["software.verify"], latency_s=60, reliability=0.85),
         "reuse": ActionSpec("reuse", "Answer from an existing verified capability", "AUTO",
                             capabilities=["software.reuse"], **auto),
-        "delegate_build": ActionSpec("delegate_build", "Let a coding agent write and run code in a sandboxed "
-                                     "workspace to build the capability", "COMMIT", cost_usd=5.0, latency_s=1800,
-                                     reliability=0.6, capabilities=["software.delegate"]),
+        "design_app": ActionSpec("design_app", "Design the application Regent will have built: interface, UI hooks, "
+                                 "runtime contract, Regent's own acceptance scenarios", "AUTO",
+                                 capabilities=["software.design"], latency_s=120, reliability=0.85),
+        "build_app": ActionSpec("build_app", "Delegate construction to a coding agent, then inspect, build, test, "
+                                "run, accept (API + browser + restart + negative), repair, promote and register",
+                                "COMMIT", cost_usd=15.0, latency_s=3600, reliability=0.6,
+                                capabilities=["software.delegate"]),
+        "extend_app": ActionSpec("extend_app", "Upgrade an application in use: new version by the coding agent, "
+                                 "tested on a copy of the real data, promoted with backup and rollback", "COMMIT",
+                                 cost_usd=15.0, latency_s=3600, reliability=0.55, capabilities=["software.delegate"]),
+        "use_app": ActionSpec("use_app", "Do what the principal asked through an application's API, then read "
+                              "back that it happened", "AUTO", capabilities=["software.use"], latency_s=60,
+                              reliability=0.85),
     }
     return Tool("software", "code", "Software capabilities: compose, verify, activate, reuse, delegate", actions,
                 handler, backend="live")
+
+
+def _app_action(s, action: str, inputs: dict[str, Any], ctx: ToolContext) -> ToolResult:
+    from regent.schemas import CostEstimate
+    from regent.software import appbuild as B
+    from regent.software import appcap
+    from regent.software import appdesign as D
+    from regent.software import capability as K
+    from regent.software.need import signature
+    from regent.software.resources import coding_agent
+    from regent.db import Mission
+
+    need, inv = mission_context(s, ctx.mission_id)
+    m = s.get(Mission, ctx.mission_id)
+    attrs = dict(m.attrs or {})
+    base = K.get(s, inputs["capability_id"]) if inputs.get("capability_id") else None
+    previous = None
+    if base is not None:
+        previous = {"version": base.spec["app"]["version"], "workspace": base.spec["app"]["workspace"],
+                    "design": base.spec["design"], "port": base.spec["app"].get("port")}
+    if action == "design_app":
+        sources = inv.get("app_sources", [])
+        d = D.design(need, {"sources": sources, "constraints": [c["statement"] for c in inv.get("constraints", [])
+                                                                 if c.get("evidence_found")]},
+                     previous=previous["design"] if previous else None, mission_id=ctx.mission_id)
+        if not d.get("ok"):
+            return ToolResult(status="failed", error="design rejected: " + "; ".join(d.get("problems") or [d.get("error", "")]),
+                              outputs={"problems": d.get("problems")})
+        attrs["app_design"] = d["design"]
+        m.attrs = attrs
+        s.commit()
+        return ToolResult(status="ok", outputs={"designed": True, "endpoints": len(d["design"]["api"]),
+                                                "scenarios": len(d["design"]["scenarios"]), "name": d["design"]["name"]},
+                          claims=[f"design {d['design']['name']}: {len(d['design']['api'])} endpoints, "
+                                  f"{len(d['design']['scenarios'])} acceptance scenarios"])
+    design = attrs.get("app_design")
+    if not design:
+        return ToolResult(status="failed", error="no accepted design")
+    agent = coding_agent()
+    if not agent.authorized():
+        return ToolResult(status="failed", error="the principal has not opted in to a coding agent",
+                          outputs={"authorization_needed": agent.describe()})
+    slug = (base and appcap.app_slug(base)) or K.slugify(design["name"])
+    version = (previous["version"] + 1) if previous else 1
+    notes: list[str] = []
+    b = B.AppBuild(slug=slug, need=need, design=design, sources=inv.get("app_sources", []), agent=agent,
+                   version=version, previous=previous, log=lambda st, msg, **k: notes.append(f"{st}: {msg}"))
+    res = b.run()
+    cost = sum(float((r.get("worker") or {}).get("cost_usd") or 0) for r in res["rounds"])
+    summary = {"accepted": res["accepted"], "version": version, "rounds": len(res["rounds"]), "worker_cost_usd": round(cost, 2),
+               "failures_by_round": [[f["stage"] + ": " + f["summary"][:160] for f in r["failures"]] for r in res["rounds"]],
+               "inspect": {k: res["rounds"][-1]["inspect"].get(k) for k in ("files", "lines", "languages", "tests")},
+               "log": notes}
+    if not res["accepted"]:
+        return ToolResult(status="ok", outputs={**summary, "passed": False}, cost=CostEstimate(api_usd=cost),
+                          claims=[f"v{version} not accepted after {len(res['rounds'])} rounds"])
+    promo = b.promote()
+    summary["promote"] = promo
+    if not promo.get("live"):
+        return ToolResult(status="ok", outputs={**summary, "passed": False}, cost=CostEstimate(api_usd=cost))
+    acc = res["rounds"][-1].get("acceptance") or {}
+    cov = D.requirement_coverage(design, need, acc.get("by_id", {}))
+    cap = appcap.register(s, mission_id=ctx.mission_id if base is None else base.mission_id, need=need if base is None
+                          else {**base.need, "requirements": base.need.get("requirements", []) + need.get("requirements", [])},
+                          signature=signature(need) + (base.signature if base else []), design=design, build=res,
+                          promote=promo, capability_id=base.id if base else None, coverage=cov,
+                          provenance={"worker_runs": [r.get("worker") for r in res["rounds"]], "design_by": "reasoner",
+                                      "verified_by": "regent.software.appbuild"})
+    from regent.runtime import get_services
+
+    appcap.register_tool(ctx.services or get_services(), cap)
+    from regent.core.observe.events import EventStore
+
+    EventStore(s).append("principal_notified", {
+        "capability": cap.slug, "channel": "regent_inbox",
+        "text": (f"{design['name']} v{version} is running at {promo['url']} (on this machine only; reaching it from "
+                 "another device needs hosting you approve). Sign in with the passphrase Regent generated, kept in "
+                 f"Regent's secret store as {res.get('credential')}." if res.get("credential") else
+                 f"{design['name']} v{version} is running at {promo['url']}.")},
+        source=f"capability:{cap.slug}", mission_id=ctx.mission_id)
+    s.commit()
+    return ToolResult(status="ok", outputs={**summary, "passed": True, "capability_id": cap.id, "tool": cap.tool_name,
+                                            "url": promo["url"], "coverage": cov},
+                      cost=CostEstimate(api_usd=cost),
+                      facts=[{"key": f"software.need.{ctx.mission_id}.usable", "value": True},
+                             {"key": f"software.need.{ctx.mission_id}.coverage", "value": cov},
+                             {"key": f"software.need.{ctx.mission_id}.capability", "value": cap.slug}],
+                      claims=[f"application {cap.slug} v{version} live at {promo['url']}; coverage {cov:.2f}"])
+
+
+USE_SCHEMA = {"type": "object", "required": ["calls", "verify"], "properties": {
+    "calls": {"type": "array", "items": {"type": "object", "required": ["api"], "properties": {
+        "api": {"type": "string"}, "path_params": {"type": ["object", "null"]}, "body": {"type": ["object", "null"]},
+        "save": {"type": ["object", "null"]}, "why": {"type": "string"}}}},
+    "verify": {"type": "array", "items": {"type": "object", "required": ["api", "expect_json_contains"], "properties": {
+        "api": {"type": "string"}, "path_params": {"type": ["object", "null"]},
+        "expect_json_contains": {"type": "object"}}}}}}
+
+USE_INSTRUCTIONS = """The principal asked for something to be done with an application an operational agent runs.
+Using only the listed endpoints, give the calls that do it (reuse existing records instead of creating duplicates --
+the current data is included), and read-back checks that prove it happened. Use {var} to refer to values saved
+from earlier calls. Do only what was asked."""
+
+
+def _use_app(s, inputs: dict[str, Any], ctx: ToolContext) -> ToolResult:
+    from regent.db import Mission
+    from regent.software import appaccept as A
+    from regent.software import appcap
+    from regent.software import capability as K
+    from regent.software.reasoner import ReasonerUnavailable, get_reasoner
+
+    cap = K.get(s, inputs["capability_id"])
+    m = s.get(Mission, ctx.mission_id)
+    need = (m.attrs or {}).get("need") or {}
+    r = appcap.runner(cap)
+    current = A.snapshot(r.svc, cap.spec["design"], r.passphrase)
+    payload = {"request": need.get("sentence"), "requirements": need.get("requirements"),
+               "endpoints": cap.spec["design"]["api"], "current_data": current}
+    try:
+        plan = get_reasoner().ask("app_use_plan", USE_INSTRUCTIONS, payload, USE_SCHEMA, budget_usd=0.8,
+                                  mission_id=ctx.mission_id).output
+    except ReasonerUnavailable as e:
+        return ToolResult(status="failed", error=str(e)[:300])
+    ids = {a["id"] for a in cap.spec["design"]["api"]}
+    bad = [c["api"] for c in plan["calls"] + plan["verify"] if c["api"] not in ids]
+    if bad:
+        return ToolResult(status="failed", error=f"plan uses endpoints the application does not have: {bad}")
+    steps = [{"do": "call", **{k: c.get(k) for k in ("api", "path_params", "body", "save")}} for c in plan["calls"]]
+    steps += [{"do": "call", "api": v["api"], "path_params": v.get("path_params"),
+               "expect_json_contains": v["expect_json_contains"]} for v in plan["verify"]]
+    res = r.run([{"id": "use", "requirement": "request", "kind": "api", "steps": steps}])["scenarios"][0]
+    cap.uses = (cap.uses or 0) + 1
+    s.commit()
+    return ToolResult(status="ok", outputs={"passed": res["passed"], "capability_id": cap.id, "calls": len(plan["calls"]),
+                                            "verified_by_read_back": len(plan["verify"]), "log": res.get("log"),
+                                            "error": res.get("error")},
+                      facts=[{"key": f"software.need.{ctx.mission_id}.usable", "value": res["passed"]},
+                             {"key": f"software.need.{ctx.mission_id}.coverage", "value": 1.0 if res["passed"] else 0.0},
+                             {"key": f"software.need.{ctx.mission_id}.capability", "value": cap.slug}],
+                      claims=[f"{len(plan['calls'])} calls through {cap.tool_name}; read-back "
+                              f"{'confirms' if res['passed'] else 'does NOT confirm'} the request"])

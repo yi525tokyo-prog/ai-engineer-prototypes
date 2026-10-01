@@ -73,22 +73,70 @@ def test_need_checks_and_question_references():
 
 # ------------------------------------------------------------------ composition
 
+def _p(holds: str, evidence: str = "") -> dict:
+    return {"holds": holds, "why": "", "evidence": evidence}
+
+
+OBSERVED = ("payments recorded by the fund. distinct customers who paid. live-mode charges only. "
+            "distinct client ip addresses per day, including bots and crawlers.")
+
+
+def test_bounds_must_be_earned_by_evidenced_premises():
+    from regent.software.semantics import audit
+
+    # payment events: who paid (the operator testing?) and whether two payments are two people is unknown
+    payments = {"relation_to_need": "lower_bound", "premises": {
+        "membership": _p("unknown"), "distinctness": _p("unknown"), "window": _p("yes", "payments recorded by the fund")}}
+    assert audit(payments, OBSERVED)["relation"] == "proxy"
+    # distinct IPs: crawlers have IPs (membership fails) and one IP can be a whole household (merging)
+    ips = {"relation_to_need": "upper_bound", "premises": {
+        "coverage": _p("yes", "distinct client ip addresses per day"), "no_merging": _p("no"),
+        "membership": _p("no"), "window": _p("yes", "distinct client ip addresses per day")}}
+    a = audit(ips, OBSERVED)
+    assert a["relation"] == "proxy" and "no_merging" in a["missing"]
+    # a premise claimed without a quote Regent can find does not count
+    claimed = {"relation_to_need": "lower_bound", "premises": {
+        "membership": _p("yes", "every payer is a verified external reader"),
+        "distinctness": _p("yes", "distinct customers who paid"), "window": _p("yes", "payments recorded by the fund")}}
+    a = audit(claimed, OBSERVED)
+    assert a["relation"] == "proxy" and any("not found" in n for n in a["notes"])
+    # internal/test activity excluded with evidence, distinct customers: a real lower bound
+    earned = {"relation_to_need": "lower_bound", "premises": {
+        "membership": _p("yes", "live-mode charges only"), "distinctness": _p("yes", "distinct customers who paid"),
+        "window": _p("yes", "payments recorded by the fund")}}
+    assert audit(earned, OBSERVED)["relation"] == "lower_bound"
+    # members acted, but whether they are distinct is unknown: at least one, no more
+    one = {**earned, "premises": {**earned["premises"], "distinctness": _p("unknown")}}
+    assert audit(one, OBSERVED)["relation"] == "at_least_one"
+
+
 def _inventory(**extra) -> dict:
+    from regent.software.semantics import audit
+
     fund = "https://api.example.org/api/fund"
     fields = [
-        {"endpoint": fund, "path": "paid.count", "meaning": "payments recorded", "counts": "actions",
+        {"endpoint": fund, "path": "paid.count", "meaning": "payments recorded", "counts_unit": "payment",
          "relation_to_need": "lower_bound", "question": "active", "time_semantics": "cumulative",
-         "confidence": 0.8, "path_exists": True, "evidence_found": True, "origin": "product"},
-        {"endpoint": "connector:cloudflare_analytics", "path": "uniques_last_full_day", "counts": "people",
+         "confidence": 0.8, "path_exists": True, "evidence_found": True, "origin": "product",
+         "premises": {"membership": _p("unknown"), "distinctness": _p("unknown"),
+                      "window": _p("yes", "payments recorded by the fund")}},
+        {"endpoint": "connector:cloudflare_analytics", "path": "uniques_last_full_day", "counts_unit": "IP address",
          "meaning": "distinct IPs per day incl. bots", "relation_to_need": "upper_bound", "question": "active",
-         "time_semantics": "snapshot", "confidence": 0.6, "path_exists": True, "evidence_found": True},
-        {"endpoint": "connector:stripe_payments", "path": "paying_people", "counts": "people",
+         "time_semantics": "snapshot", "confidence": 0.6, "path_exists": True, "evidence_found": True,
+         "premises": {"coverage": _p("yes", "distinct client ip addresses per day"), "no_merging": _p("no"),
+                      "membership": _p("no"), "window": _p("yes", "distinct client ip addresses per day")}},
+        {"endpoint": "connector:stripe_payments", "path": "paying_people", "counts_unit": "customer",
          "meaning": "distinct payers", "relation_to_need": "lower_bound", "question": "active",
-         "time_semantics": "cumulative", "confidence": 0.8, "path_exists": True, "evidence_found": True},
-        {"endpoint": "connector:client_side_analytics", "path": "visitors", "counts": "people",
-         "meaning": "visitors", "relation_to_need": "direct", "question": "active",
+         "time_semantics": "cumulative", "confidence": 0.8, "path_exists": True, "evidence_found": True,
+         "premises": {"membership": _p("yes", "live-mode charges only"), "distinctness": _p("yes", "distinct customers who paid"),
+                      "window": _p("yes", "payments recorded by the fund")}},
+        {"endpoint": "connector:client_side_analytics", "path": "visitors", "counts_unit": "browser",
+         "meaning": "visitors", "relation_to_need": "measure", "question": "active",
          "time_semantics": "snapshot", "confidence": 0.8, "path_exists": True, "evidence_found": True},
     ]
+    for f in fields:
+        f["audit"] = audit(f, OBSERVED)
+        f["relation_to_need"] = f["audit"]["relation"]
     plat = [{**C.CLOUDFLARE.describe(), "params": {"host": "example.org"}, "host": "example.org", "forbidden_by": []},
             {**C.STRIPE.describe(), "params": {}, "host": "example.org", "forbidden_by": []},
             {**C.CLIENT_ANALYTICS.describe(), "params": {}, "host": "example.org",
@@ -98,37 +146,37 @@ def _inventory(**extra) -> dict:
 
 NEED = {"sentence": LINDY, "subjects": [{"name": "LindyBooks", "kind": "product"}],
         "questions": [{"id": "active", "question": "How many real people use it?", "answer_type": "count",
-                       "unit": "people", "priority": "core", "windows": ["7d"]}],
+                       "unit": "people", "priority": "core", "windows": ["7d"], "quantity": "distinct humans",
+                       "population": "real external readers"}],
         "deliverable": {"form": "glance_view", "refresh": "continuous"}}
 
 
-def test_composer_states_only_what_the_data_supports():
+def test_composer_states_only_what_the_premises_support():
     spec = P.compose(NEED, _inventory())
-    by_form = {m["form"]: m for m in spec["metrics"]}
-    # a count of payments proves only that *someone* paid: at least one person, not N
-    low = by_form["lower_bound"]
-    assert low["expr"].startswith("min(latest(") and low["expr"].endswith(", 1)")
-    # the public answer is a bound; the single action that improves it is the one that makes a range
-    # (another lower bound from Stripe adds nothing; adding tracking is forbidden by the promise)
+    # public data gives only a proxy: the headline is "unknown", the payment count is labelled a proxy
+    head = next(m for m in spec["metrics"] if m.get("headline") == 1)
+    assert head.get("unknowable") and head["answers"] == "active"
+    fund = [m for m in spec["metrics"] if "fund" in m["id"] or "paid" in m["id"]]
+    assert fund and all(m["form"] == "proxy" and m["label"].startswith("Proxy:") for m in fund)
+    # Cloudflare's distinct IPs stay a proxy (they merge households and include bots), so the action
+    # that improves the answer is the one whose premises hold: Stripe's distinct live payers
     [u] = [u for u in spec["unanswered"] if u["question"] == "active"]
-    assert u["unlock"]["connector"] == "cloudflare_analytics" and u["unlock"]["gives"] == "range"
+    assert u["unlock"]["connector"] == "stripe_payments" and u["unlock"]["gives"] == "lower_bound"
     with_cf = P.compose(NEED, _inventory(), include=["cloudflare_analytics"])
-    rng = next(m for m in with_cf["metrics"] if m["form"] == "range")
-    assert rng["headline"] == 1 and "expr_hi" in rng
-    assert P.coverage_estimate(NEED, _inventory(), ["cloudflare_analytics"]) > P.coverage_estimate(NEED, _inventory(), [])
+    assert not any(m["form"] in ("range", "upper_bound") for m in with_cf["metrics"])
+    with_stripe = P.compose(NEED, _inventory(), include=["stripe_payments"])
+    low = next(m for m in with_stripe["metrics"] if m["form"] == "lower_bound")
+    assert low["source_field"]["audit"]["relation"] == "lower_bound"
 
 
 # ------------------------------------------------------------------ runtime + verification
 
-def _cloudflare_contract(request: httpx.Request) -> httpx.Response:
-    """Shape of Cloudflare's documented API (zones + GraphQL Analytics). A contract test of the
-    client -- not a stand-in for live data anywhere outside this test."""
-    if "/zones" in request.url.path:
-        return httpx.Response(200, json={"result": [{"id": "z1", "name": "example.org"}]})
-    days = [(NOW.date() - timedelta(days=i)).isoformat() for i in range(3, -1, -1)]
-    groups = [{"dimensions": {"date": d}, "sum": {"requests": 900, "pageViews": 300}, "uniq": {"uniques": 120 + i}}
-              for i, d in enumerate(days)]
-    return httpx.Response(200, json={"data": {"viewer": {"zones": [{"httpRequests1dGroups": groups}]}}})
+def _stripe_contract(request: httpx.Request) -> httpx.Response:
+    """Shape of Stripe's documented Charges list. A contract test of the client -- not a stand-in
+    for live data anywhere outside this test."""
+    data = [{"id": f"ch_{i}", "paid": True, "refunded": False, "customer": f"cus_{c}"}
+            for i, c in enumerate(["a", "b", "a", "c"])]
+    return httpx.Response(200, json={"data": data, "has_more": False})
 
 
 def test_capability_never_fakes_a_blocked_source_and_upgrades_when_unlocked(db, services, monkeypatch, workspace):
@@ -137,36 +185,36 @@ def test_capability_never_fakes_a_blocked_source_and_upgrades_when_unlocked(db, 
     monkeypatch.setattr(C, "TRANSPORT", public)
     monkeypatch.setattr(V, "TRANSPORT", public)
     monkeypatch.setattr(V, "BROWSER", False)
-    spec = P.compose(NEED, _inventory(), include=["cloudflare_analytics"])
+    spec = P.compose(NEED, _inventory(), include=["stripe_payments"])
     cap = K.save_version(db, mission_id=None, need=NEED, signature=["active@lindybooks"], spec=spec,
                          implementation="composed", provenance={}, reason="test")
     res = V.run(db, cap, services=services)
     assert res["passed"], res["summary"]
     metrics = {m["id"]: m for m in K.compute(db, cap)}
-    cf = [m for m in metrics.values() if "cloudflare" in m["id"] or m["form"] == "range"]
-    assert cf and all(m["value"] is None and m["status"] == "blocked" and m["display"] == "—" for m in cf)
-    assert any(m["display"] == "≥ 1" for m in metrics.values())
+    gated = [m for m in metrics.values() if "stripe" in m["id"]]
+    assert gated and all(m["value"] is None and m["status"] == "blocked" and m["display"] == "—" for m in gated)
+    assert res["coverage"] < 0.2                       # a proxy and a blocked bound: almost nothing known
     # the principal provides the credential; the same capability now reads the platform
     from regent.software import secrets
 
-    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "test-token")
+    monkeypatch.setenv("STRIPE_RESTRICTED_KEY", "rk_test")
     monkeypatch.setattr(C, "TRANSPORT", httpx.MockTransport(
-        lambda r: _cloudflare_contract(r) if "cloudflare" in r.url.host else httpx.Response(200, json=fund)))
-    assert secrets.present("CLOUDFLARE_API_TOKEN")
+        lambda r: _stripe_contract(r) if "stripe" in r.url.host else httpx.Response(200, json=fund)))
+    assert secrets.present("STRIPE_RESTRICTED_KEY")
     res2 = V.run(db, cap, services=services)
     assert res2["passed"] and res2["coverage"] > res["coverage"]
-    rng = next(m for m in K.compute(db, cap) if m["form"] == "range")
-    assert rng["display"] == "1 – 122"          # last *complete* day: today's partial row is ignored
+    low = next(m for m in K.compute(db, cap) if m["form"] == "lower_bound")
+    assert low["display"] == "≥ 3"                 # three distinct paying customers, not four charges
 
 
 def test_verification_rejects_a_capability_that_shows_numbers_it_cannot_have(db, services, monkeypatch, workspace):
     monkeypatch.setattr(V, "BROWSER", False)
     monkeypatch.setattr(C, "TRANSPORT", httpx.MockTransport(lambda r: httpx.Response(200, json={"paid": {"count": 2}})))
     monkeypatch.setattr(V, "TRANSPORT", C.TRANSPORT)
-    spec = P.compose(NEED, _inventory(), include=["cloudflare_analytics"])
+    spec = P.compose(NEED, _inventory(), include=["stripe_payments"])
     # a worker "fixes" the blocked metric by defaulting it to zero
     for m in spec["metrics"]:
-        if "cloudflare" in m["id"]:
+        if "stripe" in m["id"]:
             m["expr"] = f'coalesce({m["expr"]}, 0)'
     cap = K.save_version(db, mission_id=None, need=NEED, signature=[], spec=spec, implementation="delegated",
                          provenance={"agent": "claimed done"}, reason="test")

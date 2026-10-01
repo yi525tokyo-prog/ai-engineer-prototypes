@@ -32,6 +32,7 @@ from regent.ids import new_id
 from regent.software import capability as K
 from regent.software import connectors as C
 from regent.software import principal, probe
+from regent.software import semantics as SM
 from regent.software.need import signature
 from regent.software.reasoner import Reasoner, ReasonerUnavailable, get_reasoner
 
@@ -299,8 +300,13 @@ SEMANTICS_SCHEMA: dict[str, Any] = {
                 "endpoint": {"type": "string"}, "path": {"type": "string", "description": "dotted path in the JSON"},
                 "meaning": {"type": "string"},
                 "counts": {"type": "string", "enum": ["people", "actions", "items", "money", "time", "other"]},
-                "relation_to_need": {"type": "string", "enum": ["direct", "lower_bound", "upper_bound",
-                                                                "activity_signal", "context", "unrelated"]},
+                "relation_to_need": {"type": "string", "enum": ["measure", "lower_bound", "upper_bound", "proxy",
+                                                                "direct", "context", "unrelated"]},
+                "counts_unit": {"type": "string", "description": "the thing each unit of the number is (payment, "
+                                "IP address, request, customer id, page view...)"},
+                "premises": {"type": "object", "description": "only for fields bearing on a count of people: "
+                             "for each premise, does it hold for this field, why, and a verbatim quote showing it",
+                             "properties": {p: SM.PREMISE_SCHEMA for p in SM.PREMISES}},
                 "question": {"type": ["string", "null"], "description": "id of the need question it bears on"},
                 "time_semantics": {"type": "string", "enum": ["cumulative", "resets_daily", "snapshot",
                                                               "event_list", "unknown"]},
@@ -326,14 +332,22 @@ SEMANTICS_INSTRUCTIONS = """You read a live product from the outside for an oper
 need (questions with precise definitions) and what was observed (public JSON endpoints the product's own code calls,
 with the code around each call and a sample response; the product's stated commitments; platform sources that exist
 but need the principal's access, described by their documented fields), say for each numeric or event-list field
-that could bear on the questions what it measures and how it relates to the need. For a platform source use its
-"endpoint" value (connector:<id>) and the field name as path, and quote its documentation as evidence. For a value
-inside a JSON array give the element's path with its index (e.g. "daily.temperature_2m_max.0" for the first day);
-use relation "direct" for a value that answers a question as it stands and "context" for inputs to a decision. Be strict: a
-number that counts something other than people using this product (e.g. counts from an upstream catalogue, sizes,
-budgets, caps) is 'unrelated' even if large. Distinct paying or contributing people are a 'lower_bound' on real
-users; counts of actions are an 'activity_signal', not people. Quote evidence verbatim from the input. Also list the
-product's commitments that constrain how usage may be measured, and any other sources the principal likely holds."""
+that could bear on the questions what it measures, what one unit of it is, and how it relates to the need. For a
+platform source use its "endpoint" value (connector:<id>) and the field name as path, and quote its documentation as
+evidence. For a value inside a JSON array give the element's path with its index (e.g. "daily.temperature_2m_max.0").
+For questions that are not counts of people use "direct" for a value that answers as it stands and "context" for
+inputs to a decision.
+
+For fields bearing on a count of people, the relation must be earned. Answer each premise for the field:
+membership (every counted unit was produced by a member of the question's population -- real, external, not bots,
+crawlers, the operator, staff or tests), distinctness (no member counted twice), window (units fall in the question's
+window), coverage (every member produced at least one unit), no_merging (no unit stands for two or more members).
+Say "unknown" when nothing observed settles it, and "no" when you know it fails (e.g. one IP address can be shared by
+a whole household or office, so IP counts merge people; crawlers have IPs too). Claim "measure" / "lower_bound" /
+"upper_bound" only if you believe the corresponding premises hold, otherwise "proxy". Regent applies the inference
+rules itself and only accepts premises whose evidence it finds verbatim in the input. A number counting something
+other than people using this product (upstream catalogue counts, sizes, budgets, caps) is "unrelated". Also list the
+product's commitments that constrain how usage may be measured, and other sources the principal likely holds."""
 
 
 def inventory(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, reasoner: Reasoner | None = None,
@@ -403,6 +417,21 @@ def inventory(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, re
             f["relation_to_need"] = "unrelated"
             f.setdefault("caveats", []).append("no such field in the observed response")
         fields.append(f)
+    # what each field may honestly be used as: Regent's inference rules over evidenced premises
+    from regent.software.need import question_id as _qid
+
+    observed = re.sub(r"\s+", " ", haystack.replace('\\"', '"')).lower()
+    counts = {q["id"] for q in need.get("questions", []) if q.get("answer_type", "count") == "count"}
+    for f in fields:
+        qid = _qid(need, f.get("question"))
+        if qid in counts and f.get("relation_to_need") not in ("unrelated",):
+            if f.get("relation_to_need") in ("direct", "activity_signal"):
+                f["relation_to_need"] = {"direct": "measure", "activity_signal": "proxy"}[f["relation_to_need"]]
+            a = SM.audit(f, observed)
+            f["audit"] = a
+            f["claimed_relation"] = a["claimed"]
+            f["relation_to_need"] = a["relation"]
+            f.setdefault("caveats", []).extend(a["notes"])
     # readings of existing services' pages: already verified against the live page text
     for page in proposals["pages"]:
         for rd in page["readings"]:
@@ -486,3 +515,58 @@ def _shape_has(shape: dict[str, str], path: str) -> bool:
         return True
     # list items may be addressed as "recent" (the list) or "recent.0.t"
     return any(k.startswith(path + ".") for k in shape)
+
+
+# ------------------------------------------------------------ tool needs
+
+ALT_SCHEMA: dict[str, Any] = {"type": "object", "required": ["alternatives"], "properties": {"alternatives": {
+    "type": "array", "items": {"type": "object", "required": ["name", "url", "meets", "account_needed", "privacy"],
+                               "properties": {"name": {"type": "string"}, "url": {"type": "string"},
+                                              "meets": {"type": "array", "items": {"type": "string"},
+                                                        "description": "requirement ids it meets as it is"},
+                                              "account_needed": {"type": "boolean"},
+                                              "privacy": {"type": "string"}, "why_not": {"type": "string"}}}}}}
+
+ALT_INSTRUCTIONS = """The principal wants an ability (requirements below). List existing software they could use
+instead of having something built (at most 4, real products with their home page URL), and for each the requirement
+ids it meets as it is today, whether an account is needed, and what it means for their privacy. Be strict: a
+requirement that needs integration with the named service is met only if the product actually integrates it."""
+
+
+def inventory_tool(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, reasoner: Reasoner | None = None,
+                   mission_id: str | None = None, log=None, request_id: str | None = None,
+                   transport=None) -> dict[str, Any]:
+    """For an ability the principal wants to keep using: what the software could build on (the
+    subject's live API), what already exists instead (checked to be reachable), and what Regent
+    already has."""
+    log = log or (lambda *a, **k: None)
+    r = reasoner or get_reasoner()
+    deployments = [d for s in resolved.get("subjects", []) for d in s.get("deployments", [])]
+    app_sources = [{"url": ep["url"], "fields": ep["shape"], "sample": ep["sample"], "used_by_product_code_like":
+                    (ep.get("context") or [""])[0][:300]}
+                   for d in deployments for ep in d["endpoints"]
+                   if ep.get("json") and ep.get("status") == 200 and not ep.get("same_as_index")]
+    alternatives, meta = [], {"by": "none"}
+    if r.available():
+        try:
+            ans = r.ask("app_alternatives", ALT_INSTRUCTIONS, {"need": {k: need.get(k) for k in (
+                "sentence", "requirements", "subjects")}}, ALT_SCHEMA, budget_usd=0.6, mission_id=mission_id)
+            meta = {"by": ans.provider, "cost_usd": ans.cost_usd, "answer_key": ans.key}
+            fetcher = Fetcher(db, request_id=request_id, transport=transport, allow_browser=False, min_interval_s=0.3)
+            try:
+                for a in ans.output.get("alternatives", [])[:4]:
+                    doc = fetcher.fetch(a["url"], purpose="alternative", kind="portal", render="static")
+                    alternatives.append({**a, "reachable": doc.ok, "status": doc.status,
+                                         "blocked": (doc.blocked or {}).get("type")})
+            finally:
+                fetcher.close()
+        except ReasonerUnavailable as e:
+            meta = {"by": "none", "error": str(e)[:300]}
+    inv = {"kind": "tool", "app_sources": app_sources, "alternatives": alternatives, "alternatives_meta": meta,
+           "existing_capabilities": need.get("reuse") or [], "constraints": [],
+           "deployments": [{"host": d["host"], "url": d["url"]} for d in deployments],
+           "subjects": [{k: v for k, v in x.items() if k in ("name", "kind", "place", "resolved")}
+                        for x in resolved.get("subjects", [])]}
+    log("inventory", f"tool need: {len(app_sources)} live endpoints to build on; {len(alternatives)} existing products "
+                     f"({sum(1 for a in alternatives if a['reachable'])} reachable)")
+    return inv

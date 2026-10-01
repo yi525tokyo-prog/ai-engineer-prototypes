@@ -269,6 +269,8 @@ def collect_stripe(params: dict[str, Any]) -> Reading:
                                    credential="STRIPE_RESTRICTED_KEY")
         body = r.json()
         for c in body.get("data") or []:
+            if c.get("livemode") is False:
+                continue                         # test-mode charges are not people
             if c.get("paid") and not c.get("refunded"):
                 n += 1
                 who = c.get("customer") or ((c.get("billing_details") or {}).get("email") or "").lower() or c["id"]
@@ -288,8 +290,10 @@ def detect_stripe(fp: dict[str, Any]) -> list[dict[str, Any]]:
 STRIPE = Connector(
     id="stripe_payments", title="Stripe payments (restricted read key)", access="credential",
     credentials=["STRIPE_RESTRICTED_KEY"],
-    measures="distinct people who paid through the product's Stripe links, and successful charges",
-    population="paying people only (a strict lower bound on real users)",
+    measures="distinct paying customers (by Stripe customer, else billing email) and successful charges; "
+             "live-mode charges only, test-mode charges excluded",
+    population="paying customers only; a payment the operator makes to their own live account is not "
+               "distinguishable from a reader's",
     footprint="read-only, server-side; identities are hashed in memory and never stored",
     human_action="Create a Stripe restricted key with read access to Charges (dashboard.stripe.com → Developers → "
                  "API keys → Create restricted key) and paste it here", human_seconds=150,

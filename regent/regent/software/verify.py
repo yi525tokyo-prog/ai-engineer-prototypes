@@ -92,6 +92,7 @@ def _spec_checks(spec: dict[str, Any], need: dict[str, Any]) -> list[dict[str, A
         if m.get("form") not in K.FORMS or not m.get("definition"):
             bad.append(f"{m['id']} lacks an honest form or a definition")
     out.append(_check("metrics are well-formed", not bad, "; ".join(bad) or f"{len(spec.get('metrics', []))} metrics"))
+    out.append(_bounds_are_earned(spec, need))
     out.append(_check("a headline exists", any(m.get("headline") for m in spec.get("metrics", [])) or
                       not spec.get("metrics"), critical=bool(spec.get("metrics"))))
     core = [q for q in need.get("questions", []) if q.get("priority", "core") == "core"] or need.get("questions", [])
@@ -102,6 +103,32 @@ def _spec_checks(spec: dict[str, Any], need: dict[str, Any]) -> list[dict[str, A
     out.append(_check("the capability answers at least one question with a number",
                       any(m.get("answers") for m in spec.get("metrics", [])), critical=False))
     return out
+
+
+ALLOWED = {"lower_bound": ("lower_bound", "at_least_one", "measure"), "upper_bound": ("upper_bound", "measure"),
+           "estimate": ("measure",), "exact": ("measure",)}
+
+
+def _bounds_are_earned(spec: dict[str, Any], need: dict[str, Any]) -> dict[str, Any]:
+    """A number about the people asked about may only be stated in a form Regent's premise audit
+    granted: a payment count is not a user count, distinct IPs are not an upper bound on humans."""
+    counts = {q["id"] for q in need.get("questions", []) if q.get("answer_type", "count") == "count"}
+    bad = []
+    for m in spec.get("metrics", []):
+        if m.get("answers") not in counts or m.get("form") in ("proxy", "activity", "context", "decision"):
+            continue
+        audit = (m.get("source_field") or {}).get("audit")
+        if m.get("form") == "range":
+            parts = (audit or {}).get("parts") or []
+            ok = parts and all(p and p.get("relation") in ("lower_bound", "at_least_one", "upper_bound", "measure")
+                               for p in parts)
+        else:
+            ok = bool(audit) and audit.get("relation") in ALLOWED.get(m.get("form"), ())
+        if not ok:
+            bad.append(f"{m['id']} states a {m.get('form')} without the premises for it "
+                       f"(audit: {audit and audit.get('relation')})")
+    return _check("every number about the people asked about is a form its premises earn", not bad,
+                  "; ".join(bad) or "bounds rest on audited premises; everything else is labelled a proxy")
 
 
 def _latest(db: Session, cap: SwCapability, sid: str) -> SwObservation | None:

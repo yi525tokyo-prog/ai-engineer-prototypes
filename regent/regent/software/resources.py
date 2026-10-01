@@ -6,10 +6,10 @@ generation can weigh "compose it myself" against "have an agent build it" agains
 principal" with the same currency.
 
 The coding agent is the Claude Code CLI working in a sandboxed workspace with file-edit tools
-only. Starting it is a COMMIT-level act (an autonomous agent writing code that Regent will
-later run), so it needs the principal's opt-in (``REGENT_CODING_AGENT=claude-code``) *and* an
-approved operation. Whatever it produces is run by Regent in a subprocess with a timeout and
-then put through the same acceptance suite as anything Regent composed itself.
+only -- it cannot run anything. Starting it is a COMMIT-level act (an autonomous agent writing
+code that Regent will later run), so it needs the principal's opt-in
+(``REGENT_CODING_AGENT=claude-code``) *and* an approved operation. What it writes is an untrusted
+artifact: Regent inspects, builds, tests, runs and accepts it itself (``appbuild``).
 """
 
 from __future__ import annotations
@@ -51,69 +51,44 @@ class CodingAgent:
                 "unavailable_because": why, "authority": "COMMIT", "budget_usd_per_run": self.budget_usd,
                 "sandbox": "own workspace directory; tools Read/Write/Edit/Glob/Grep only; Regent runs the code"}
 
-    def brief(self, need: dict[str, Any], inv: dict[str, Any], include: list[str]) -> str:
-        return (
-            "Write a Python 3.11 file `connector.py` (standard library only) in the current directory.\n"
-            "Contract: `python connector.py <source_id>` prints one JSON object "
-            '{"fields": {<dotted field path>: <value>}, "url": <what was read>} and exits 0; on failure it prints '
-            '{"error": "..."} and exits 1. It must only read (HTTP GET) and must never store or print identities.\n'
-            "Also write `spec.json`: {\"sources\": [{\"id\", \"connector\": \"script\", \"params\": {\"source\": id, "
-            "\"fields\": [...]}, \"title\"}], \"metrics\": [{\"id\", \"label\", \"expr\", \"form\", \"answers\", "
-            "\"definition\", \"window\", \"unit\", \"caveats\", \"headline\"}], \"unanswered\": [...]} where expr uses "
-            "only latest/increase/delta/max_over/min_over/count_items/distinct_items over \"source:field\" refs.\n"
-            "Regent will run your code itself and reject it unless every value agrees with its own reads.\n\n"
-            f"NEED:\n{json.dumps(need, ensure_ascii=False, indent=1)[:12000]}\n\n"
-            f"WHAT REGENT OBSERVED:\n{json.dumps(inv, ensure_ascii=False, indent=1, default=str)[:20000]}\n\n"
-            f"Platform sources to include: {include}\n")
-
-    def run(self, workspace: Path, brief: str) -> dict[str, Any]:
+    def run(self, workspace: Path, brief: str | None, *, prompt: str = "Read BRIEF.md and do exactly what it asks.",
+            budget_usd: float | None = None) -> dict[str, Any]:
+        """One worker session in ``workspace``: file tools only, no shell. Returns what it *claims*;
+        Regent verifies separately."""
         workspace.mkdir(parents=True, exist_ok=True)
-        (workspace / "BRIEF.md").write_text(brief)
-        env = {k: os.environ[k] for k in ("ANTHROPIC_BASE_URL", "HTTPS_PROXY", "NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE",
-                                          "PATH") if k in os.environ}
+        if brief is not None:
+            (workspace / "BRIEF.md").write_text(brief)
+        env = {k: os.environ[k] for k in ("ANTHROPIC_BASE_URL", "HTTPS_PROXY", "NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE")
+               if k in os.environ}
+        env["PATH"] = os.pathsep.join(["/opt/node22/bin", "/usr/local/bin", "/usr/bin", "/bin"])
         env["HOME"] = str(workspace / ".home")
+        (workspace / ".home").mkdir(exist_ok=True)
         t0 = time.time()
-        proc = subprocess.run(
-            ["claude", "-p", "Read BRIEF.md and do exactly what it asks.", "--output-format", "json",
-             "--permission-mode", "acceptEdits", "--tools", "Read,Write,Edit,Glob,Grep",
-             "--max-budget-usd", f"{self.budget_usd:.2f}", "--model", self.model],
-            cwd=workspace, env=env, capture_output=True, text=True, timeout=1800)
+        before = {p.relative_to(workspace).as_posix(): p.stat().st_mtime for p in workspace.rglob("*")
+                  if p.is_file() and ".home" not in p.parts}
         try:
-            raw = json.loads(proc.stdout)
+            proc = subprocess.run(
+                ["claude", "-p", prompt, "--output-format", "json", "--permission-mode", "acceptEdits",
+                 "--tools", "Read,Write,Edit,Glob,Grep", "--max-budget-usd", f"{budget_usd or self.budget_usd:.2f}",
+                 "--model", self.model],
+                cwd=workspace, env=env, capture_output=True, text=True, timeout=3600)
+            out = proc.stdout
+        except subprocess.TimeoutExpired as e:
+            out = json.dumps({"is_error": True, "result": f"timeout after 3600s"})
+        try:
+            raw = json.loads(out)
         except ValueError:
-            raw = {"is_error": True, "result": (proc.stderr or proc.stdout)[:500]}
-        transcript = workspace / "agent_result.json"
+            raw = {"is_error": True, "result": (out or "")[:500]}
+        n = len(list(workspace.glob("agent_result*.json")))
+        transcript = workspace / f"agent_result{n}.json"
         transcript.write_text(json.dumps(raw, indent=1))
-        return {"claimed_done": not raw.get("is_error"), "cost_usd": raw.get("total_cost_usd"),
-                "seconds": round(time.time() - t0), "files": sorted(p.name for p in workspace.iterdir()),
+        after = {p.relative_to(workspace).as_posix(): p.stat().st_mtime for p in workspace.rglob("*")
+                 if p.is_file() and ".home" not in p.parts}
+        changed = sorted(k for k, v in after.items() if before.get(k) != v and not k.startswith("agent_result"))
+        return {"claimed_done": not raw.get("is_error"), "claim": str(raw.get("result") or "")[:600],
+                "cost_usd": raw.get("total_cost_usd"), "turns": raw.get("num_turns"),
+                "seconds": round(time.time() - t0), "files_changed": changed, "files": sorted(after),
                 "transcript": str(transcript)}
-
-    def build_capability(self, s, mission_id: str, need: dict[str, Any], inv: dict[str, Any], include: list[str]):
-        """Brief the agent, then treat what it wrote as untrusted input to Regent's own pipeline."""
-        from regent.schemas import CostEstimate, ToolResult
-        from regent.software import capability as K
-        from regent.software import verify as V
-        from regent.software.need import signature
-
-        ws = settings.workspace / "agents" / f"{mission_id}-{int(time.time())}"
-        run = self.run(ws, self.brief(need, inv, include))
-        spec_path = ws / "spec.json"
-        if not spec_path.exists() or not (ws / "connector.py").exists():
-            return ToolResult(status="failed", error="agent claimed completion but produced no connector/spec",
-                              outputs={"agent": run})
-        spec = json.loads(spec_path.read_text())
-        for src in spec.get("sources", []):
-            src["connector"] = "script"
-            src.setdefault("params", {})["path"] = str(ws / "connector.py")
-        cap = K.save_version(s, mission_id=mission_id, need=need, signature=signature(need), spec=spec,
-                             implementation="delegated", reason="built by coding agent",
-                             provenance={"agent": run, "workspace": str(ws)})
-        res = V.run(s, cap)
-        s.commit()
-        return ToolResult(status="ok", outputs={"capability_id": cap.id, "passed": res["passed"],
-                                                "coverage": res["coverage"], "summary": res["summary"],
-                                                "agent_claimed_done": run["claimed_done"]},
-                          cost=CostEstimate(api_usd=float(run.get("cost_usd") or 0)))
 
 
 def coding_agent() -> CodingAgent:

@@ -20,6 +20,7 @@ constraints: a route that would break one is not a candidate.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from regent.schemas import (
@@ -81,7 +82,8 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
     mid = mission["id"]
     scale = float(mission.get("value_scale") or 1.0)
     routes: list[RouteProposal] = []
-    reuse_only = "public_fields" not in inv       # the world was not re-examined: an existing capability answers
+    # the world was not re-examined: an existing capability answers
+    reuse_only = "public_fields" not in inv and inv.get("kind") != "tool"
     hosts = [d["host"] for d in inv.get("deployments", [])]
     host = hosts[0] if hosts else "product"
     forbids = {f for c in inv.get("constraints", []) if c.get("evidence_found") for f in c.get("forbids", [])}
@@ -94,6 +96,10 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
                                                           if str(f.get("endpoint", "")).startswith("connector:")}]
 
     for cap in inv.get("existing_capabilities", []):
+        rel = cap.get("relation", "same_need")
+        if rel in ("can_do", "extend"):
+            routes += _app_reuse_routes(cap, rel, need, scale)
+            continue
         routes.append(RouteProposal(
             key=f"software-reuse-{cap['slug']}", archetype="reuse", title=f"Use the existing capability '{cap['title']}'",
             thesis=(f"Regent already built and verified a capability answering this need (judged by "
@@ -110,6 +116,8 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
 
     if reuse_only:
         return routes
+    if inv.get("kind") == "tool":
+        return routes + tool_strategies(mission, need, inv, scale)
     origins = {f.get("origin", "product") for f in inv.get("public_fields", [])
                if f.get("path_exists") and f.get("relation_to_need") != "unrelated"
                and not str(f.get("endpoint", "")).startswith("connector:")}
@@ -240,33 +248,146 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
     best = max(readable, key=lambda p: coverage_estimate(need, inv, [p["id"]]), default=None)
     routes.append(RouteProposal(
         key="software-delegate", archetype="delegate",
-        title="Have a coding agent build a bespoke usage app on the same sources",
-        thesis=("Brief a coding agent with the same sources and acceptance tests; Regent verifies its output the "
-                "same way. Same data, so the same coverage as composing, at the cost of an agent run and the "
-                "principal's authorization to let an agent write and run code."),
+        title="Have a coding agent build a bespoke usage application on the same sources",
+        thesis=("Design an application on the same sources, have a coding agent build it, and accept it only after "
+                "Regent's own build, tests, browser scenarios and restart pass. Same data, so at best the same "
+                "coverage as composing, at the cost of an agent run, a process to keep alive and the principal's "
+                "authorization to let an agent write code Regent runs."),
         tags=["software", "delegate", "coding_agent"],
         estimates=RouteEstimates(expected_upside=scale * max(public_cov, 0.05), success_probability=0.6,
                                  time_cost_hours=1.0, money_cost=0.0, reversibility=1.0, optionality=0.8, risk=0.25,
                                  authority_cost=0.4, information_gain=0.3),
-        operations=[OperationSpec(key="sw.delegate", goal="Delegate the build to a coding agent", tool="software",
-                                  action="delegate_build", inputs={"include": [best["id"]] if best else []},
-                                  timeout_s=3600,
-                                  verification=VerificationSpec(method="predicate", predicate={
-                                      "path": "passed", "op": "eq", "value": True}))]))
+        operations=[OperationSpec(key="sw.design", goal="Design the application", tool="software",
+                                  action="design_app", timeout_s=600,
+                                  verification=VerificationSpec(method="schema", required_keys=["designed"])),
+                    OperationSpec(key="sw.delegate", goal="Delegate the build, then accept it independently",
+                                  tool="software", action="build_app", depends_on=["sw.design"], timeout_s=7200,
+                                  verification=_verify_passed())]))
 
     if best is not None:
+        # by hand the principal sees what the platform shows -- the same audited forms, not at a glance
+        manual_cov = 0.5 * coverage_estimate(need, inv, [best["id"]])
         routes.append(RouteProposal(
             key="software-manual", archetype="human",
             title=f"Look it up yourself on the {best['title'].split(' (')[0]} dashboard",
             thesis="No software: each time the principal wants the answer they sign in and read the platform's own "
                    "dashboard. Not 'at a glance' and costs attention every time.",
             tags=["software", "human"],
-            estimates=RouteEstimates(expected_upside=scale * 0.4, success_probability=0.9, time_cost_hours=0.1,
-                                     reversibility=1.0, optionality=0.7, risk=0.1, authority_cost=0.9,
-                                     information_gain=0.1),
+            estimates=RouteEstimates(expected_upside=scale * max(manual_cov, 0.02), success_probability=0.9,
+                                     time_cost_hours=0.1, reversibility=1.0, optionality=0.7, risk=0.1,
+                                     authority_cost=0.9, information_gain=0.1),
+            estimate_rationale={"expected_upside": f"half the coverage {best['title']} supports ({manual_cov:.2f}): "
+                                                   "the same numbers, read by hand, not at a glance"},
             operations=[OperationSpec(key="sw.human.manual", goal="Read the platform dashboard", tool="human",
                                       action="perform", inputs={"required_action": "Sign in and read the usage "
                                                                                    "numbers on the dashboard",
                                                                 "estimated_time_seconds": 120, "kind": "physical"},
                                       verification=VerificationSpec(method="human_confirmed"))]))
+    return routes
+
+
+def _verify_passed() -> VerificationSpec:
+    return VerificationSpec(method="predicate", predicate={"path": "passed", "op": "eq", "value": True})
+
+
+def _app_reuse_routes(cap: dict[str, Any], rel: str, need: dict[str, Any], scale: float) -> list[RouteProposal]:
+    if rel == "can_do":
+        return [RouteProposal(
+            key=f"software-use-{cap['slug']}", archetype="reuse", title=f"Do it with '{cap['title']}' (already running)",
+            thesis=("An application Regent built and verified can do this through its API; Regent makes the calls "
+                    "and reads back that they took effect. Nothing new is built."),
+            tags=["software", "reuse"],
+            estimates=RouteEstimates(expected_upside=scale * 0.95, success_probability=0.9, time_cost_hours=0.02,
+                                     reversibility=0.9, optionality=0.9, risk=0.05, authority_cost=0.0,
+                                     information_gain=0.1),
+            operations=[OperationSpec(key="sw.use", goal=f"Do the request through {cap['title']}", tool="software",
+                                      action="use_app", inputs={"capability_id": cap["id"]}, timeout_s=300,
+                                      verification=_verify_passed())])]
+    gaps = "; ".join(cap.get("gaps") or []) or "the new requirements"
+    return [RouteProposal(
+        key=f"software-extend-{cap['slug']}", archetype="extend", title=f"Extend '{cap['title']}' (new version, same data)",
+        thesis=(f"The application the principal already uses holds the data this needs but lacks: {gaps}. A coding agent "
+                "builds the next version; Regent tests it on a copy of the real data, promotes it with a backup and "
+                "rolls back if any record is lost. The principal keeps one place for everything."),
+        tags=["software", "extend", "coding_agent"],
+        estimates=RouteEstimates(expected_upside=scale * 0.9, success_probability=0.6, time_cost_hours=1.0,
+                                 money_cost=0.0, reversibility=0.85, optionality=0.8, risk=0.25, authority_cost=0.35,
+                                 information_gain=0.3),
+        estimate_rationale={"reversibility": "the previous version and a backup of its data are kept for rollback"},
+        operations=[OperationSpec(key="sw.design", goal="Design the next version (interface kept, data migrated)",
+                                  tool="software", action="design_app", inputs={"capability_id": cap["id"]},
+                                  timeout_s=600, verification=VerificationSpec(method="schema",
+                                                                                required_keys=["designed"])),
+                    OperationSpec(key="sw.extend", goal="Build, test on real data, promote or roll back",
+                                  tool="software", action="extend_app", depends_on=["sw.design"],
+                                  inputs={"capability_id": cap["id"]}, timeout_s=7200,
+                                  verification=_verify_passed())]),
+        RouteProposal(
+        key=f"software-separate-{cap['slug']}", archetype="build", title="Build a separate application for this",
+        thesis=("Leave the existing application alone and build another one: no migration risk, but the data is in "
+                "two places and the principal has two things to open."),
+        tags=["software", "coding_agent"],
+        estimates=RouteEstimates(expected_upside=scale * 0.5, success_probability=0.6, time_cost_hours=1.0,
+                                 reversibility=1.0, optionality=0.6, risk=0.2, authority_cost=0.35,
+                                 information_gain=0.2),
+        operations=[OperationSpec(key="sw.design", goal="Design a separate application", tool="software",
+                                  action="design_app", timeout_s=600,
+                                  verification=VerificationSpec(method="schema", required_keys=["designed"])),
+                    OperationSpec(key="sw.build", goal="Build it", tool="software", action="build_app",
+                                  depends_on=["sw.design"], timeout_s=7200, verification=_verify_passed())])]
+
+
+def tool_strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any], scale: float
+                    ) -> list[RouteProposal]:
+    """An ability the principal will keep using: build it, use an existing product, or do without."""
+    core = [r["id"] for r in need.get("requirements", []) if r.get("priority", "core") == "core"] or \
+        [r["id"] for r in need.get("requirements", [])]
+    routes = [RouteProposal(
+        key="software-build-app", archetype="build", title="Have the application built, then verify and run it",
+        thesis=("Nothing that exists does all of this; a coding agent builds it to Regent's interface contract and "
+                f"Regent's own acceptance scenarios ({len(core)} core requirements), integrating "
+                f"{len(inv.get('app_sources', []))} live endpoints. Regent inspects, builds, tests, runs it in a real "
+                "browser, repairs it with the agent until it passes, and keeps it running."),
+        tags=["software", "build", "coding_agent"],
+        estimates=RouteEstimates(expected_upside=scale * 1.0, success_probability=0.6, time_cost_hours=1.0,
+                                 reversibility=1.0, optionality=0.9, risk=0.25, authority_cost=0.35,
+                                 information_gain=0.4),
+        estimate_rationale={"success_probability": "agent-built software, accepted only after Regent's scenarios pass "
+                                                   "(bounded repair rounds)",
+                            "authority_cost": "an autonomous coding agent writes code Regent then runs (COMMIT)"},
+        operations=[OperationSpec(key="sw.design", goal="Design the application Regent will have built",
+                                  tool="software", action="design_app", timeout_s=600,
+                                  verification=VerificationSpec(method="schema", required_keys=["designed"])),
+                    OperationSpec(key="sw.build", goal="Delegate, inspect, build, test, run, accept, repair, promote",
+                                  tool="software", action="build_app", depends_on=["sw.design"], timeout_s=7200,
+                                  verification=_verify_passed())])]
+    for a in inv.get("alternatives", []):
+        if not a.get("reachable"):
+            continue
+        met = [r for r in a.get("meets", []) if r in core]
+        fit = len(met) / max(len(core), 1)
+        routes.append(RouteProposal(
+            key=f"software-existing-{re.sub(r'[^a-z0-9]+', '-', a['name'].lower())[:30]}", archetype="use_existing",
+            title=f"Use {a['name']}", thesis=(f"An existing product; meets {len(met)}/{len(core)} core requirements as "
+                                              f"it is. Account needed: {a['account_needed']}. Privacy: {a['privacy']}."
+                                              + (f" Not enough because: {a['why_not']}" if a.get("why_not") else "")),
+            tags=["software", "use_existing"] + (["third_party_data"] if a.get("account_needed") else []),
+            estimates=RouteEstimates(expected_upside=scale * fit * 0.9, success_probability=0.9, time_cost_hours=0.2,
+                                     reversibility=0.7, optionality=0.6, risk=0.2,
+                                     authority_cost=0.6 if a.get("account_needed") else 0.2, information_gain=0.1),
+            operations=[OperationSpec(key="sw.human.signup", goal=f"Create an account at {a['name']}", tool="human",
+                                      action="perform", inputs={"required_action": f"Create an account at {a['url']}",
+                                                                 "estimated_time_seconds": 300, "kind": "identity"},
+                                      verification=VerificationSpec(method="human_confirmed"))]))
+    routes.append(RouteProposal(
+        key="software-manual", archetype="human", title="Keep it by hand (a notes app)",
+        thesis="No software: the principal writes everything down themselves each time. Nothing is integrated.",
+        tags=["software", "human"],
+        estimates=RouteEstimates(expected_upside=scale * 0.3, success_probability=0.95, time_cost_hours=0.0,
+                                 reversibility=1.0, optionality=0.8, risk=0.05, authority_cost=0.9,
+                                 information_gain=0.0),
+        operations=[OperationSpec(key="sw.human.manual", goal="Keep notes by hand", tool="human", action="perform",
+                                  inputs={"required_action": "Keep the list in a notes app", "kind": "physical",
+                                          "estimated_time_seconds": 60},
+                                  verification=VerificationSpec(method="human_confirmed"))]))
     return routes

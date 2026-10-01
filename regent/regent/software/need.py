@@ -22,7 +22,8 @@ from regent.software.reasoner import Reasoner, ReasonerUnavailable, get_reasoner
 
 NEED_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "required": ["handled_as", "subjects", "questions", "deliverable", "definitions_to_state"],
+    "required": ["handled_as", "need_type", "subjects", "questions", "requirements", "deliverable",
+                 "definitions_to_state"],
     "properties": {
         "handled_as": {"type": "string", "enum": ["software_capability", "housing", "other"],
                        "description": "software_capability: satisfying this needs some software to observe, "
@@ -62,6 +63,17 @@ NEED_SCHEMA: dict[str, Any] = {
                                                             "description": "HH:MM local time if the wording implies "
                                                                            "when to be told (e.g. 'every morning')"},
                                        "why": {"type": "string"}}},
+        "need_type": {"type": "string", "enum": ["information", "tool", "action"],
+                      "description": "information: wants to know something; tool: wants an ability they keep "
+                                     "using (an app, a place to do X); action: wants something done once"},
+        "requirements": {"type": "array", "description": "for tool and action needs: what must be possible, "
+                         "each with an observable acceptance check",
+                         "items": {"type": "object", "required": ["id", "capability", "acceptance", "priority"],
+                                   "properties": {"id": {"type": "string"}, "capability": {"type": "string"},
+                                                  "acceptance": {"type": "string"},
+                                                  "priority": {"type": "string", "enum": ["core", "supporting"]},
+                                                  "from_words": {"type": "string", "description": "the words in "
+                                                                 "the sentence this comes from"}}}},
         "definitions_to_state": {"type": "array", "items": {"type": "string"},
                                  "description": "ambiguities the answer must resolve explicitly"},
         "success_looks_like": {"type": "string"},
@@ -69,12 +81,15 @@ NEED_SCHEMA: dict[str, Any] = {
 }
 
 INSTRUCTIONS = """You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide
+whether they want to know something (information), to have an ability they will keep using (tool), or to have
+something done once (action). Decide
 what information (or ability) they actually need, without choosing any implementation, provider, tool,
 metric source or architecture. Identify the subjects exactly as written. For each question, define the quantity
 precisely enough that two engineers would count the same thing, including who must be excluded for the answer to
 be true to the principal's words, and which time windows make it meaningful. State which forms of answer are
 honest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means
-a view readable in seconds that stays current)."""
+a view readable in seconds that stays current). For tool and action needs list requirements: what must be
+possible, each with an observable acceptance check, tied to the words it comes from; questions may then be empty."""
 
 
 def analyze(sentence: str, *, reasoner: Reasoner | None = None, mission_id: str | None = None) -> dict[str, Any]:
@@ -107,7 +122,14 @@ def check(sentence: str, need: dict[str, Any]) -> list[dict[str, Any]]:
         s["_ok"] = ok
         out.append({"check": f"subject '{s.get('name')}' appears in the sentence", "passed": ok})
     qs = need.get("questions", [])
-    out.append({"check": "at least one question", "passed": bool(qs)})
+    reqs = need.get("requirements", [])
+    out.append({"check": "at least one question or requirement", "passed": bool(qs or reqs)})
+    for r in reqs:
+        words = (r.get("from_words") or "").strip()
+        r["stated"] = bool(words) and _norm(words) in norm
+        out.append({"check": f"requirement {r.get('id')} comes from the sentence"
+                             + ("" if r["stated"] else " (implied, not stated: kept and marked)"),
+                    "passed": True})
     for q in qs:
         ok = bool(q.get("quantity")) and bool(q.get("population"))
         out.append({"check": f"question {q.get('id')} defines quantity and population", "passed": ok})
@@ -137,7 +159,7 @@ def local_parse(sentence: str) -> dict[str, Any]:
                           "priority": "core"})
     glance = bool(re.search(r"at a glance|dashboard|一目|ひと目", low))
     return {"handled_as": "software_capability" if subjects and questions else "other", "subjects": subjects,
-            "questions": questions,
+            "need_type": "information", "requirements": [], "questions": questions,
             "deliverable": {"form": "glance_view" if glance else "answer_once",
                             "refresh": "continuous" if glance else "once", "max_seconds_to_read": 10 if glance else None,
                             "why": "wording" if glance else "no recurring wording"},

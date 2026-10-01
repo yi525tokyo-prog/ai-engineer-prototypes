@@ -33,9 +33,9 @@ from regent.software import expr as X
 from regent.software.tables import SwCapability, SwCapabilityVersion, SwObservation
 
 CLOCK: Any = None            # test hook
-FORMS = ("exact", "estimate", "range", "lower_bound", "upper_bound", "activity", "decision", "context")
+FORMS = ("exact", "estimate", "range", "lower_bound", "upper_bound", "activity", "proxy", "decision", "context")
 FORM_WEIGHT = {"exact": 1.0, "estimate": 0.9, "decision": 0.9, "range": 0.8, "upper_bound": 0.4, "lower_bound": 0.5,
-               "activity": 0.25, "context": 0.1}
+               "activity": 0.15, "proxy": 0.15, "context": 0.05}
 
 
 def now() -> datetime:
@@ -172,6 +172,11 @@ def compute(db: Session, cap: SwCapability) -> list[dict[str, Any]]:
         ctx = X.EvalContext(series=series, now=now())
         res: dict[str, Any] = {k: m.get(k) for k in ("id", "label", "unit", "form", "answers", "definition",
                                                       "caveats", "window", "headline", "yes", "no")}
+        if m.get("unknowable"):
+            res.update(value=None, status="unknowable", why=m.get("why"), notes=[], refs=[])
+            res["display"] = "Unknown"
+            out.append(res)
+            continue
         try:
             v = X.evaluate(m["expr"], ctx)
             if isinstance(v, float) and v.is_integer() and not isinstance(v, bool):
@@ -214,6 +219,11 @@ def display(m: dict[str, Any]) -> str:
         return "—"
     if isinstance(v, bool):
         return (m.get("yes") or "Yes") if v else (m.get("no") or "No")
+    if isinstance(v, (int, float)) and re.search(r"time|date|timestamp|epoch|\bat\b", (m.get("label") or "") + " "
+                                                 + (m.get("definition") or ""), re.I):
+        for scale in (1, 1000):                   # epoch seconds or milliseconds shown as a date
+            if 1e9 <= v / scale <= 4e9:
+                return datetime.fromtimestamp(v / scale, timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     if isinstance(v, list):
         return " / ".join(_fmt(x) for x in v[:3]) + (" …" if len(v) > 3 else "")
     if isinstance(v, dict):
@@ -360,7 +370,8 @@ def _window(w: str | None) -> str:
 def _form_text(m: dict[str, Any]) -> str:
     return {"lower_bound": "at least (lower bound)", "upper_bound": "at most (upper bound)", "exact": "exact",
             "estimate": "estimate", "range": "range", "activity": "activity signal, not a count of people",
-            "decision": "decision by a stated rule", "context": "context"}.get(
+            "decision": "decision by a stated rule", "context": "context",
+            "proxy": "proxy: moves with the answer, is not the answer"}.get(
         m.get("form") or "", m.get("form") or "")
 
 
@@ -368,6 +379,10 @@ def _form_text(m: dict[str, Any]) -> str:
 
 def register_tool(services: Any, cap: SwCapability) -> None:
     """Expose the capability as a Regent tool so routes (and later missions) can use it."""
+    if cap.implementation == "application":
+        from regent.software import appcap
+
+        return appcap.register_tool(services, cap)
     from regent import db as dbm
     from regent.schemas import ToolResult
     from regent.tools.base import ActionSpec, Tool
