@@ -143,6 +143,7 @@ class Runner:
 
     def _scenario(self, sc: dict[str, Any], page) -> dict[str, Any]:
         vars_: dict[str, Any] = {"passphrase": self.passphrase or ""}
+        self._responses: list[dict[str, Any]] = []
         log = []
         try:
             for i, st in enumerate(sc.get("steps", [])):
@@ -150,7 +151,8 @@ class Runner:
                 note = self._step(st, page, vars_)
                 log.append(f"{i}: {st['do']} {st.get('api') or st.get('target') or st.get('path') or ''} ok {note}")
             return {"id": sc["id"], "requirement": sc.get("requirement"), "kind": sc.get("kind"), "passed": True,
-                    "log": log[-12:]}
+                    "log": log[-12:], "responses": self._responses[-12:],
+                    "vars": {k: v for k, v in vars_.items() if k != "passphrase"}}
         except Exception as e:
             shot = None
             try:
@@ -183,6 +185,8 @@ class Runner:
                 miss = contains(data, st["expect_json_contains"])
                 if miss:
                     raise AssertionError(f"{st['api']}: response lacks {miss}: {json.dumps(data)[:300]}")
+            self._responses.append({"api": st["api"], "status": r.status_code,
+                                    "data": data if len(json.dumps(data, default=str)) < 4000 else "(large)"})
             for var, path in (st.get("save") or {}).items():
                 vars_[var] = _dig(data, path)
                 if vars_[var] is None:

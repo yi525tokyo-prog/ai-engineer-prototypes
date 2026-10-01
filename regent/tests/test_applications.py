@@ -334,3 +334,29 @@ def test_a_running_application_outlives_regent_and_is_adopted_not_duplicated(app
     S._RUNNING.clear()
     assert S.adopt("shelf", "live", Path(res["workspace"]).parent / "v9", data) is None
     assert not again._alive()
+
+
+def test_an_application_judged_the_same_need_is_used_not_read_like_a_dashboard():
+    from regent.software.routes import strategies
+
+    inv = {"existing_capabilities": [{"id": "c1", "slug": "shelf", "title": "Shelf", "relation": "same_need",
+                                      "implementation": "application"}]}
+    [r] = strategies({"id": "m2"}, {"requirements": NEED["requirements"]}, inv)
+    assert r.key == "software-use-shelf" and r.operations[0].action == "use_app"
+
+
+def test_the_next_version_is_held_to_everything_the_current_one_was_accepted_for():
+    from regent.software.tool import _scoped_need, with_regression
+
+    v2 = {**DESIGN, "api": [{**a, "id": a["id"] + "_v2"} for a in DESIGN["api"]] +
+          [{"id": "share", "method": "POST", "path": "/api/books/{id}/share", "purpose": "share"}],
+          "scenarios": [{"id": "private", "requirement": "v2-share", "kind": "negative", "steps": [
+              {"do": "call", "api": "list_books_v2", "auth": False, "expect_status": 401}]}], "ui": []}
+    merged = with_regression(v2, DESIGN)
+    ids = [s["id"] for s in merged["scenarios"]]
+    assert ids == ["private", "add_and_survive_restart", "prev-private"]
+    carried = merged["scenarios"][1]
+    assert {st.get("api") for st in carried["steps"]} == {"add_book_v2", None, "list_books_v2"}
+    need = _scoped_need({"requirements": [{"id": "share", "capability": "x", "acceptance": "y"}]}, 2)
+    assert need["requirements"][0]["id"] == "v2-share"
+    assert D.check(merged, need, DESIGN) == []

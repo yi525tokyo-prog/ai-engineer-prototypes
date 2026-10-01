@@ -176,11 +176,16 @@ def _app_action(s, action: str, inputs: dict[str, Any], ctx: ToolContext) -> Too
     if base is not None:
         previous = {"version": base.spec["app"]["version"], "workspace": base.spec["app"]["workspace"],
                     "design": base.spec["design"], "port": base.spec["app"].get("port")}
+        need = _scoped_need(need, previous["version"] + 1)
     if action == "design_app":
         sources = inv.get("app_sources", [])
         d = D.design(need, {"sources": sources, "constraints": [c["statement"] for c in inv.get("constraints", [])
                                                                  if c.get("evidence_found")]},
                      previous=previous["design"] if previous else None, mission_id=ctx.mission_id)
+        if d.get("ok") and previous:
+            d["design"] = with_regression(d["design"], previous["design"])
+            d["problems"] = D.check(d["design"], need, previous["design"])
+            d["ok"] = not d["problems"]
         if not d.get("ok"):
             return ToolResult(status="failed", error="design rejected: " + "; ".join(d.get("problems") or [d.get("error", "")]),
                               outputs={"problems": d.get("problems")})
@@ -220,9 +225,10 @@ def _app_action(s, action: str, inputs: dict[str, Any], ctx: ToolContext) -> Too
     if not promo.get("live"):
         return ToolResult(status="ok", outputs={**summary, "passed": False}, cost=CostEstimate(api_usd=cost))
     acc = res["rounds"][-1].get("acceptance") or {}
-    cov = D.requirement_coverage(design, need, acc.get("by_id", {}))
-    cap = appcap.register(s, mission_id=ctx.mission_id if base is None else base.mission_id, need=need if base is None
-                          else {**base.need, "requirements": base.need.get("requirements", []) + need.get("requirements", [])},
+    full_need = need if base is None else {**base.need, "requirements": base.need.get("requirements", [])
+                                           + need.get("requirements", [])}
+    cov = D.requirement_coverage(design, full_need, acc.get("by_id", {}))
+    cap = appcap.register(s, mission_id=ctx.mission_id if base is None else base.mission_id, need=full_need,
                           signature=signature(need) + (base.signature if base else []), design=design, build=res,
                           promote=promo, capability_id=base.id if base else None, coverage=cov,
                           provenance={"worker_runs": [r.get("worker") for r in res["rounds"]], "design_by": "reasoner",
@@ -249,6 +255,28 @@ def _app_action(s, action: str, inputs: dict[str, Any], ctx: ToolContext) -> Too
                       claims=[f"application {cap.slug} v{version} live at {promo['url']}; coverage {cov:.2f}"])
 
 
+def _scoped_need(need: dict[str, Any], version: int) -> dict[str, Any]:
+    """A later mission's requirements, with ids that cannot collide with the ones the application
+    was first built for (both sets stay on the capability)."""
+    return {**need, "requirements": [{**r, "id": f"v{version}-{r['id']}"} for r in need.get("requirements", [])]}
+
+
+def with_regression(new: dict[str, Any], old: dict[str, Any]) -> dict[str, Any]:
+    """The next version stays accountable to everything the version in use was accepted for:
+    its scenarios run again (endpoint ids mapped by method and path) and its UI hooks are kept."""
+    by_route = {(a["method"], a["path"]): a["id"] for a in new.get("api", [])}
+    ids = {a["id"]: by_route.get((a["method"], a["path"]), a["id"]) for a in old.get("api", [])}
+    mine = {s["id"] for s in new.get("scenarios", [])}
+    carried = []
+    for sc in old.get("scenarios", []):
+        steps = [{**st, "api": ids.get(st["api"], st["api"])} if st.get("api") else st for st in sc.get("steps", [])]
+        sid = sc["id"] if sc["id"] not in mine else f"prev-{sc['id']}"
+        carried.append({**sc, "id": sid, "steps": steps, "regression": True})
+    hooks = {u["testid"] for u in new.get("ui", [])}
+    return {**new, "scenarios": new.get("scenarios", []) + carried,
+            "ui": new.get("ui", []) + [u for u in old.get("ui", []) if u["testid"] not in hooks]}
+
+
 def _accepted_design(s, mission_id: str) -> dict[str, Any] | None:
     """The design the mission's own design_app operation produced and Regent checked (the
     operation record is the durable copy; the mission's attrs may be rewritten by the loop)."""
@@ -262,21 +290,28 @@ def _accepted_design(s, mission_id: str) -> dict[str, Any] | None:
     return None
 
 
-USE_SCHEMA = {"type": "object", "required": ["calls", "verify"], "properties": {
+_CALL = {"api": {"type": "string"}, "path_params": {"type": ["object", "null"]}, "query": {"type": ["object", "null"]},
+         "body": {"type": ["object", "null"]}}
+USE_SCHEMA = {"type": "object", "required": ["lookups", "calls", "verify", "report"], "properties": {
+    "lookups": {"type": "array", "description": "GET calls whose answers you need before you can plan the changes "
+                "(e.g. find an id); if non-empty, leave calls/verify empty -- you will be asked again with the "
+                "answers", "items": {"type": "object", "required": ["api"], "properties": _CALL}},
     "calls": {"type": "array", "items": {"type": "object", "required": ["api"], "properties": {
-        "api": {"type": "string"}, "path_params": {"type": ["object", "null"]}, "body": {"type": ["object", "null"]},
-        "save": {"type": ["object", "null"]}, "why": {"type": "string"}}}},
+        **_CALL, "save": {"type": ["object", "null"]}, "why": {"type": "string"}}}},
     "verify": {"type": "array", "items": {"type": "object", "required": ["api", "expect_json_contains"], "properties": {
-        "api": {"type": "string"}, "path_params": {"type": ["object", "null"]},
-        "expect_json_contains": {"type": "object"}}}}}}
+        **_CALL, "expect_json_contains": {"type": "object"}}}},
+    "report": {"type": "string", "description": "what to tell the principal when it is done; may use {var} values "
+               "saved from calls and {base_url} (the application's address)"}}}
 
 USE_INSTRUCTIONS = """The principal asked for something to be done with an application an operational agent runs.
 Using only the listed endpoints, give the calls that do it (reuse existing records instead of creating duplicates --
-the current data is included), and read-back checks that prove it happened. Use {var} to refer to values saved
-from earlier calls. Do only what was asked."""
+the current data is included), and read-back checks that prove it happened. If you need answers you do not have yet
+(e.g. an id from a search), ask for them as lookups first. Use {var} for values saved from earlier calls. Do only
+what was asked, and say in the report what the principal needs to know (e.g. a link they asked for)."""
 
 
 def _use_app(s, inputs: dict[str, Any], ctx: ToolContext) -> ToolResult:
+    from regent.core.observe.events import EventStore
     from regent.db import Mission
     from regent.software import appaccept as A
     from regent.software import appcap
@@ -288,28 +323,55 @@ def _use_app(s, inputs: dict[str, Any], ctx: ToolContext) -> ToolResult:
     need = (m.attrs or {}).get("need") or {}
     r = appcap.runner(cap)
     current = A.snapshot(r.svc, cap.spec["design"], r.passphrase)
-    payload = {"request": need.get("sentence"), "requirements": need.get("requirements"),
-               "endpoints": cap.spec["design"]["api"], "current_data": current}
-    try:
-        plan = get_reasoner().ask("app_use_plan", USE_INSTRUCTIONS, payload, USE_SCHEMA, budget_usd=0.8,
-                                  mission_id=ctx.mission_id).output
-    except ReasonerUnavailable as e:
-        return ToolResult(status="failed", error=str(e)[:300])
-    ids = {a["id"] for a in cap.spec["design"]["api"]}
-    bad = [c["api"] for c in plan["calls"] + plan["verify"] if c["api"] not in ids]
-    if bad:
-        return ToolResult(status="failed", error=f"plan uses endpoints the application does not have: {bad}")
-    steps = [{"do": "call", **{k: c.get(k) for k in ("api", "path_params", "body", "save")}} for c in plan["calls"]]
-    steps += [{"do": "call", "api": v["api"], "path_params": v.get("path_params"),
-               "expect_json_contains": v["expect_json_contains"]} for v in plan["verify"]]
+    api = {a["id"]: a for a in cap.spec["design"]["api"]}
+    payload: dict[str, Any] = {"request": need.get("sentence"), "requirements": need.get("requirements"),
+                               "endpoints": cap.spec["design"]["api"], "current_data": current}
+    looked: list[dict[str, Any]] = []
+    plan: dict[str, Any] = {}
+    for _ in range(3):
+        try:
+            plan = get_reasoner().ask("app_use_plan", USE_INSTRUCTIONS, payload, USE_SCHEMA, budget_usd=0.8,
+                                      mission_id=ctx.mission_id).output
+        except ReasonerUnavailable as e:
+            return ToolResult(status="failed", error=str(e)[:300])
+        bad = [c["api"] for c in plan["lookups"] + plan["calls"] + plan["verify"] if c["api"] not in api]
+        if bad:
+            return ToolResult(status="failed", error=f"plan uses endpoints the application does not have: {bad}")
+        if not plan["lookups"]:
+            break
+        if any(api[c["api"]]["method"] != "GET" for c in plan["lookups"]):
+            return ToolResult(status="failed", error="a lookup must not change anything (GET only)")
+        for c in plan["lookups"]:
+            resp = r.call(c["api"], c.get("path_params"), None, query=c.get("query"))
+            looked.append({**c, "status": resp.status_code, "answer": _json(resp)})
+        payload = {**payload, "lookup_answers": looked}
+    else:
+        return ToolResult(status="failed", error="still looking things up after three rounds")
+    steps = [{"do": "call", **{k: c.get(k) for k in ("api", "path_params", "query", "body", "save")}}
+             for c in plan["calls"]]
+    steps += [{"do": "call", **{k: v.get(k) for k in ("api", "path_params", "query", "expect_json_contains")}}
+              for v in plan["verify"]]
     res = r.run([{"id": "use", "requirement": "request", "kind": "api", "steps": steps}])["scenarios"][0]
+    vars_ = {**(res.get("vars") or {}), "base_url": r.svc.url}
+    report = A._subst(plan.get("report") or "", vars_) if res["passed"] else None
     cap.uses = (cap.uses or 0) + 1
+    if report:
+        EventStore(s).append("principal_notified", {"capability": cap.slug, "channel": "regent_inbox", "text": report},
+                             source=f"capability:{cap.slug}", mission_id=ctx.mission_id)
     s.commit()
     return ToolResult(status="ok", outputs={"passed": res["passed"], "capability_id": cap.id, "calls": len(plan["calls"]),
-                                            "verified_by_read_back": len(plan["verify"]), "log": res.get("log"),
-                                            "error": res.get("error")},
+                                            "lookups": len(looked), "verified_by_read_back": len(plan["verify"]),
+                                            "report": report, "responses": res.get("responses"),
+                                            "log": res.get("log"), "error": res.get("error")},
                       facts=[{"key": f"software.need.{ctx.mission_id}.usable", "value": res["passed"]},
                              {"key": f"software.need.{ctx.mission_id}.coverage", "value": 1.0 if res["passed"] else 0.0},
                              {"key": f"software.need.{ctx.mission_id}.capability", "value": cap.slug}],
                       claims=[f"{len(plan['calls'])} calls through {cap.tool_name}; read-back "
                               f"{'confirms' if res['passed'] else 'does NOT confirm'} the request"])
+
+
+def _json(resp) -> Any:
+    try:
+        return resp.json()
+    except ValueError:
+        return resp.text[:2000]

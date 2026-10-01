@@ -98,6 +98,8 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
 
     for cap in inv.get("existing_capabilities", []):
         rel = cap.get("relation", "same_need")
+        if cap.get("implementation") == "application" and rel == "same_need":
+            rel = "can_do"            # an application answers a need by being used through its API
         if rel in ("can_do", "extend"):
             routes += _app_reuse_routes(cap, rel, need, scale)
             continue
