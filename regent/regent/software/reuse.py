@@ -116,11 +116,16 @@ def match(db: Session, need: dict[str, Any], *, reasoner: Reasoner | None = None
             except Exception:      # noqa: BLE001 -- a dead application is not reusable as it is
                 continue
         else:
-            r_ = K.read(db, c, count_use=False)
+            # it must work now (verified, readable); an honest "Unknown" is still its answer -- rebuilding
+            # from the same world cannot do better
+            if not (c.verification or {}).get("passed"):
+                continue
+            try:
+                r_ = K.read(db, c, count_use=False)
+            except Exception:      # noqa: BLE001 -- a capability that cannot be read is not reusable as it is
+                continue
             live_values = sum(1 for m in r_["metrics"] if m.get("value") is not None)
             coverage = r_["coverage"]
-            if not live_values:
-                continue
         out.append({"id": c.id, "slug": c.slug, "title": c.title, "status": c.status, "coverage": coverage,
                     "implementation": c.implementation, "relation": rel,
                     "covered_questions": v.get("covered", v.get("covered_questions", [])), "gaps": v.get("gaps", []),

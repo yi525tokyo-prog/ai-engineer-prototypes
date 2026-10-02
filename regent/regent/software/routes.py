@@ -181,6 +181,11 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
             operations=_ops_compose([])))
 
     for p in readable:
+        # the principal's time is spent on a credential only for what earns an answer, not for more proxies
+        earned = [f for f in inv.get("public_fields", []) if f.get("endpoint") == f"connector:{p['id']}"
+                  and f.get("relation_to_need") in ("measure", "lower_bound", "upper_bound", "at_least_one", "direct")]
+        if not earned:
+            continue
         cov = coverage_estimate(need, inv, [p["id"]])
         if cov <= public_cov + 0.01:
             continue
