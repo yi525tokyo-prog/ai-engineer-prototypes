@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import math
 import re
-import statistics
 from typing import Any
 from urllib.parse import quote
 
@@ -470,6 +469,3 @@ def _craigslist_sites(html: str) -> list[tuple[str, str, str, str | None]]:
     return out
 
 
-def median_or_none(vals: list[float]) -> float | None:
-    vals = [v for v in vals if v]
-    return statistics.median(vals) if vals else None

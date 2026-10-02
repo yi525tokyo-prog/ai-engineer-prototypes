@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import threading
 from datetime import datetime
-from typing import Any, Iterator
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -40,7 +40,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sess
 from sqlalchemy.types import TypeDecorator
 
 from regent.config import settings
-from regent.ids import monotonic_now, utcnow
+from regent.ids import monotonic_now
 
 EMBEDDING_DIM = 256
 
@@ -529,13 +529,3 @@ def _add_missing_columns(eng) -> None:
                     conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN "{col.name}" {ddl}'))
 
 
-def session_scope() -> Iterator[Session]:
-    s = session()
-    try:
-        yield s
-        s.commit()
-    except Exception:
-        s.rollback()
-        raise
-    finally:
-        s.close()

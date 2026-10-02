@@ -10,7 +10,6 @@ persisted state changes against a local store.
 from __future__ import annotations
 
 import math
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -20,7 +19,7 @@ import httpx
 
 from regent.config import settings
 from regent.connectors import store
-from regent.ids import new_id, utcnow
+from regent.ids import utcnow
 from regent.tools.base import MissingCredential
 
 # ------------------------------------------------------------------- email
@@ -53,14 +52,6 @@ class LocalMailbox:
 
     def outbox(self) -> list[dict]:
         return store.find("mail", "sent")
-
-
-class SmtpMailbox:  # real integration interface
-    name = "smtp"
-
-    def __init__(self) -> None:
-        if not os.environ.get("REGENT_SMTP_URL"):
-            raise MissingCredential("REGENT_SMTP_URL", "SMTP/Gmail sending not configured")
 
 
 # ----------------------------------------------------------------- calendar
@@ -212,5 +203,3 @@ class GitHubConnector:
         return {"number": r.json()["number"], "url": r.json()["html_url"]}
 
 
-def new_message_id() -> str:
-    return new_id("msg")

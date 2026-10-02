@@ -22,7 +22,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-from regent.config import settings
 from regent.software import secrets
 from regent.software.reasoner import get_reasoner
 
@@ -73,8 +72,8 @@ class CodingAgent:
                  "--model", self.model],
                 cwd=workspace, env=env, capture_output=True, text=True, timeout=3600)
             out = proc.stdout
-        except subprocess.TimeoutExpired as e:
-            out = json.dumps({"is_error": True, "result": f"timeout after 3600s"})
+        except subprocess.TimeoutExpired:
+            out = json.dumps({"is_error": True, "result": "timeout after 3600s"})
         try:
             raw = json.loads(out)
         except ValueError:

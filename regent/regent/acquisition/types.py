@@ -81,14 +81,6 @@ class SourceQuery:
 
 
 @dataclass
-class QueryPlan:
-    request_id: str
-    stages: list[dict[str, Any]] = field(default_factory=list)   # [{name, queries: [SourceQuery...], why}]
-    assumptions: list[dict[str, Any]] = field(default_factory=list)
-    expansions: list[str] = field(default_factory=list)
-
-
-@dataclass
 class FetchedDocument:
     id: str
     url: str

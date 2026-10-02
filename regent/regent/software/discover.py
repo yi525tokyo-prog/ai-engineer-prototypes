@@ -29,11 +29,9 @@ from regent.acquisition.fetch import Fetcher
 from regent.acquisition.tables import AcqEntity
 from regent.acquisition.types import AttrSpec, ClaimIn, FreshnessPolicy
 from regent.ids import new_id
-from regent.software import capability as K
 from regent.software import connectors as C
 from regent.software import principal, probe
 from regent.software import semantics as SM
-from regent.software.need import signature
 from regent.software.reasoner import Reasoner, ReasonerUnavailable, get_reasoner
 
 DAY = 86400.0
@@ -532,13 +530,6 @@ def _literal_commitments(promises: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 def _loose(s: str) -> str:
     return re.sub(r"\s+", " ", s.replace('\\"', '"')).strip().lower()
-
-
-def _shape_has(shape: dict[str, str], path: str) -> bool:
-    if path in shape:
-        return True
-    # list items may be addressed as "recent" (the list) or "recent.0.t"
-    return any(k.startswith(path + ".") for k in shape)
 
 
 # ------------------------------------------------------------ tool needs

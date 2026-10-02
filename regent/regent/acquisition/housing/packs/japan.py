@@ -314,14 +314,6 @@ class JapanPack(SourcePack):
             return None, None, None
         return statistics.median(vals), "JPY", f"median 1K/1DK market rent over {len(vals)} areas on {doc.final_url}"
 
-    def region_price_signal(self, engine) -> float | None:
-        """Median 1K/1DK market rent (JPY/month) across the region's scanned areas."""
-        vals = [float((e.beliefs or {}).get("market_rent_1k_1dk", {}).get("value") or 0)
-                for e in engine.db.scalars(select(AcqEntity).where(AcqEntity.domain == self.adapter.name,
-                                                                   AcqEntity.entity_type == "area").order_by(*ENTITY_ORDER))]
-        vals = [v for v in vals if v]
-        return statistics.median(vals) if vals else None
-
     # ------------------------------------------------------------ enrichment
 
     def enrichment_jobs(self, engine, entity: AcqEntity) -> list[EnrichmentJobSpec]:

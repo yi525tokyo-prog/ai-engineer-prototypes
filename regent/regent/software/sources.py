@@ -258,7 +258,7 @@ def _read_page(doc, need, proposal, reasoner: Reasoner, mission_id) -> dict[str,
     for r in ans.output.get("readings", []):
         try:
             rx = re.compile(r["pattern"], re.S)
-        except re.error as e:
+        except re.error:
             continue
         if rx.groups != 1:
             continue

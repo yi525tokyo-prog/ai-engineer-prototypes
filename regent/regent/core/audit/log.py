@@ -37,11 +37,6 @@ class DecisionLog:
         self.db.flush()
         return d
 
-    def set_outcome(self, decision_id: str, outcome: dict[str, Any]) -> None:
-        d = self.db.get(Decision, decision_id)
-        if d is not None:
-            d.outcome = {**(d.outcome or {}), **outcome}
-
     def for_mission(self, mission_id: str, limit: int = 100) -> list[Decision]:
         return list(self.db.scalars(select(Decision).where(Decision.mission_id == mission_id)
                                     .order_by(Decision.created_at.desc()).limit(limit)))

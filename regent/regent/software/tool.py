@@ -14,7 +14,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from regent.schemas import CostEstimate, ToolResult
+from regent.schemas import ToolResult
 from regent.tools.base import ActionSpec, Tool, ToolContext
 
 

@@ -106,11 +106,6 @@ def route_dict(r: Route, ops: list[Operation] | None = None) -> dict[str, Any]:
     return d
 
 
-def interrupt_dict(h: HumanInterrupt, api_url: str = "") -> dict[str, Any]:
-    d = h.to_dict()
-    return d
-
-
 def cockpit(db: Session, mission_id: str) -> dict[str, Any]:
     graph = MissionGraph(db)
     m = graph.get(mission_id)

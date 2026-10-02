@@ -28,7 +28,7 @@ from urllib.parse import urlparse
 
 from sqlalchemy import select
 
-from regent.acquisition.navigate import anchors, find_links, next_page
+from regent.acquisition.navigate import anchors, find_links
 from regent.acquisition.tables import AcqSourceRecipe
 from regent.acquisition.types import SourceSpec
 from regent.ids import utcnow
@@ -287,11 +287,6 @@ class SourceDiscovery:
         if self.vocab.city_share is not None:
             return self.vocab.city_share(doc, city) >= 0.4
         return _mentions_city(doc, city)
-
-    @staticmethod
-    def paginate(doc) -> str | None:
-        return next_page(doc.html, doc.final_url)
-
 
 def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")

@@ -15,7 +15,7 @@ from urllib.parse import quote
 
 from sqlalchemy import select
 
-from regent.acquisition.discovery import Candidate, SourceDiscovery
+from regent.acquisition.discovery import SourceDiscovery
 from regent.acquisition.housing import locale as L
 from regent.acquisition.housing.generic_extract import GenericListingExtractor
 from regent.acquisition.housing.packs.base import SourcePack
@@ -280,5 +280,3 @@ class GenericPack(SourcePack):
         return {"centre_km": km}
 
 
-def candidate_from(host: str, channel: str) -> Candidate:
-    return Candidate(host, f"https://{host}/", channel)

@@ -61,9 +61,6 @@ class WorldView:
             d["treasury.runway_months"] = rm
         return d, set(d.keys())
 
-    def has_fact(self, key: str) -> bool:
-        return key in self.facts
-
     def of_kind(self, kind: str) -> list[Entity]:
         return sorted((e for e in self.entities.values() if e.kind == kind), key=lambda e: e.id)
 

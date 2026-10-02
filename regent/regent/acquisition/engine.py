@@ -33,10 +33,6 @@ from regent.core.observe.events import EventStore
 from regent.ids import new_id, utcnow
 
 
-class BudgetExhausted(RuntimeError):
-    pass
-
-
 class AcquisitionEngine:
     def __init__(self, db: Session, adapter: DomainAdapter, request: AcqRequest, *,
                  transport: httpx.BaseTransport | None = None, now: datetime | None = None,

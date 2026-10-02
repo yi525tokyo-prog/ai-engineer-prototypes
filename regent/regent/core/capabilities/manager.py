@@ -56,9 +56,6 @@ class CapabilityManager:
                 self.events.append("capability_changed", {"id": cap, "name": cap, "status": status,
                                                           "provided_by": info["providers"]}, source="registry")
 
-    def missing_for(self, route: Route, world: WorldView) -> list[str]:
-        return [c for c in (route.required_capabilities or []) if not world.capability_available(c)]
-
     # ---------------------------------------------------------- acquisition
 
     def open_acquisition(self, parent: Mission, route: Route, cap_id: str) -> Mission:
