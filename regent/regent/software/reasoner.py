@@ -114,7 +114,12 @@ class Reasoner:
                           cached=True, key=key)
         prompt = self._prompt(instructions, payload)
         t0 = time.time()
-        out, raw = self._claude(prompt, schema, budget_usd)
+        try:
+            out, raw = self._claude(prompt, schema, budget_usd)
+        except ReasonerUnavailable as e:
+            LAST_FAILURE.update({"at": time.time(), "error": str(e)[:300]})
+            raise
+        LAST_FAILURE.clear()
         ans = Answer(output=out, task=task, provider="claude-code", model=self.model,
                      cost_usd=float(raw.get("total_cost_usd") or 0), latency_ms=round((time.time() - t0) * 1000, 1),
                      key=key, raw={k: raw.get(k) for k in ("num_turns", "session_id", "subtype")})
@@ -165,6 +170,9 @@ class Reasoner:
 
 
 _REASONER: Reasoner | None = None
+
+
+LAST_FAILURE: dict[str, Any] = {}      # the most recent time the worker could not answer (shown to the person)
 
 
 def get_reasoner() -> Reasoner:

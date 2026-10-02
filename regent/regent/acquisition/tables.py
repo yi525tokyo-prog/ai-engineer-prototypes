@@ -14,12 +14,12 @@ from typing import Any
 from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from regent.db import Base, JSONType
+from regent.db import Base, JSONType, AwareDateTime
 from regent.ids import monotonic_now
 
 
 def _ts() -> Mapped[datetime]:
-    return mapped_column(DateTime(timezone=True), default=monotonic_now)
+    return mapped_column(AwareDateTime(), default=monotonic_now)
 
 
 class AcqRequest(Base):
@@ -44,7 +44,7 @@ class AcqSource(Base):
     __tablename__ = "acq_sources"
     host: Mapped[str] = mapped_column(String(120), primary_key=True)
     kind: Mapped[str] = mapped_column(String(24), default="portal")
-    robots_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    robots_fetched_at: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
     robots_txt: Mapped[str] = mapped_column(Text, default="")
     fetches: Mapped[int] = mapped_column(Integer, default=0)
     ok: Mapped[int] = mapped_column(Integer, default=0)
@@ -54,7 +54,7 @@ class AcqSource(Base):
     agree: Mapped[float] = mapped_column(Float, default=1.0)     # Beta(agree, disagree) over reconciled claims
     disagree: Mapped[float] = mapped_column(Float, default=1.0)
     last_status: Mapped[str] = mapped_column(String(80), default="")
-    last_fetch_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_fetch_at: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
     notes: Mapped[dict] = mapped_column(JSONType, default=dict)
 
 
@@ -147,7 +147,7 @@ class AcqConflict(Base):
     hypotheses: Mapped[list] = mapped_column(JSONType, default=list)
     status: Mapped[str] = mapped_column(String(12), default="open")   # open|resolved
     detected_at: Mapped[datetime] = _ts()
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
 
 
 class AcqLink(Base):
@@ -175,9 +175,9 @@ class AcqJob(Base):
     priority: Mapped[float] = mapped_column(Float, default=1.0)
     result: Mapped[dict] = mapped_column(JSONType, default=dict)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    due_at: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
     created_at: Mapped[datetime] = _ts()
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
 
 
 class AcqSourceRecipe(Base):
@@ -200,7 +200,7 @@ class AcqSourceRecipe(Base):
     records: Mapped[int] = mapped_column(Integer, default=0)
     uses: Mapped[int] = mapped_column(Integer, default=0)
     failures: Mapped[int] = mapped_column(Integer, default=0)
-    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
     created_at: Mapped[datetime] = _ts()
 
 

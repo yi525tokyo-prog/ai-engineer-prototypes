@@ -97,6 +97,33 @@ def _ts(v: Any) -> datetime | None:
     return None
 
 
+def _seq(v: Any) -> list[float] | None:
+    """A value holding several numbers -- a list, or page text like "30 20 10 0" or "30%, 20%" --
+    as numbers; None if it is not such a sequence."""
+    if isinstance(v, (list, tuple)):
+        nums = [_num(x) for x in v]
+        return [x for x in nums if x is not None] if any(x is not None for x in nums) else None
+    if isinstance(v, str):
+        parts = [p for p in re.split(r"[\s,、/|]+", v.strip()) if p]
+        if len(parts) > 1:
+            nums = [_num(p) for p in parts]
+            if all(x is not None for x in nums):
+                return nums      # type: ignore[return-value]
+    return None
+
+
+def _flat(xs: tuple) -> list[Any]:
+    out: list[Any] = []
+    for x in xs:
+        s = _seq(x)
+        if s is not None:
+            out += s
+        elif x is not None:
+            n = _num(x)
+            out.append(n if n is not None else x)
+    return out
+
+
 def _fns(ctx: EvalContext) -> dict[str, Callable[..., Any]]:
     def ser(ref: str) -> Series:
         if not isinstance(ref, str) or ":" not in ref:
@@ -166,12 +193,16 @@ def _fns(ctx: EvalContext) -> dict[str, Callable[..., Any]]:
         return next((x for x in xs if x is not None), None)
 
     def _max(*xs):
-        xs2 = [x for x in xs if x is not None]
+        xs2 = _flat(xs)
         return max(xs2) if xs2 else None
 
     def _min(*xs):
-        xs2 = [x for x in xs if x is not None]
+        xs2 = _flat(xs)
         return min(xs2) if xs2 else None
+
+    def _sum(*xs):
+        xs2 = _flat(xs)
+        return sum(xs2) if xs2 else None
 
     def _round(x, n=0):
         return None if x is None else round(float(x), int(n))
@@ -181,11 +212,11 @@ def _fns(ctx: EvalContext) -> dict[str, Callable[..., Any]]:
 
     return {"latest": latest, "increase": increase, "delta": delta, "max_over": max_over, "min_over": min_over,
             "count_items": count_items, "distinct_items": distinct_items, "observed_for": observed_for,
-            "coalesce": coalesce, "max": _max, "min": _min, "round": _round, "if_else": if_else}
+            "coalesce": coalesce, "max": _max, "min": _min, "sum": _sum, "round": _round, "if_else": if_else}
 
 
 FUNCTIONS = ("latest", "increase", "delta", "max_over", "min_over", "count_items", "distinct_items", "observed_for",
-             "coalesce", "max", "min", "round", "if_else")
+             "coalesce", "max", "min", "sum", "round", "if_else")
 
 
 def parse(expr: str) -> ast.Expression:

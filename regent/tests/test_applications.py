@@ -377,3 +377,28 @@ def test_read_back_matches_structure_not_exact_lists():
     assert A.contains(data, {"notes": [{"text": "The Butler translation reads well."}]}) == []
     assert A.contains(data, {"notes": [{"text": "Pope"}]}) != []
     assert A.contains(data, {"notes": []}) == []
+
+
+def test_a_browser_step_fills_dropdowns_and_checkboxes_like_a_person(tmp_path):
+    from playwright.sync_api import sync_playwright
+
+    from regent.browser.driver import _chromium_executable
+
+    page_html = ('<select data-testid="s"><option value="want">Want to read</option><option value="reading">Reading'
+                 '</option></select><input type="checkbox" data-testid="c"><input data-testid="t">')
+    with sync_playwright() as pw:
+        try:
+            b = pw.chromium.launch()
+        except Exception:
+            b = pw.chromium.launch(executable_path=_chromium_executable())
+        pg = b.new_page()
+        pg.set_content(page_html)
+        A._set_value(pg, '[data-testid="s"]', "reading")
+        assert pg.eval_on_selector('[data-testid="s"]', "e => e.value") == "reading"
+        A._set_value(pg, '[data-testid="s"]', "Want to read")          # by its visible label
+        assert pg.eval_on_selector('[data-testid="s"]', "e => e.value") == "want"
+        A._set_value(pg, '[data-testid="c"]', "true")
+        assert pg.eval_on_selector('[data-testid="c"]', "e => e.checked")
+        A._set_value(pg, '[data-testid="t"]', "Neuromancer")
+        assert pg.eval_on_selector('[data-testid="t"]', "e => e.value") == "Neuromancer"
+        b.close()

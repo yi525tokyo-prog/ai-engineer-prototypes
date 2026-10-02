@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regent</title>
+<style>
+:root {
+  --bg: #f7f6f3; --card: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e4e2dc;
+  --accent: #2f5d50; --accent-ink: #ffffff; --warn: #9a5b00; --warn-bg: #fff4e0; --bad: #9b2c2c;
+  --need: #7a3e00; --need-bg: #fff1e3; --ok: #2f5d50; --ok-bg: #e8f1ee; --chip: #efede7;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #161615; --card: #1f1f1d; --ink: #ecebe6; --muted: #a3a29c; --line: #34332f;
+    --accent: #7fb8a6; --accent-ink: #0f1a17; --warn: #f0b45c; --warn-bg: #3a2c14; --bad: #f08a8a;
+    --need: #f3b37a; --need-bg: #3a2616; --ok: #8cc7b3; --ok-bg: #1d2c27; --chip: #2a2a27; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 28px 16px 80px; }
+h1 { font-size: 22px; font-weight: 650; margin: 0 0 18px; letter-spacing: .2px; }
+h2 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em;
+  margin: 28px 0 10px; }
+.ask { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.ask textarea { width: 100%; border: 0; outline: none; resize: none; background: transparent; color: var(--ink);
+  font: inherit; font-size: 17px; min-height: 52px; }
+.ask .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px; }
+.hint { color: var(--muted); font-size: 13px; }
+button { font: inherit; font-size: 15px; border-radius: 10px; border: 1px solid var(--line); background: var(--card);
+  color: var(--ink); padding: 8px 14px; cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+button:disabled { opacity: .5; cursor: default; }
+button.link { border: 0; background: none; padding: 4px 0; color: var(--muted); font-size: 14px; text-decoration: underline; }
+.examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.examples button { background: var(--chip); border: 0; font-size: 14px; padding: 6px 12px; border-radius: 999px; color: var(--ink); }
+.notice { background: var(--warn-bg); color: var(--warn); border-radius: 12px; padding: 12px 14px; margin-top: 16px; font-size: 15px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+.card.need { border-color: var(--need); background: var(--need-bg); }
+.card .title { font-weight: 600; font-size: 17px; }
+.card .body { color: var(--ink); margin: 6px 0 10px; white-space: pre-wrap; }
+.card .meta { color: var(--muted); font-size: 13px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.field { margin: 8px 0; }
+.field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 3px; }
+.field input { width: 100%; font: inherit; padding: 9px 10px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); }
+.asked { font-size: 17px; font-weight: 550; }
+.status { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: var(--muted); font-size: 15px; }
+.pill { font-size: 12px; font-weight: 650; padding: 2px 9px; border-radius: 999px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+.pill.working { background: var(--chip); color: var(--ink); }
+.pill.needs_you { background: var(--need-bg); color: var(--need); }
+.pill.done { background: var(--ok-bg); color: var(--ok); }
+.pill.stuck, .pill.paused { background: var(--warn-bg); color: var(--warn); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s infinite ease-in-out; flex: none; }
+@keyframes pulse { 0%,100% { opacity: .25 } 50% { opacity: 1 } }
+.result { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.big { font-size: 28px; font-weight: 650; line-height: 1.2; }
+.label { color: var(--muted); font-size: 14px; }
+.why { color: var(--muted); font-size: 14px; margin-top: 4px; }
+ul.plain { margin: 6px 0 0; padding-left: 18px; }
+ul.plain li { margin: 2px 0; }
+.small { font-size: 14px; }
+details { margin-top: 10px; font-size: 14px; color: var(--muted); }
+summary { cursor: pointer; }
+pre { white-space: pre-wrap; font: inherit; margin: 0; }
+.msg { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; margin: 8px 0; }
+a { color: var(--accent); }
+.empty { color: var(--muted); padding: 8px 2px; }
+.secret { font-family: ui-monospace, Menlo, monospace; background: var(--chip); padding: 2px 8px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Regent</h1>
+
+  <div class="ask">
+    <textarea id="intent" rows="2" placeholder="What would you like handled? Say it the way you would to a person."></textarea>
+    <div class="row">
+      <span class="hint" id="askhint">Regent works on it while you do other things. It asks only when it truly needs you.</span>
+      <button class="primary" id="send">Hand it over</button>
+    </div>
+  </div>
+  <div class="examples" id="examples"></div>
+  <div id="notice"></div>
+
+  <section id="needs"></section>
+  <section id="messages"></section>
+  <section id="items"></section>
+</main>
+
+<script>
+const EXAMPLES = [
+  "Every morning, tell me whether it's a good day to dry laundry outside in Osaka.",
+  "I want a private place, usable from any browser, to keep what I'm reading and my notes.",
+  "I want to know, at a glance, how many real people are actually using lindy-books.org.",
+];
+const STATE = { working: "Working", needs_you: "Needs you", done: "Done", stuck: "Having trouble",
+  paused: "Paused", cannot: "Can't do this yet", stopped: "Stopped" };
+
+const $ = (id) => document.getElementById(id);
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else if (v !== undefined && v !== null) e.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k !== null && k !== undefined && k !== false) e.append(k instanceof Node ? k : document.createTextNode(String(k)));
+  return e;
+}
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error((await r.text()).slice(0, 200));
+  return r.json();
+}
+
+let editing = false;       // do not re-render a question someone is typing into
+let timer = null;
+
+async function send(text) {
+  text = (text ?? $("intent").value).trim();
+  if (text.length < 2) return;
+  $("send").disabled = true;
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  try { await api("/api/intent", { text, timezone }); $("intent").value = ""; } finally { $("send").disabled = false; }
+  refresh();
+}
+$("send").onclick = () => send();
+$("intent").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+
+function question(q) {
+  const inputs = {};
+  const fields = (q.fields || []).map((f) => {
+    const i = el("input", { type: f.secret ? "password" : "text", autocomplete: "off",
+      onfocus: () => (editing = true), onblur: () => (editing = false) });
+    inputs[f.name] = i;
+    return el("div", { class: "field" }, el("label", { text: f.label }), i);
+  });
+  const mins = q.seconds ? (q.seconds < 60 ? `about ${q.seconds} seconds` : `about ${Math.round(q.seconds / 60)} min`) : "";
+  const buttons = q.actions.map((a) => el("button", { class: a.primary ? "primary" : "", text: a.label, onclick: async (ev) => {
+    ev.target.disabled = true; editing = false;
+    const values = {}; for (const [k, i] of Object.entries(inputs)) values[k] = i.value;
+    try { await api(`/api/questions/${q.id}`, { action: a.id, values }); } catch (e) { alert(e.message); }
+    refresh();
+  } }));
+  return el("div", { class: "card need" },
+    el("div", { class: "title", text: q.title }),
+    q.body ? el("div", { class: "body", text: q.body }) : null,
+    ...fields,
+    el("div", { class: "actions" }, ...buttons),
+    mins ? el("div", { class: "meta", text: `Takes ${mins} of your time.` }) : null);
+}
+
+function metricBlock(h) {
+  if (!h) return null;
+  const unknown = h.value === null || h.value === undefined;
+  return el("div", {},
+    el("div", { class: "big", text: unknown ? "Unknown" : h.value }),
+    el("div", { class: "label", text: h.label }),
+    unknown && h.why ? el("div", { class: "why", text: h.why }) : null);
+}
+
+function result(r) {
+  if (!r) return null;
+  const box = el("div", { class: "result" });
+  if (r.kind === "answer") {
+    box.append(metricBlock(r.headline));
+    if (r.also && r.also.length) {
+      const list = el("ul", { class: "plain small" }, ...r.also.map((m) => el("li", {}, `${m.label}: `, el("strong", { text: m.value }))));
+      const decided = r.headline && r.headline.value !== null && r.headline.value !== undefined;
+      box.append(decided ? el("details", {}, el("summary", { text: "Based on" }), list) : list);
+    }
+    if (r.unknown && r.unknown.length) box.append(el("div", { class: "why" }, "Can't be known yet: " + r.unknown.join("; ")));
+    if (r.reused) box.append(el("div", { class: "why", text: "Answered with what Regent had already built for an earlier request." }));
+    box.append(el("div", { class: "actions" }, el("a", { href: r.view, target: "_blank", text: "Open the live view" })));
+  } else if (r.kind === "app" || r.kind === "done_in_app") {
+    if (r.text) box.append(el("div", { class: "body", text: r.text }));
+    const a = r.app;
+    if (a) {
+      const pass = el("span");
+      box.append(el("div", { class: "small" }, el("strong", { text: a.name }),
+        a.version ? ` · version ${a.version}` : "", a.running ? "" : " · not running right now"));
+      const acts = el("div", { class: "actions" });
+      acts.append(el("button", { class: "primary", text: "Open the app", onclick: async () => {
+        let url = a.url;
+        try { url = (await api(`/api/apps/${a.capability}/start`, {})).url; } catch (e) {}
+        window.open(url, "_blank");
+      } }));
+      if (a.passphrase) acts.append(el("button", { text: "Show passphrase", onclick: async () => {
+        const p = await api(`/api/apps/${a.capability}/passphrase`);
+        pass.replaceChildren(el("span", { class: "secret", text: p.passphrase }));
+      } }), pass);
+      box.append(acts);
+      if (r.kind === "app" && a.can && a.can.length) box.append(el("details", {}, el("summary", { text: "What it can do" }),
+        el("ul", { class: "plain" }, ...a.can.map((c) => el("li", { text: c })))));
+    }
+  } else if (r.kind === "reminder") {
+    for (const x of r.items) box.append(el("div", {},
+      el("div", { class: "big", text: x.active ? x.when : "Delivered" }),
+      el("div", { class: "label", text: `“${x.text}”` })));
+    if ("Notification" in window && Notification.permission === "default")
+      box.append(el("div", { class: "actions" }, el("button", { text: "Also notify me in this browser",
+        onclick: async (ev) => { await Notification.requestPermission(); ev.target.remove(); } })));
+    box.append(el("div", { class: "why", text: "Regent shows it here at that time" +
+      ("Notification" in window && Notification.permission === "granted" ? " and as a notification." : ".") +
+      " Keep Regent running (it can stay in the background)." }));
+  } else if (r.kind === "brief") {
+    box.append(el("pre", { class: "small", text: r.text }));
+  } else if (r.kind === "problem") {
+    box.append(el("div", { class: "why", text: r.text }));
+  }
+  return box;
+}
+
+function item(i) {
+  const status = el("div", { class: "status" },
+    i.state === "working" ? el("span", { class: "dot" }) : null,
+    el("span", { class: `pill ${i.state}`, text: STATE[i.state] || i.state }),
+    el("span", { text: i.now }));
+  const acts = el("div", { class: "actions" });
+  if (["working", "needs_you", "paused", "stuck"].includes(i.state))
+    acts.append(el("button", { class: "link", text: "Stop", onclick: async () => { await api(`/api/items/${i.id}/stop`, {}); refresh(); } }));
+  if (["stuck", "stopped", "paused", "done", "cannot"].includes(i.state))
+    acts.append(el("button", { class: "link", text: i.state === "done" ? "Redo from scratch" : "Try again",
+      onclick: async () => { await api(`/api/items/${i.id}/retry`, {}); refresh(); } }));
+  if (["done", "stopped", "cannot"].includes(i.state))
+    acts.append(el("button", { class: "link", text: "Remove", onclick: async () => { await api(`/api/items/${i.id}/remove`, {}); refresh(); } }));
+  const det = (i.did && i.did.length) || i.why ? el("details", {}, el("summary", { text: "What Regent did" }),
+    i.did && i.did.length ? el("ul", { class: "plain" }, ...i.did.map((d) => el("li", { text: d }))) : null,
+    i.why ? el("div", { class: "why" }, el("strong", { text: "Approach: " }), i.why.chose,
+      i.why.had_alternatives ? " (chosen over other ways it considered)" : "") : null) : null;
+  return el("div", { class: "card" },
+    el("div", { class: "asked", text: i.asked }),
+    status,
+    i.problem ? el("div", { class: "why", text: i.problem }) : null,
+    i.state === "cannot" ? el("div", { class: "why", text: "Right now Regent can: answer questions about things on the web and keep the answer current, deliver a daily verdict or summary, build you a small private app and keep using it for you, and look for places to live." }) : null,
+    result(i.result),
+    det,
+    el("div", { class: "meta", text: `Asked ${i.started}` }),
+    acts);
+}
+
+let seen = null;                // messages already shown, so only new ones notify
+function announce(messages) {
+  const ids = messages.map((m) => String(m.id));
+  if (seen && "Notification" in window && Notification.permission === "granted")
+    for (const m of messages) if (!seen.has(String(m.id))) new Notification("Regent", { body: m.text });
+  seen = new Set(ids);
+}
+
+async function refresh() {
+  clearTimeout(timer);
+  let d;
+  try { d = await api("/api/home"); }
+  catch (e) { $("notice").replaceChildren(el("div", { class: "notice", text: "Can't reach Regent. Is it still running?" })); timer = setTimeout(refresh, 5000); return; }
+  $("notice").replaceChildren(d.notice ? el("div", { class: "notice", text: d.notice }) : "");
+  announce(d.messages);
+  if (!editing) $("needs").replaceChildren(...(d.questions.length ? [el("h2", { text: "Needs you" }), ...d.questions.map(question)] : []));
+  $("messages").replaceChildren(...(d.messages.length ? [el("h2", { text: "From Regent" }),
+    ...d.messages.slice(0, 4).map((m) => el("div", { class: "msg" }, el("div", { text: m.text }),
+      el("div", { class: "meta", text: `${m.when} · ${m.about}` })))] : []));
+  $("items").replaceChildren(el("h2", { text: "Your requests" }),
+    ...(d.items.length ? d.items.map(item) : [el("div", { class: "empty", text: "Nothing yet. Tell Regent something you want handled." })]));
+  $("examples").replaceChildren(...(d.items.length ? [] : EXAMPLES.map((x) => el("button", { text: x, onclick: () => { $("intent").value = x; $("intent").focus(); } }))));
+  timer = setTimeout(refresh, d.busy || d.questions.length ? 2000 : 8000);
+}
+refresh();
+</script>
+</body>
+</html>

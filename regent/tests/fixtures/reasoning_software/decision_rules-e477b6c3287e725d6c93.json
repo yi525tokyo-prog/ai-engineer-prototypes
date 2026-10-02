@@ -1,0 +1,188 @@
+{
+ "task": "decision_rules",
+ "key": "e477b6c3287e725d6c93",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.021653,
+ "instructions": "The principal wants a yes/no answer. Using ONLY the listed fields (refer to each as\nlatest(\"<ref>\")), write a decision rule as a boolean expression with explicit thresholds, the conventional or\nphysical reason for each threshold, and short labels for yes and no. The rationale must hold on any day: do not\nmention today's values in it. If an existing service already gives a\ndirect verdict or index, you may use it, but prefer rules that remain correct if one source is missing (use 'or' /\n'and' deliberately). Do not invent fields. One or two rules at most.",
+ "payload": {
+  "questions": [
+   {
+    "id": "good_day_to_dry_laundry_outside",
+    "question": "Is today a good day to dry laundry outside in Osaka?",
+    "answer_type": "yes_no",
+    "quantity": "Verdict (yes/no) for today's suitability for line-drying laundry outdoors, derived from forecast conditions during the drying window (daytime hours, local time): chance/amount of precipitation, humidity, wind, temperature and sunshine/cloud cover",
+    "unit": "yes/no verdict with brief reason",
+    "population": "Osaka city, today (local date, Asia/Tokyo), drying window roughly 09:00-17:00",
+    "exclude": [
+     "yesterday's or past-day weather",
+     "days other than today",
+     "forecasts for other cities or regions",
+     "indoor drying conditions"
+    ],
+    "windows": [
+     "today daytime 09:00-17:00 JST"
+    ],
+    "priority": "core",
+    "acceptable_forms": [
+     "estimate",
+     "category"
+    ]
+   }
+  ],
+  "fields": [
+   {
+    "ref": "jma_forecast_270000_json:0.timeSeries.0.areas.0.weathers.0",
+    "value_now": "晴れ",
+    "meaning": "Text weather forecast for Osaka Prefecture for the first period (today/tonight at report time); the entry matching today's date gives sky condition (sunny/cloudy/rain)"
+   },
+   {
+    "ref": "jma_forecast_270000_json:0.timeSeries.0.areas.0.weatherCodes.0",
+    "value_now": "100",
+    "meaning": "JMA weather code for the day (100=sunny, 200=cloudy)"
+   },
+   {
+    "ref": "jma_forecast_270000_json:0.timeSeries.0.areas.0.winds.0",
+    "value_now": "北の風　海上　では　北の風　やや強く",
+    "meaning": "Text wind direction and strength description (qualitative, not m/s) for the period"
+   },
+   {
+    "ref": "weather_27_6200_html:laundry_index_today",
+    "value_now": 90,
+    "meaning": "Laundry index for today (first occurrence, 10/2), 0-100; higher is better for drying"
+   },
+   {
+    "ref": "weather_27_6200_html:laundry_comment_today",
+    "value_now": "絶好の洗濯日和。バスタオルも速乾",
+    "meaning": "Verdict text for today's laundry index"
+   },
+   {
+    "ref": "weather_27_6200_html:today_weather",
+    "value_now": "晴れ",
+    "meaning": "Today's weather forecast for Osaka"
+   },
+   {
+    "ref": "weather_27_6200_html:today_high_temp",
+    "value_now": 27,
+    "meaning": "Today's forecast high temperature in °C"
+   },
+   {
+    "ref": "weather_27_6200_html:umbrella_index_today",
+    "value_now": 0,
+    "meaning": "Umbrella index today; 0 means no rain expected"
+   },
+   {
+    "ref": "weather_27_6200_html:tomorrow_precip_first_block",
+    "value_now": 0,
+    "meaning": "Tomorrow's 0-6h precipitation probability"
+   }
+  ],
+  "rejected_rules": [
+   {
+    "rule": "good_day_to_dry_laundry_outside",
+    "why": "does not parse: not allowed in a metric: Name"
+   }
+  ],
+  "instruction": "Each rule above was rejected for the stated reason. Values are compared as numbers only when they are numbers (a unit suffix like '%' is stripped); compare text values with ==. Write a rule that evaluates now."
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "rules"
+  ],
+  "properties": {
+   "rules": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "question",
+      "expr",
+      "yes_label",
+      "no_label",
+      "rationale",
+      "thresholds"
+     ],
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "expr": {
+       "type": "string",
+       "description": "boolean expression using latest(\"ref\") over the given refs, comparisons, and/or/not, numbers"
+      },
+      "yes_label": {
+       "type": "string"
+      },
+      "no_label": {
+       "type": "string"
+      },
+      "rationale": {
+       "type": "string"
+      },
+      "thresholds": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "required": [
+         "ref",
+         "threshold",
+         "why"
+        ],
+        "properties": {
+         "ref": {
+          "type": "string"
+         },
+         "threshold": {
+          "type": "string"
+         },
+         "why": {
+          "type": "string"
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "rules": [
+   {
+    "id": "good_day_to_dry_laundry_outside",
+    "question": "Is today a good day to dry laundry outside in Osaka?",
+    "expr": "(latest(\"weather_27_6200_html:laundry_index_today\") >= 60 and latest(\"weather_27_6200_html:umbrella_index_today\") <= 10) or (latest(\"jma_forecast_270000_json:0.timeSeries.0.areas.0.weatherCodes.0\") < 300 and latest(\"weather_27_6200_html:umbrella_index_today\") <= 10 and latest(\"weather_27_6200_html:today_high_temp\") >= 15)",
+    "yes_label": "Yes – good for line-drying outside",
+    "no_label": "No – dry indoors or wait",
+    "rationale": "Rain is the main thing that ruins outdoor drying, so the rule needs a low umbrella index (no meaningful rain expected). It then accepts either a high laundry index (60 or more of 100 means the service rates drying as good) or, if that source is missing, a JMA weather code below 300 (100s are sunny and 200s are cloudy, while 300 and above are rain or snow) together with a daytime high of at least 15°C. At that temperature and above, evaporation is fast enough for clothes to dry within a day. The either/or structure keeps the rule working if one source is unavailable.",
+    "thresholds": [
+     {
+      "ref": "weather_27_6200_html:laundry_index_today",
+      "threshold": ">= 60",
+      "why": "The index runs 0-100 and higher is better for drying; 60 or more is a conventional 'good' level."
+     },
+     {
+      "ref": "weather_27_6200_html:umbrella_index_today",
+      "threshold": "<= 10",
+      "why": "0 means no rain expected; a small allowance covers a slight chance of rain."
+     },
+     {
+      "ref": "jma_forecast_270000_json:0.timeSeries.0.areas.0.weatherCodes.0",
+      "threshold": "< 300",
+      "why": "JMA codes 100-299 are sunny or cloudy; 300 and above include rain or snow."
+     },
+     {
+      "ref": "weather_27_6200_html:today_high_temp",
+      "threshold": ">= 15",
+      "why": "Below about 15°C evaporation is slow and clothes may not dry in a daytime window."
+     }
+    ]
+   }
+  ]
+ },
+ "at": "2026-10-02T13:59:16Z"
+}

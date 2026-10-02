@@ -210,6 +210,17 @@ def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[st
                                "why": "nothing Regent can read counts these people: only proxies (below), each "
                                       "missing a premise that would turn it into a bound",
                                "definition": f"{q.get('quantity')}. Population: {q.get('population')}."})
+        # a yes/no question with no rule Regent could state and check: say it is undecided, show the data
+        # below -- never let a piece of data stand in for the verdict
+        if q.get("answer_type") == "yes_no" and not any(m["form"] == "decision" and m.get("answers") == q["id"]
+                                                        for m in metrics):
+            rejected = [r.get("why") for r in inventory.get("rejected_rules", []) if r.get("why")]
+            metrics.insert(0, {"id": f"{_sid(q['id'])}_answer", "label": _short(q.get("question") or "Answer", 70),
+                               "answers": q["id"], "form": "context", "unit": "yes/no", "expr": "coalesce()",
+                               "unknowable": True, "window": "now", "headline": 1,
+                               "why": "Regent could not form a yes/no rule it could check from the data it can read; "
+                                      "the data is below" + (f" ({rejected[-1][:120]})" if rejected else ""),
+                               "definition": q.get("question") or ""})
     gated = {sid for sid, src in sources.items() if src["access"] == "credential"}
 
     def needs_credential(m: dict[str, Any]) -> bool:

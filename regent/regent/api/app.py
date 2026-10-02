@@ -92,6 +92,28 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Regent", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+
+@app.middleware("http")
+async def access_key(request: Request, call_next):
+    """When Regent is reachable from outside this computer, every request needs the access key
+    (REGENT_ACCESS_KEY): opened once as /?key=..., it is kept in a cookie. Off by default."""
+    import hmac
+    import os
+
+    from fastapi.responses import PlainTextResponse
+
+    key = os.environ.get("REGENT_ACCESS_KEY", "")
+    if not key:
+        return await call_next(request)
+    given = request.query_params.get("key") or request.cookies.get("regent_key") or ""
+    if not hmac.compare_digest(given, key):
+        return PlainTextResponse("This Regent is private. Open it with the link that includes its key.", 401)
+    resp = await call_next(request)
+    if request.query_params.get("key"):
+        resp.set_cookie("regent_key", key, httponly=True, samesite="lax", secure=request.url.scheme == "https",
+                        max_age=60 * 60 * 24 * 30)
+    return resp
+
 from regent.api.acquisition import router as acquisition_router  # noqa: E402
 
 app.include_router(acquisition_router)
@@ -99,6 +121,18 @@ app.include_router(acquisition_router)
 from regent.api.software import router as software_router  # noqa: E402
 
 app.include_router(software_router)
+
+from regent.api.home import router as home_router  # noqa: E402
+
+app.include_router(home_router)
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def index() -> HTMLResponse:
+    """The page a person uses: one place to say what they want, and what Regent is doing about it."""
+    from pathlib import Path
+
+    return HTMLResponse((Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8"))
 
 
 # ------------------------------------------------------------------ system

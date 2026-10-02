@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from regent.db import Base, JSONType, _ts
+from regent.db import Base, JSONType, _ts, AwareDateTime
 
 
 class SwCapability(Base):
@@ -28,7 +28,7 @@ class SwCapability(Base):
     provenance: Mapped[dict] = mapped_column(JSONType, default=dict)
     tool_name: Mapped[str] = mapped_column(String(80), default="")
     coverage: Mapped[float] = mapped_column(Float, default=0.0)
-    last_collect_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_collect_at: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
     uses: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()

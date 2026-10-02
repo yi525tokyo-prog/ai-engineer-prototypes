@@ -17,7 +17,7 @@ Tables fall into three groups:
 from __future__ import annotations
 
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
@@ -66,8 +66,28 @@ class Embedding(TypeDecorator):
         return [float(x) for x in value]
 
 
+class AwareDateTime(TypeDecorator):
+    """Timestamps are always timezone-aware UTC, whatever the database returns (SQLite drops the
+    zone; comparing those with aware times breaks)."""
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if isinstance(value, str):          # events carry ISO strings
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if value is not None and value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None and value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value
+
+
 def _ts() -> Mapped[datetime]:
-    return mapped_column(DateTime(timezone=True), default=monotonic_now)
+    return mapped_column(AwareDateTime(), default=monotonic_now)
 
 
 class Base(DeclarativeBase):
@@ -226,7 +246,7 @@ class Skill(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
     provenance: Mapped[list] = mapped_column(JSONType, default=list)
     uses: Mapped[int] = mapped_column(Integer, default=0)
-    last_verified: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_verified: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
     created_at: Mapped[datetime] = _ts()
 
 
@@ -352,8 +372,8 @@ class Operation(Base):
     sequence: Mapped[int] = mapped_column(Integer, default=0)
     priority: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = _ts()
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
 
 
 class HumanInterrupt(Base):
@@ -373,7 +393,7 @@ class HumanInterrupt(Base):
     resolution: Mapped[str | None] = mapped_column(String(40), nullable=True)
     response: Mapped[dict] = mapped_column(JSONType, default=dict)
     created_at: Mapped[datetime] = _ts()
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(AwareDateTime(), nullable=True)
 
 
 class Evidence(Base):
@@ -462,12 +482,14 @@ _lock = threading.RLock()
 
 def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
-        eng = create_engine(url, connect_args={"check_same_thread": False, "timeout": 15})
+        eng = create_engine(url, connect_args={"check_same_thread": False, "timeout": 60})
 
         @event.listens_for(eng, "connect")
         def _pragma(dbapi_conn, _):  # pragma: no cover - sqlite only
             cur = dbapi_conn.cursor()
             cur.execute("PRAGMA journal_mode=WAL")
+            cur.execute("PRAGMA synchronous=NORMAL")
+            cur.execute("PRAGMA busy_timeout=60000")
             cur.close()
 
         return eng
@@ -501,6 +523,7 @@ def session() -> Session:
 def init_db(drop: bool = False) -> None:
     import regent.acquisition.tables  # noqa: F401  (register acquisition tables)
     import regent.software.tables  # noqa: F401  (register software capability tables)
+    import regent.reminders  # noqa: F401  (register reminders)
 
     eng = engine()
     if eng.dialect.name == "postgresql":

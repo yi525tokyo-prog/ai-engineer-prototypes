@@ -272,10 +272,13 @@ class RegentLoop:
     def maintain(self) -> list[str]:
         """Keep the capabilities Regent built current, independent of any mission's status."""
         try:
+            from regent.reminders import deliver_due
             from regent.software.domain import maintain
 
             self.db.commit()
-            return maintain(self.db)
+            sent = deliver_due(self.db)
+            self.db.commit()
+            return [f"reminders delivered: {len(sent)}"] * bool(sent) + maintain(self.db)
         except Exception as e:                      # maintenance must never stop the loop
             self.db.rollback()
             return [f"maintenance failed: {type(e).__name__}: {e}"[:200]]

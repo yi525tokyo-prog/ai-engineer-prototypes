@@ -19,6 +19,8 @@ need analysis says it is about software (the analysis runs once, for untagged mi
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from typing import Any
 
 from sqlalchemy import select
@@ -80,8 +82,13 @@ class SoftwareAdapter(DomainAdapter):
         need = (mission.attrs or {}).get("need")
         sentence = mission.objective or mission.title
         if need is None:
+            paused = (mission.attrs or {}).get("paused")
             if s is not None and _done(s, mission.id, "analyze") is not None:
-                return []
+                if not paused or (utcnow() - datetime.fromisoformat(paused["since"])).total_seconds() < 300:
+                    return []
+                m_attrs = dict(mission.attrs or {})
+                m_attrs.pop("paused", None)
+                mission.attrs = m_attrs
             return [{"action": "analyze", "params": {"sentence": sentence}, "blocking": True, "priority": 6,
                      "reason": "the principal's sentence has not been analysed into information needs"}]
         if need.get("handled_as") != "software_capability" or s is None:
@@ -145,7 +152,17 @@ class SoftwareAdapter(DomainAdapter):
             from regent.software.need import analyze
 
             need = analyze(params.get("sentence") or (m.objective if m else ""), mission_id=mission_id)
-            need["principal"] = _principal_hint(need["sentence"])
+            if (need.get("analysis") or {}).get("reasoner_error") and m is not None:
+                # it could not understand the request: wait and try again, never guess
+                m.attrs = {**(m.attrs or {}), "paused": {"why": "Regent's reasoning service did not answer: "
+                                                         + need["analysis"]["reasoner_error"][:200],
+                                                         "since": utcnow().isoformat()}}
+                req.plan = {"paused": True}
+                note("analyze", "reasoning worker unavailable; will retry")
+                req.log = list(req.log or []) + log
+                return {"funnel": {"paused": True}}
+            tz = (m.attrs or {}).get("timezone") if m is not None else None
+            need["principal"] = {**_principal_hint(need["sentence"]), **({"timezone": tz} if tz else {})}
             if need.get("handled_as") == "software_capability":
                 from regent.software.reuse import match
 
@@ -218,7 +235,13 @@ class SoftwareAdapter(DomainAdapter):
         attrs = dict(m.attrs or {})
         attrs["need"] = need
         m.attrs = attrs
+        if need.get("handled_as") == "housing":
+            m.tags = sorted(set(m.tags or []) | {"housing"})      # the housing work takes it from here
+            return
         if need.get("handled_as") != "software_capability":
+            # nothing Regent can do here yet: say so instead of producing placeholder plans
+            m.attrs = {**attrs, "unsupported": {"why": "This isn't something Regent can take on yet."}}
+            m.status = "abandoned"
             return
         m.tags = sorted(set(m.tags or []) | {"software_need"})
         if not m.success_criteria:

@@ -233,8 +233,9 @@ class Runner:
             page.evaluate("() => { try { localStorage.clear(); sessionStorage.clear(); } catch (e) {} }")
             page.goto(self.svc.url + "/")
         elif do == "fill":
-            page.wait_for_selector(f'[data-testid="{st["target"]}"]', timeout=8000)
-            page.fill(f'[data-testid="{st["target"]}"]', st.get("value") or "")
+            sel = f'[data-testid="{st["target"]}"]'
+            page.wait_for_selector(sel, timeout=8000)
+            _set_value(page, sel, st.get("value") or "")
         elif do == "click":
             page.wait_for_selector(f'[data-testid="{st["target"]}"]', timeout=8000)
             page.click(f'[data-testid="{st["target"]}"]')
@@ -262,6 +263,23 @@ class Runner:
             if do == "expect_no_text" and seen:
                 raise AssertionError(f"text shown but must not be: {text!r}")
         return ""
+
+
+def _set_value(page, sel: str, value: str) -> None:
+    """Give a form control a value the way a person would: type into text fields, choose an option
+    in a dropdown (by value or by its visible label), tick or untick a checkbox."""
+    kind = page.eval_on_selector(sel, "e => [e.tagName, (e.type || '').toLowerCase()]")
+    tag, typ = kind[0].upper(), kind[1]
+    if tag == "SELECT":
+        try:
+            page.select_option(sel, value=value, timeout=4000)
+        except Exception:
+            page.select_option(sel, label=value, timeout=4000)
+    elif tag == "INPUT" and typ in ("checkbox", "radio"):
+        on = str(value).strip().lower() not in ("", "false", "0", "no", "off")
+        page.check(sel) if on else page.uncheck(sel)
+    else:
+        page.fill(sel, value)
 
 
 def _settle(page) -> None:

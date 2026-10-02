@@ -350,19 +350,35 @@ def tool_strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str
     """An ability the principal will keep using: build it, use an existing product, or do without."""
     core = [r["id"] for r in need.get("requirements", []) if r.get("priority", "core") == "core"] or \
         [r["id"] for r in need.get("requirements", [])]
-    routes = [RouteProposal(
+    rm = inv.get("remind") or {}
+    native = []
+    if rm.get("regent_can_do_it") and rm.get("message") and (rm.get("once_at_local") or rm.get("daily_at_local")):
+        when = rm.get("daily_at_local") and f"every day at {rm['daily_at_local']}" or rm.get("once_at_local")
+        native = [RouteProposal(
+            key="regent-message", archetype="native", title=f"Regent tells you itself ({when})",
+            thesis=("A message from Regent at the right time does exactly this: no account anywhere, nothing to "
+                    "build, none of your time." + (f" Assumed: {rm['assumed']}." if rm.get("assumed") else "")),
+            tags=["native"],
+            estimates=RouteEstimates(expected_upside=scale * 1.0, success_probability=0.97, time_cost_hours=0.0,
+                                     reversibility=1.0, optionality=0.9, risk=0.02, authority_cost=0.0,
+                                     information_gain=0.0),
+            operations=[OperationSpec(key="regent.message", goal=f"Schedule the message ({when})", tool="software",
+                                      action="remind", inputs={"plan": rm}, verification=_verify_passed())])]
+    routes = native + [RouteProposal(
         key="software-build-app", archetype="build", title="Have the application built, then verify and run it",
         thesis=("Nothing that exists does all of this; a coding agent builds it to Regent's interface contract and "
                 f"Regent's own acceptance scenarios ({len(core)} core requirements), integrating "
                 f"{len(inv.get('app_sources', []))} live endpoints. Regent inspects, builds, tests, runs it in a real "
                 "browser, repairs it with the agent until it passes, and keeps it running."),
         tags=["software", "build", "coding_agent"],
-        estimates=RouteEstimates(expected_upside=scale * 1.0, success_probability=0.6, time_cost_hours=1.0,
-                                 reversibility=1.0, optionality=0.9, risk=0.25, authority_cost=0.35,
+        estimates=RouteEstimates(expected_upside=scale * 1.0, success_probability=0.75, time_cost_hours=0.2,
+                                 reversibility=1.0, optionality=0.9, risk=0.2, authority_cost=0.2,
                                  information_gain=0.4),
         estimate_rationale={"success_probability": "agent-built software, accepted only after Regent's scenarios pass "
-                                                   "(bounded repair rounds)",
-                            "authority_cost": "an autonomous coding agent writes code Regent then runs (COMMIT)"},
+                                                   "(bounded repair rounds); every recorded build was accepted",
+                            "time_cost_hours": "about 10 minutes of machine time; the principal's part is one approval",
+                            "authority_cost": "one approval (~10 s): an autonomous coding agent writes code Regent "
+                                              "then runs (COMMIT)"},
         operations=[OperationSpec(key="sw.design", goal="Design the application Regent will have built",
                                   tool="software", action="design_app", timeout_s=600,
                                   verification=VerificationSpec(method="schema", required_keys=["designed"])),
@@ -377,10 +393,12 @@ def tool_strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str
         routes.append(RouteProposal(
             key=f"software-existing-{re.sub(r'[^a-z0-9]+', '-', a['name'].lower())[:30]}", archetype="use_existing",
             title=f"Use {a['name']}", thesis=(f"An existing product; meets {len(met)}/{len(core)} core requirements as "
-                                              f"it is. Account needed: {a['account_needed']}. Privacy: {a['privacy']}."
+                                              f"it is. Account needed: {a['account_needed']}. Privacy: {a['privacy']}. "
+                                              "From then on the principal does the work there themselves: Regent "
+                                              "cannot act in it for them."
                                               + (f" Not enough because: {a['why_not']}" if a.get("why_not") else "")),
             tags=["software", "use_existing"] + (["third_party_data"] if a.get("account_needed") else []),
-            estimates=RouteEstimates(expected_upside=scale * fit * 0.9, success_probability=0.9, time_cost_hours=0.2,
+            estimates=RouteEstimates(expected_upside=scale * fit * 0.6, success_probability=0.9, time_cost_hours=0.2,
                                      reversibility=0.7, optionality=0.6, risk=0.2,
                                      authority_cost=0.6 if a.get("account_needed") else 0.2, information_gain=0.1),
             operations=[OperationSpec(key="sw.human.signup", goal=f"Create an account at {a['name']}", tool="human",

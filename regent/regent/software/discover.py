@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import json
 import re
 from typing import Any
@@ -89,7 +91,9 @@ def resolve(db: Session, need: dict[str, Any], *, request_id: str, transport=Non
                 out["subjects"].append({"name": subj["name"], "kind": subj.get("kind"), "skipped":
                                         "a person: nothing to look up on the public web"})
                 continue
-            if subj.get("kind") == "other" and not probe.looks_like_name(subj["name"]):
+            if subj.get("kind") == "other" and (not probe.looks_like_name(subj["name"])
+                                                or need.get("need_type") in ("tool", "action")
+                                                or _TIME_WORDS.search(subj["name"])):
                 out["subjects"].append({"name": subj["name"], "kind": "topic", "skipped":
                                         "a topic, not a named thing: it has no site of its own to find",
                                         "deployments": []})
@@ -399,7 +403,7 @@ def inventory(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, re
     fields = []
     for f in sem.get("fields", []):
         ev = (f.get("evidence") or "").strip()
-        supported = len(ev) >= 6 and (ev in haystack or _loose(ev) in _loose(haystack))
+        supported = len(ev) >= 6 and (ev in haystack or _loose(ev) in _loose(haystack) or _json_quote_in(ev, payload))
         f = {**f, "evidence_found": supported}
         if not supported:
             f["confidence"] = min(float(f.get("confidence") or 0), 0.2)
@@ -528,6 +532,50 @@ def _literal_commitments(promises: list[dict[str, Any]]) -> list[dict[str, Any]]
     return out
 
 
+# days, months and other time words are capitalised in English but are not products to look up
+_TIME_WORDS = re.compile(r"^(?:mon|tues|wednes|thurs|fri|satur|sun)day$|^(?:january|february|march|april|may|june|"
+                         r"july|august|september|october|november|december|today|tomorrow|tonight|weekend)$|"
+                         r"[月火水木金土日]曜", re.I)
+
+
+def _json_quote_in(ev: str, observed: Any) -> bool:
+    """A quote of JSON (``"paid": {"jpy": 1000, "count": 2}``) is found if the same keys and values
+    appear somewhere in what was observed, in any key order: the same response can serialize its
+    keys differently from one read to the next."""
+    try:
+        quoted = json.loads("{" + ev.strip().strip(",") + "}")
+    except ValueError:
+        try:
+            quoted = json.loads(ev)
+        except ValueError:
+            return False
+    if not isinstance(quoted, (dict, list)) or not quoted:
+        return False
+
+    def contains(actual: Any, want: Any) -> bool:
+        if isinstance(want, dict):
+            return isinstance(actual, dict) and all(k in actual and contains(actual[k], v) for k, v in want.items())
+        if isinstance(want, list):
+            return isinstance(actual, list) and all(any(contains(a, w) for a in actual) for w in want)
+        return actual == want
+
+    def anywhere(node: Any) -> bool:
+        if contains(node, quoted):
+            return True
+        if isinstance(node, dict):
+            return any(anywhere(v) for v in node.values())
+        if isinstance(node, list):
+            return any(anywhere(v) for v in node)
+        if isinstance(node, str) and node[:1] in "{[":
+            try:
+                return anywhere(json.loads(node))
+            except ValueError:
+                return False
+        return False
+
+    return anywhere(observed)
+
+
 def _loose(s: str) -> str:
     return re.sub(r"\s+", " ", s.replace('\\"', '"')).strip().lower()
 
@@ -577,7 +625,27 @@ def inventory_tool(db: Session, need: dict[str, Any], resolved: dict[str, Any], 
                 fetcher.close()
         except ReasonerUnavailable as e:
             meta = {"by": "none", "error": str(e)[:300]}
+    remind = None
+    if r.available() and need.get("need_type") == "action":
+        from zoneinfo import ZoneInfo
+
+        from regent.reminders import REMIND_INSTRUCTIONS, REMIND_SCHEMA
+
+        tz = (need.get("principal") or {}).get("timezone") or "UTC"
+        try:
+            now_local = datetime.now(ZoneInfo(tz)).strftime("%A %Y-%m-%d %H:%M")
+        except Exception:
+            tz, now_local = "UTC", datetime.utcnow().strftime("%A %Y-%m-%d %H:%M")
+        try:
+            remind = r.ask("regent_message", REMIND_INSTRUCTIONS,
+                           {"request": need.get("sentence"), "requirements": need.get("requirements"),
+                            "now_local": now_local, "time_zone": tz}, REMIND_SCHEMA, budget_usd=0.3,
+                           mission_id=mission_id).output
+            remind["time_zone"] = tz
+        except ReasonerUnavailable:
+            remind = None
     inv = {"kind": "tool", "app_sources": app_sources, "alternatives": alternatives, "alternatives_meta": meta,
+           "remind": remind,
            "existing_capabilities": need.get("reuse") or [], "constraints": [],
            "deployments": [{"host": d["host"], "url": d["url"]} for d in deployments],
            "subjects": [{k: v for k, v in x.items() if k in ("name", "kind", "place", "resolved")}

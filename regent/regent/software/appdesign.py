@@ -38,7 +38,9 @@ STEP = {"type": "object", "required": ["do"], "properties": {
              "{\"book_id\": \"id\"}; later steps may use {var} in path_params/body/value"},
     "path": {"type": "string", "description": "for goto: a URL path"},
     "target": {"type": "string", "description": "for fill/click/expect_visible/expect_hidden: a data-testid"},
-    "value": {"type": "string"}, "text": {"type": "string"}}}
+    "value": {"type": "string", "description": "for fill: text to type, the option to choose in a dropdown, or "
+                                             "true/false for a checkbox"},
+    "text": {"type": "string"}}}
 
 DESIGN_SCHEMA: dict[str, Any] = {
     "type": "object", "required": ["name", "summary", "entities", "api", "ui", "scenarios", "external_hosts",

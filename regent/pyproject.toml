@@ -16,6 +16,7 @@ dependencies = [
   "pydantic>=2.6",
   "httpx>=0.27",
   "python-multipart>=0.0.9",
+  "lxml>=5.0",
 ]
 
 [project.optional-dependencies]
@@ -29,3 +30,9 @@ include = ["regent*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.setuptools.package-data]
+regent = ["api/static/*.html"]
+
+[project.scripts]
+regent = "regent.__main__:main"

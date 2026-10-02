@@ -124,6 +124,20 @@ def software_tool() -> Tool:
                 return _app_action(s, action, inputs, ctx)
             if action == "use_app":
                 return _use_app(s, inputs, ctx)
+            if action == "remind":
+                from regent import reminders as RM
+
+                plan = inputs.get("plan") or {}
+                try:
+                    rem = RM.schedule(s, ctx.mission_id, plan, plan.get("time_zone") or "UTC")
+                except (ValueError, KeyError) as e:
+                    return ToolResult(status="failed", error=f"could not schedule: {e}")
+                s.commit()
+                return ToolResult(status="ok", outputs={"passed": True, "reminder": rem.id, "when": RM.describe(rem),
+                                                        "message": rem.text},
+                                  facts=[{"key": f"software.need.{ctx.mission_id}.usable", "value": True},
+                                         {"key": f"software.need.{ctx.mission_id}.coverage", "value": 1.0}],
+                                  claims=[f"message scheduled: {RM.describe(rem)}"])
             return ToolResult(status="failed", error=f"unknown action {action}")
         finally:
             s.close()
@@ -150,6 +164,8 @@ def software_tool() -> Tool:
         "extend_app": ActionSpec("extend_app", "Upgrade an application in use: new version by the coding agent, "
                                  "tested on a copy of the real data, promoted with backup and rollback", "COMMIT",
                                  cost_usd=15.0, latency_s=3600, reliability=0.55, capabilities=["software.delegate"]),
+        "remind": ActionSpec("remind", "Send the principal a message at a time (Regent's own inbox)", "AUTO",
+                             capabilities=["regent.message"], latency_s=1, reliability=0.99),
         "use_app": ActionSpec("use_app", "Do what the principal asked through an application's API, then read "
                               "back that it happened", "AUTO", capabilities=["software.use"], latency_s=60,
                               reliability=0.85),
@@ -238,12 +254,11 @@ def _app_action(s, action: str, inputs: dict[str, Any], ctx: ToolContext) -> Too
     appcap.register_tool(ctx.services or get_services(), cap)
     from regent.core.observe.events import EventStore
 
+    what = "is ready" if base is None else f"now has version {version}"
     EventStore(s).append("principal_notified", {
         "capability": cap.slug, "channel": "regent_inbox",
-        "text": (f"{design['name']} v{version} is running at {promo['url']} (on this machine only; reaching it from "
-                 "another device needs hosting you approve). Sign in with the passphrase Regent generated, kept in "
-                 f"Regent's secret store as {res.get('credential')}." if res.get("credential") else
-                 f"{design['name']} v{version} is running at {promo['url']}.")},
+        "text": (f"Your {cap.title} {what} — open it from Regent"
+                 + (" (its passphrase is behind “Show passphrase”)." if res.get("credential") else "."))},
         source=f"capability:{cap.slug}", mission_id=ctx.mission_id)
     s.commit()
     return ToolResult(status="ok", outputs={**summary, "passed": True, "capability_id": cap.id, "tool": cap.tool_name,
@@ -308,7 +323,8 @@ USE_INSTRUCTIONS = """The principal asked for something to be done with an appli
 Using only the listed endpoints, give the calls that do it (reuse existing records instead of creating duplicates --
 the current data is included), and read-back checks that prove it happened. If you need answers you do not have yet
 (e.g. an id from a search), ask for them as lookups first. Use {var} for values saved from earlier calls. Do only
-what was asked, and say in the report what the principal needs to know (e.g. a link they asked for)."""
+what was asked, and say in the report what the principal needs to know (e.g. a link they asked for). The report is
+sent only after the agent's read-back checks confirm it, so write it as done; do not discuss checking."""
 
 
 def _use_app(s, inputs: dict[str, Any], ctx: ToolContext) -> ToolResult:
@@ -354,7 +370,8 @@ def _use_app(s, inputs: dict[str, Any], ctx: ToolContext) -> ToolResult:
               for v in plan["verify"]]
     res = r.run([{"id": "use", "requirement": "request", "kind": "api", "steps": steps}])["scenarios"][0]
     vars_ = {**(res.get("vars") or {}), "base_url": r.svc.url}
-    report = A._subst(plan.get("report") or "", vars_) if res["passed"] else None
+    report = (A._subst(plan.get("report") or "", vars_).rstrip() + " (Checked: it's saved in your app.)"
+              if res["passed"] else None)
     cap.uses = (cap.uses or 0) + 1
     if report:
         EventStore(s).append("principal_notified", {"capability": cap.slug, "channel": "regent_inbox", "text": report},

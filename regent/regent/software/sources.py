@@ -97,7 +97,9 @@ latest("<ref>")), write a decision rule as a boolean expression with explicit th
 physical reason for each threshold, and short labels for yes and no. The rationale must hold on any day: do not
 mention today's values in it. If an existing service already gives a
 direct verdict or index, you may use it, but prefer rules that remain correct if one source is missing (use 'or' /
-'and' deliberately). Do not invent fields. One or two rules at most."""
+'and' deliberately). A field that holds several numbers (e.g. hourly values "30 20 10 0") can be given to max(),
+min() or sum(), e.g. max(latest("src:field")) >= 50. Allowed functions: latest, max, min, sum, round, coalesce,
+if_else, max_over, min_over. Do not invent fields. One or two rules at most."""
 
 
 def propose(fetcher, need: dict[str, Any], resolved: dict[str, Any], reasoner: Reasoner, *,
