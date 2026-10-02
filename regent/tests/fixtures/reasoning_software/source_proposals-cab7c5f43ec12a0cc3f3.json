@@ -1,0 +1,203 @@
+{
+ "task": "source_proposals",
+ "key": "cab7c5f43ec12a0cc3f3",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.0187814,
+ "instructions": "You advise an operational agent that must answer the principal's need with live data. Propose\n(1) public data APIs that need no key and return JSON relevant to the questions -- give exact GET URLs with every\nparameter filled in from the resolved subjects (coordinates, time zone, identifiers), and the JSON paths you expect\nin the answer; and (2) pages of existing services people already use that answer the question directly (give the\nexact page URL for this subject, plus the link texts a person would click from the site's home page to reach it,\nin case the URL has moved). Each proposal is fetched and checked; propose only what you are confident exists.\nPrefer few, reliable sources. If nothing beyond what was already observed is relevant, return empty lists.",
+ "payload": {
+  "need": {
+   "sentence": "Every morning, tell me whether it's a good day to dry laundry outside in Osaka.",
+   "questions": [
+    {
+     "id": "good_day_to_dry_laundry_outside",
+     "unit": "yes/no verdict with brief reason",
+     "exclude": [
+      "yesterday's or past-day weather",
+      "days other than today",
+      "forecasts for other cities or regions",
+      "indoor drying conditions"
+     ],
+     "windows": [
+      "today daytime 09:00-17:00 JST"
+     ],
+     "priority": "core",
+     "quantity": "Verdict (yes/no) for today's suitability for line-drying laundry outdoors, derived from forecast conditions during the drying window (daytime hours, local time): chance/amount of precipitation, humidity, wind, temperature and sunshine/cloud cover",
+     "question": "Is today a good day to dry laundry outside in Osaka?",
+     "population": "Osaka city, today (local date, Asia/Tokyo), drying window roughly 09:00-17:00",
+     "answer_type": "yes_no",
+     "acceptable_forms": [
+      "estimate",
+      "category"
+     ]
+    },
+    {
+     "id": "supporting_conditions",
+     "unit": "mixed (%, m/s, °C)",
+     "exclude": [
+      "non-Osaka locations"
+     ],
+     "windows": [
+      "today daytime 09:00-17:00 JST"
+     ],
+     "priority": "supporting",
+     "quantity": "Forecast precipitation probability (%), relative humidity (%), wind speed (m/s), temperature (°C), and sky/sunshine for today's drying window",
+     "question": "What conditions underlie the verdict today?",
+     "population": "Osaka, today's drying window",
+     "answer_type": "list",
+     "acceptable_forms": [
+      "estimate",
+      "range"
+     ]
+    }
+   ],
+   "deliverable": {
+    "why": "'Every morning, tell me' implies a push of a short daily verdict; no time given, so a morning default of 07:00 is assumed.",
+    "form": "alert",
+    "refresh": "daily",
+    "deliver_at_local": "07:00",
+    "max_seconds_to_read": 10
+   }
+  },
+  "principal": {
+   "country": null,
+   "language": "en"
+  },
+  "subjects": [
+   {
+    "kind": "place",
+    "name": "Osaka",
+    "place": {
+     "name": "Osaka",
+     "admin1": "Osaka",
+     "country": "Japan",
+     "latitude": 34.69379,
+     "timezone": "Asia/Tokyo",
+     "elevation": 4.0,
+     "longitude": 135.50107,
+     "population": 2753862,
+     "country_code": "JP"
+    },
+    "deployments": []
+   },
+   {
+    "kind": "topic",
+    "name": "outdoor laundry drying",
+    "deployments": []
+   }
+  ]
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "apis",
+   "existing_services"
+  ],
+  "properties": {
+   "apis": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "url",
+      "why",
+      "expected_fields",
+      "question"
+     ],
+     "properties": {
+      "url": {
+       "type": "string",
+       "description": "full GET URL, parameters filled in"
+      },
+      "why": {
+       "type": "string"
+      },
+      "expected_fields": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "dotted JSON paths, list indexes as numbers"
+      },
+      "question": {
+       "type": "string"
+      },
+      "needs_key": {
+       "type": "boolean"
+      }
+     }
+    }
+   },
+   "existing_services": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "url",
+      "name",
+      "why",
+      "question",
+      "link_texts"
+     ],
+     "properties": {
+      "url": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "why": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "link_texts": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "visible link texts a person would click, from the site's home page to this page, in the site's language"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "apis": [
+   {
+    "url": "https://api.open-meteo.com/v1/forecast?latitude=34.69379&longitude=135.50107&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,cloud_cover,wind_speed_10m,shortwave_radiation&daily=precipitation_probability_max,sunshine_duration,precipitation_sum&wind_speed_unit=ms&timezone=Asia%2FTokyo&forecast_days=1",
+    "why": "Hourly forecast for Osaka covering drying window 09:00-17:00 JST: rain chance, humidity, wind, temperature, cloud, radiation",
+    "expected_fields": [
+     "hourly.time",
+     "hourly.temperature_2m",
+     "hourly.relative_humidity_2m",
+     "hourly.precipitation_probability",
+     "hourly.precipitation",
+     "hourly.cloud_cover",
+     "hourly.wind_speed_10m",
+     "hourly.shortwave_radiation",
+     "daily.precipitation_probability_max",
+     "daily.sunshine_duration"
+    ],
+    "needs_key": false,
+    "question": "supporting_conditions and good_day_to_dry_laundry_outside"
+   }
+  ],
+  "existing_services": [
+   {
+    "url": "https://tenki.jp/indexes/laundry/6/30/6200/27100/",
+    "name": "tenki.jp Osaka laundry index (洗濯指数)",
+    "why": "Japanese weather site publishing a daily laundry-drying index for Osaka city",
+    "question": "good_day_to_dry_laundry_outside",
+    "link_texts": [
+     "生活指数",
+     "洗濯指数",
+     "大阪府",
+     "大阪市"
+    ]
+   }
+  ]
+ },
+ "at": "2026-10-02T12:30:19Z"
+}

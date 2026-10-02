@@ -1,0 +1,321 @@
+{
+ "task": "need_analysis",
+ "key": "4484d5d371f35aa42853",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.020390600000000002,
+ "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide\nwhether they want to know something (information), to have an ability they will keep using (tool), or to have\nsomething done once (action). Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current). For tool and action needs list requirements: what must be\npossible, each with an observable acceptance check, tied to the words it comes from; questions may then be empty.",
+ "payload": {
+  "sentence": "Every morning, tell me whether it's a good day to dry laundry outside in Osaka."
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "handled_as",
+   "need_type",
+   "subjects",
+   "questions",
+   "requirements",
+   "deliverable",
+   "definitions_to_state"
+  ],
+  "properties": {
+   "handled_as": {
+    "type": "string",
+    "enum": [
+     "software_capability",
+     "housing",
+     "other"
+    ],
+    "description": "software_capability: satisfying this needs some software to observe, compute, present or act on something; housing: finding a place to live; other: neither"
+   },
+   "subjects": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "name",
+      "kind",
+      "as_written"
+     ],
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "product",
+        "website",
+        "organization",
+        "person",
+        "place",
+        "dataset",
+        "other"
+       ]
+      },
+      "as_written": {
+       "type": "string",
+       "description": "the exact words in the sentence"
+      },
+      "owned_by_principal": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    }
+   },
+   "questions": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "question",
+      "answer_type",
+      "quantity",
+      "unit",
+      "population",
+      "exclude",
+      "windows"
+     ],
+     "properties": {
+      "id": {
+       "type": "string",
+       "description": "snake_case"
+      },
+      "question": {
+       "type": "string"
+      },
+      "answer_type": {
+       "type": "string",
+       "enum": [
+        "count",
+        "amount",
+        "yes_no",
+        "category",
+        "list",
+        "text"
+       ]
+      },
+      "quantity": {
+       "type": "string",
+       "description": "what is counted/measured, precisely"
+      },
+      "unit": {
+       "type": "string"
+      },
+      "population": {
+       "type": "string",
+       "description": "who/what qualifies"
+      },
+      "exclude": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "windows": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "time windows that make the answer meaningful, e.g. 24h, 7d, 30d, all_time"
+      },
+      "acceptable_forms": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "exact, lower_bound, upper_bound, range, estimate"
+      },
+      "priority": {
+       "type": "string",
+       "enum": [
+        "core",
+        "supporting"
+       ]
+      }
+     }
+    }
+   },
+   "deliverable": {
+    "type": "object",
+    "required": [
+     "form",
+     "refresh",
+     "why"
+    ],
+    "properties": {
+     "form": {
+      "type": "string",
+      "enum": [
+       "glance_view",
+       "report",
+       "alert",
+       "tool",
+       "answer_once"
+      ]
+     },
+     "refresh": {
+      "type": "string",
+      "enum": [
+       "continuous",
+       "daily",
+       "on_demand",
+       "once"
+      ]
+     },
+     "max_seconds_to_read": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "deliver_at_local": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "HH:MM local time if the wording implies when to be told (e.g. 'every morning')"
+     },
+     "why": {
+      "type": "string"
+     }
+    }
+   },
+   "need_type": {
+    "type": "string",
+    "enum": [
+     "information",
+     "tool",
+     "action"
+    ],
+    "description": "information: wants to know something; tool: wants an ability they keep using (an app, a place to do X); action: wants something done once"
+   },
+   "requirements": {
+    "type": "array",
+    "description": "for tool and action needs: what must be possible, each with an observable acceptance check",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "capability",
+      "acceptance",
+      "priority"
+     ],
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "capability": {
+       "type": "string"
+      },
+      "acceptance": {
+       "type": "string"
+      },
+      "priority": {
+       "type": "string",
+       "enum": [
+        "core",
+        "supporting"
+       ]
+      },
+      "from_words": {
+       "type": "string",
+       "description": "the words in the sentence this comes from"
+      }
+     }
+    }
+   },
+   "definitions_to_state": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "ambiguities the answer must resolve explicitly"
+   },
+   "success_looks_like": {
+    "type": "string"
+   }
+  }
+ },
+ "output": {
+  "handled_as": "software_capability",
+  "need_type": "information",
+  "subjects": [
+   {
+    "name": "Osaka",
+    "kind": "place",
+    "as_written": "Osaka"
+   },
+   {
+    "name": "outdoor laundry drying",
+    "kind": "other",
+    "as_written": "dry laundry outside"
+   }
+  ],
+  "questions": [
+   {
+    "id": "good_day_to_dry_laundry_outside",
+    "question": "Is today a good day to dry laundry outside in Osaka?",
+    "answer_type": "yes_no",
+    "quantity": "Verdict (yes/no) for today's suitability for line-drying laundry outdoors, derived from forecast conditions during the drying window (daytime hours, local time): chance/amount of precipitation, humidity, wind, temperature and sunshine/cloud cover",
+    "unit": "yes/no verdict with brief reason",
+    "population": "Osaka city, today (local date, Asia/Tokyo), drying window roughly 09:00-17:00",
+    "exclude": [
+     "yesterday's or past-day weather",
+     "days other than today",
+     "forecasts for other cities or regions",
+     "indoor drying conditions"
+    ],
+    "windows": [
+     "today daytime 09:00-17:00 JST"
+    ],
+    "priority": "core",
+    "acceptable_forms": [
+     "estimate",
+     "category"
+    ]
+   },
+   {
+    "id": "supporting_conditions",
+    "question": "What conditions underlie the verdict today?",
+    "answer_type": "list",
+    "quantity": "Forecast precipitation probability (%), relative humidity (%), wind speed (m/s), temperature (°C), and sky/sunshine for today's drying window",
+    "unit": "mixed (%, m/s, °C)",
+    "population": "Osaka, today's drying window",
+    "exclude": [
+     "non-Osaka locations"
+    ],
+    "windows": [
+     "today daytime 09:00-17:00 JST"
+    ],
+    "priority": "supporting",
+    "acceptable_forms": [
+     "estimate",
+     "range"
+    ]
+   }
+  ],
+  "requirements": [],
+  "deliverable": {
+   "form": "alert",
+   "refresh": "daily",
+   "deliver_at_local": "07:00",
+   "max_seconds_to_read": 10,
+   "why": "'Every morning, tell me' implies a push of a short daily verdict; no time given, so a morning default of 07:00 is assumed."
+  },
+  "definitions_to_state": [
+   "'Good day' criteria: e.g. precipitation probability low (e.g. <30%), humidity below ~70%, some wind, adequate sun/temperature; thresholds must be stated",
+   "Drying window: which hours count (assumed 09:00-17:00 JST)",
+   "'Morning' delivery time (assumed 07:00 JST)",
+   "'Osaka' means Osaka city (not whole prefecture)",
+   "Forecast, not observation, is used because the verdict is made in the morning",
+   "Other factors such as pollen, PM2.5 or yellow dust may matter but are not included unless stated"
+  ],
+  "success_looks_like": "Each morning the principal receives a brief yes/no verdict for line-drying laundry outdoors in Osaka that day, with the key reasons and stated criteria."
+ },
+ "at": "2026-10-02T12:30:12Z"
+}

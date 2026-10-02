@@ -1,0 +1,684 @@
+{
+ "task": "field_semantics",
+ "key": "4abdb437c147d8fefe58",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.0400814,
+ "instructions": "You read a live product from the outside for an operational agent. Given the principal's\nneed (questions with precise definitions) and what was observed (public JSON endpoints the product's own code calls,\nwith the code around each call and a sample response; the product's stated commitments; platform sources that exist\nbut need the principal's access, described by their documented fields), say for each numeric or event-list field\nthat could bear on the questions what it measures, what one unit of it is, and how it relates to the need. For a\nplatform source use its \"endpoint\" value (connector:<id>) and the field name as path, and quote its documentation as\nevidence. For a value inside a JSON array give the element's path with its index (e.g. \"daily.temperature_2m_max.0\").\nFor questions that are not counts of people use \"direct\" for a value that answers as it stands and \"context\" for\ninputs to a decision.\n\nFor fields bearing on a count of people, the relation must be earned. Answer each premise for the field:\nmembership (every counted unit was produced by a member of the question's population -- real, external, not bots,\ncrawlers, the operator, staff or tests), distinctness (no member counted twice), window (units fall in the question's\nwindow), coverage (every member produced at least one unit), no_merging (no unit stands for two or more members).\nSay \"unknown\" when nothing observed settles it, and \"no\" when you know it fails (e.g. one IP address can be shared by\na whole household or office, so IP counts merge people; crawlers have IPs too). Claim \"measure\" / \"lower_bound\" /\n\"upper_bound\" only if you believe the corresponding premises hold, otherwise \"proxy\". Regent applies the inference\nrules itself and only accepts premises whose evidence it finds verbatim in the input. A number counting something\nother than people using this product (upstream catalogue counts, sizes, budgets, caps) is \"unrelated\". Also list the\nproduct's commitments that constrain how usage may be measured, and other sources the principal likely holds.",
+ "payload": {
+  "need": {
+   "sentence": "Every morning, tell me whether it's a good day to dry laundry outside in Osaka.",
+   "questions": [
+    {
+     "id": "good_day_to_dry_laundry_outside",
+     "unit": "yes/no verdict with brief reason",
+     "exclude": [
+      "yesterday's or past-day weather",
+      "days other than today",
+      "forecasts for other cities or regions",
+      "indoor drying conditions"
+     ],
+     "windows": [
+      "today daytime 09:00-17:00 JST"
+     ],
+     "priority": "core",
+     "quantity": "Verdict (yes/no) for today's suitability for line-drying laundry outdoors, derived from forecast conditions during the drying window (daytime hours, local time): chance/amount of precipitation, humidity, wind, temperature and sunshine/cloud cover",
+     "question": "Is today a good day to dry laundry outside in Osaka?",
+     "population": "Osaka city, today (local date, Asia/Tokyo), drying window roughly 09:00-17:00",
+     "answer_type": "yes_no",
+     "acceptable_forms": [
+      "estimate",
+      "category"
+     ]
+    },
+    {
+     "id": "supporting_conditions",
+     "unit": "mixed (%, m/s, °C)",
+     "exclude": [
+      "non-Osaka locations"
+     ],
+     "windows": [
+      "today daytime 09:00-17:00 JST"
+     ],
+     "priority": "supporting",
+     "quantity": "Forecast precipitation probability (%), relative humidity (%), wind speed (m/s), temperature (°C), and sky/sunshine for today's drying window",
+     "question": "What conditions underlie the verdict today?",
+     "population": "Osaka, today's drying window",
+     "answer_type": "list",
+     "acceptable_forms": [
+      "estimate",
+      "range"
+     ]
+    }
+   ],
+   "definitions_to_state": [
+    "'Good day' criteria: e.g. precipitation probability low (e.g. <30%), humidity below ~70%, some wind, adequate sun/temperature; thresholds must be stated",
+    "Drying window: which hours count (assumed 09:00-17:00 JST)",
+    "'Morning' delivery time (assumed 07:00 JST)",
+    "'Osaka' means Osaka city (not whole prefecture)",
+    "Forecast, not observation, is used because the verdict is made in the morning",
+    "Other factors such as pollen, PM2.5 or yellow dust may matter but are not included unless stated"
+   ]
+  },
+  "endpoints": [
+   {
+    "url": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "code_context": [
+     "proposed: Japan Meteorological Agency official forecast for Osaka Prefecture: weather text, wind, 6-hourly precipitation probability and temperatures for today."
+    ],
+    "used_with": [
+     "GET"
+    ],
+    "fields": {
+     "0.publishingOffice": "str",
+     "0.reportDatetime": "str",
+     "0.timeSeries": "list[3]",
+     "0.timeSeries.0.timeDefines": "list[3]",
+     "0.timeSeries.0.areas": "list[1]",
+     "0.timeSeries.0.areas.0.area": "dict",
+     "0.timeSeries.0.areas.0.area.name": "str",
+     "0.timeSeries.0.areas.0.area.code": "str",
+     "0.timeSeries.0.areas.0.weatherCodes": "list[3]",
+     "0.timeSeries.0.areas.0.weathers": "list[3]",
+     "0.timeSeries.0.areas.0.winds": "list[3]",
+     "0.timeSeries.0.areas.0.waves": "list[3]"
+    },
+    "sample": [
+     {
+      "publishingOffice": "大阪管区気象台",
+      "reportDatetime": "2026-10-02T17:00:00+09:00",
+      "timeSeries": [
+       {
+        "timeDefines": [
+         "2026-10-02T17:00:00+09:00",
+         "2026-10-03T00:00:00+09:00",
+         "2026-10-04T00:00:00+09:00"
+        ],
+        "areas": [
+         {
+          "area": {
+           "name": "大阪府",
+           "code": "270000"
+          },
+          "weatherCodes": [
+           "100",
+           "100",
+           "200"
+          ],
+          "weathers": [
+           "晴れ",
+           "晴れ",
+           "くもり"
+          ],
+          "winds": [
+           "北の風　海上　では　北の風　やや強く",
+           "北東の風　海上　では　北の風　やや強く",
+           "東の風"
+          ],
+          "waves": [
+           "１メートル",
+           "１メートル",
+           "０．５メートル"
+          ]
+         }
+        ]
+       },
+       {
+        "timeDefines": [
+         "2026-10-02T18:00:00+09:00",
+         "2026-10-03T00:00:00+09:00",
+         "2026-10-03T06:00:00+09:00",
+         "… 2 more"
+        ],
+        "areas": [
+         {
+          "area": {
+           "name": "大阪府",
+           "code": "270000"
+          },
+          "pops": [
+           "0",
+           "0",
+           "0",
+           "… 2 more"
+          ]
+         }
+        ]
+       },
+       {
+        "timeDefines": [
+         "2026-10-03T00:00:00+09:00",
+         "2026-10-03T09:00:00+09:00"
+        ],
+        "areas": [
+         {
+          "area": {
+           "name": "大阪",
+           "code": "62078"
+          },
+          "temps": [
+           "17",
+           "27"
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "publishingOffice": "大阪管区気象台",
+      "reportDatetime": "2026-10-02T17:00:00+09:00",
+      "timeSeries": [
+       {
+        "timeDefines": [
+         "2026-10-03T00:00:00+09:00",
+         "2026-10-04T00:00:00+09:00",
+         "2026-10-05T00:00:00+09:00",
+         "… 4 more"
+        ],
+        "areas": [
+         {
+          "area": {
+           "name": "大阪府",
+           "code": "270000"
+          },
+          "weatherCodes": [
+           "100",
+           "200",
+           "202",
+           "… 4 more"
+          ],
+          "pops": [
+           "",
+           "20",
+           "50",
+           "… 4 more"
+          ],
+          "reliabilities": [
+           "",
+           "",
+           "C",
+           "… 4 more"
+          ]
+         }
+        ]
+       },
+       {
+        "timeDefines": [
+         "2026-10-03T00:00:00+09:00",
+         "2026-10-04T00:00:00+09:00",
+         "2026-10-05T00:00:00+09:00",
+         "… 4 more"
+        ],
+        "areas": [
+         {
+          "area": {
+           "name": "大阪",
+           "code": "62078"
+          },
+          "tempsMin": [
+           "",
+           "18",
+           "21",
+           "… 4 more"
+          ],
+          "tempsMinUpper": [
+           "",
+           "20",
+           "22",
+           "… 4 more"
+          ],
+          "tempsMinLower": [
+           "",
+           "17",
+           "19",
+           "… 4 more"
+          ],
+          "tempsMax": [
+           "",
+           "27",
+           "26",
+           "… 4 more"
+          ],
+          "tempsMaxUpper": [
+           "",
+           "28",
+           "28",
+           "… 4 more"
+          ],
+          "tempsMaxLower": [
+           "",
+           "24",
+           "25",
+           "… 4 more"
+          ]
+         }
+        ]
+       }
+      ],
+      "tempAverage": {
+       "areas": [
+        {
+         "area": {
+          "name": "大阪",
+          "code": "62078"
+         },
+         "min": "18.0",
+         "max": "25.6"
+        }
+       ]
+      },
+      "precipAverage": {
+       "areas": [
+        {
+         "area": {
+          "name": "大阪",
+          "code": "62078"
+         },
+         "min": "13.8",
+         "max": "42.3"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  ],
+  "commitments": [],
+  "platform": [],
+  "platform_sources": []
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "fields",
+   "constraints",
+   "other_sources"
+  ],
+  "properties": {
+   "fields": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "endpoint",
+      "path",
+      "meaning",
+      "relation_to_need",
+      "question",
+      "time_semantics",
+      "evidence",
+      "confidence"
+     ],
+     "properties": {
+      "endpoint": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string",
+       "description": "dotted path in the JSON"
+      },
+      "meaning": {
+       "type": "string"
+      },
+      "counts": {
+       "type": "string",
+       "enum": [
+        "people",
+        "actions",
+        "items",
+        "money",
+        "time",
+        "other"
+       ]
+      },
+      "relation_to_need": {
+       "type": "string",
+       "enum": [
+        "measure",
+        "lower_bound",
+        "upper_bound",
+        "proxy",
+        "direct",
+        "context",
+        "unrelated"
+       ]
+      },
+      "counts_unit": {
+       "type": "string",
+       "description": "the thing each unit of the number is (payment, IP address, request, customer id, page view...)"
+      },
+      "premises": {
+       "type": "object",
+       "description": "only for fields bearing on a count of people: for each premise, does it hold for this field, why, and a verbatim quote showing it",
+       "properties": {
+        "membership": {
+         "type": "object",
+         "required": [
+          "holds",
+          "why",
+          "evidence"
+         ],
+         "properties": {
+          "holds": {
+           "type": "string",
+           "enum": [
+            "yes",
+            "no",
+            "unknown"
+           ]
+          },
+          "why": {
+           "type": "string"
+          },
+          "evidence": {
+           "type": "string",
+           "description": "verbatim quote from the input that shows it, or '' if nothing observed shows it"
+          }
+         }
+        },
+        "distinctness": {
+         "type": "object",
+         "required": [
+          "holds",
+          "why",
+          "evidence"
+         ],
+         "properties": {
+          "holds": {
+           "type": "string",
+           "enum": [
+            "yes",
+            "no",
+            "unknown"
+           ]
+          },
+          "why": {
+           "type": "string"
+          },
+          "evidence": {
+           "type": "string",
+           "description": "verbatim quote from the input that shows it, or '' if nothing observed shows it"
+          }
+         }
+        },
+        "window": {
+         "type": "object",
+         "required": [
+          "holds",
+          "why",
+          "evidence"
+         ],
+         "properties": {
+          "holds": {
+           "type": "string",
+           "enum": [
+            "yes",
+            "no",
+            "unknown"
+           ]
+          },
+          "why": {
+           "type": "string"
+          },
+          "evidence": {
+           "type": "string",
+           "description": "verbatim quote from the input that shows it, or '' if nothing observed shows it"
+          }
+         }
+        },
+        "coverage": {
+         "type": "object",
+         "required": [
+          "holds",
+          "why",
+          "evidence"
+         ],
+         "properties": {
+          "holds": {
+           "type": "string",
+           "enum": [
+            "yes",
+            "no",
+            "unknown"
+           ]
+          },
+          "why": {
+           "type": "string"
+          },
+          "evidence": {
+           "type": "string",
+           "description": "verbatim quote from the input that shows it, or '' if nothing observed shows it"
+          }
+         }
+        },
+        "no_merging": {
+         "type": "object",
+         "required": [
+          "holds",
+          "why",
+          "evidence"
+         ],
+         "properties": {
+          "holds": {
+           "type": "string",
+           "enum": [
+            "yes",
+            "no",
+            "unknown"
+           ]
+          },
+          "why": {
+           "type": "string"
+          },
+          "evidence": {
+           "type": "string",
+           "description": "verbatim quote from the input that shows it, or '' if nothing observed shows it"
+          }
+         }
+        }
+       }
+      },
+      "question": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "id of the need question it bears on"
+      },
+      "time_semantics": {
+       "type": "string",
+       "enum": [
+        "cumulative",
+        "resets_daily",
+        "snapshot",
+        "event_list",
+        "unknown"
+       ]
+      },
+      "timestamp_key": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "for event lists: the item key holding the event time"
+      },
+      "caveats": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "evidence": {
+       "type": "string",
+       "description": "a verbatim quote (8-200 chars) from the endpoint's code context or response that supports this reading"
+      },
+      "confidence": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "constraints": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "statement",
+      "evidence",
+      "forbids"
+     ],
+     "properties": {
+      "statement": {
+       "type": "string"
+      },
+      "evidence": {
+       "type": "string",
+       "description": "verbatim quote of the promise"
+      },
+      "forbids": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "enum": [
+         "adds_client_code",
+         "third_party_tracking",
+         "writes_to_product",
+         "stores_personal_data",
+         "requires_accounts",
+         "shows_ads"
+        ]
+       }
+      }
+     }
+    }
+   },
+   "other_sources": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "title",
+      "access",
+      "question"
+     ],
+     "properties": {
+      "title": {
+       "type": "string"
+      },
+      "access": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "why": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "fields": [
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "0.timeSeries.1.areas.0.pops.0",
+    "meaning": "JMA probability of precipitation (%) for the first 6-hour block of the short-term forecast for Osaka Prefecture (starting 18:00 on report day). Not part of the 09:00-17:00 window itself; need the blocks covering daytime of the target date (pops.2, pops.3 at 06:00 and 12:00 on following day).",
+    "relation_to_need": "context",
+    "question": "supporting_conditions",
+    "time_semantics": "snapshot",
+    "evidence": "\"timeDefines\": [\"2026-10-02T18:00:00+09:00\",\"2026-10-03T00:00:00+09:00\",\"2026-10-03T06:00:00+09:00\"",
+    "confidence": 0.6,
+    "counts": "other",
+    "counts_unit": "percent probability per 6-hour block",
+    "caveats": [
+     "Prefecture-level, not Osaka city",
+     "Report issued 17:00 covers tomorrow; the morning report (05:00/11:00) would cover today",
+     "Array truncated in sample; indices 2 and 3 likely cover 06-12 and 12-18"
+    ]
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "0.timeSeries.1.areas.0.pops.2",
+    "meaning": "Precipitation probability (%) for the 06:00-12:00 block of the next day; partly overlaps drying window",
+    "relation_to_need": "direct",
+    "question": "good_day_to_dry_laundry_outside",
+    "time_semantics": "snapshot",
+    "evidence": "\"2026-10-03T06:00:00+09:00\"",
+    "confidence": 0.5,
+    "counts": "other",
+    "counts_unit": "percent probability per 6-hour block"
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "0.timeSeries.0.areas.0.weathers.0",
+    "meaning": "Text weather forecast for Osaka Prefecture for the first period (today/tonight at report time); the entry matching today's date gives sky condition (sunny/cloudy/rain)",
+    "relation_to_need": "context",
+    "question": "good_day_to_dry_laundry_outside",
+    "time_semantics": "snapshot",
+    "evidence": "\"weathers\": [\"晴れ\",\"晴れ\",\"くもり\"]",
+    "confidence": 0.6,
+    "counts": "other",
+    "counts_unit": "daily weather text"
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "0.timeSeries.0.areas.0.weatherCodes.0",
+    "meaning": "JMA weather code for the day (100=sunny, 200=cloudy)",
+    "relation_to_need": "context",
+    "question": "supporting_conditions",
+    "time_semantics": "snapshot",
+    "evidence": "\"weatherCodes\": [\"100\",\"100\",\"200\"]",
+    "confidence": 0.6,
+    "counts": "other",
+    "counts_unit": "weather code per day"
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "0.timeSeries.0.areas.0.winds.0",
+    "meaning": "Text wind direction and strength description (qualitative, not m/s) for the period",
+    "relation_to_need": "context",
+    "question": "supporting_conditions",
+    "time_semantics": "snapshot",
+    "evidence": "\"北の風　海上　では　北の風　やや強く\"",
+    "confidence": 0.5,
+    "counts": "other",
+    "counts_unit": "wind text per day"
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "0.timeSeries.2.areas.0.temps.1",
+    "meaning": "Forecast daytime maximum temperature (°C) for Osaka city (station 62078), 2026-10-03 09:00 entry",
+    "relation_to_need": "context",
+    "question": "supporting_conditions",
+    "time_semantics": "snapshot",
+    "evidence": "\"temps\": [\"17\",\"27\"]",
+    "confidence": 0.6,
+    "counts": "other",
+    "counts_unit": "°C"
+   },
+   {
+    "endpoint": "https://www.jma.go.jp/bosai/forecast/data/forecast/270000.json",
+    "path": "1.timeSeries.0.areas.0.pops.1",
+    "meaning": "Weekly forecast daily precipitation probability (%) for the following day",
+    "relation_to_need": "context",
+    "question": "supporting_conditions",
+    "time_semantics": "snapshot",
+    "evidence": "\"pops\": [\"\",\"20\",\"50\"",
+    "confidence": 0.4,
+    "counts": "other",
+    "counts_unit": "percent probability per day"
+   }
+  ],
+  "constraints": [],
+  "other_sources": [
+   {
+    "title": "JMA/Open-Meteo hourly forecast for Osaka (humidity, wind m/s, cloud/sunshine)",
+    "access": "public API, e.g. Open-Meteo hourly relative_humidity_2m, wind_speed_10m, precipitation_probability",
+    "question": "supporting_conditions"
+   }
+  ]
+ },
+ "at": "2026-10-02T12:30:53Z"
+}

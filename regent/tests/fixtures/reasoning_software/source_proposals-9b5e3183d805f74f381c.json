@@ -1,8 +1,8 @@
 {
  "task": "source_proposals",
- "key": "155aafe69ab393697dec",
+ "key": "9b5e3183d805f74f381c",
  "model": "claude-sonnet-5-5",
- "cost_usd": 0.018204,
+ "cost_usd": 0.0128314,
  "instructions": "You advise an operational agent that must answer the principal's need with live data. Propose\n(1) public data APIs that need no key and return JSON relevant to the questions -- give exact GET URLs with every\nparameter filled in from the resolved subjects (coordinates, time zone, identifiers), and the JSON paths you expect\nin the answer; and (2) pages of existing services people already use that answer the question directly (give the\nexact page URL for this subject, plus the link texts a person would click from the site's home page to reach it,\nin case the URL has moved). Each proposal is fetched and checked; propose only what you are confident exists.\nPrefer few, reliable sources. If nothing beyond what was already observed is relevant, return empty lists.",
  "payload": {
   "need": {
@@ -12,12 +12,12 @@
      "id": "active_real_users",
      "unit": "people",
      "exclude": [
-      "bots, crawlers, scrapers and automated traffic",
-      "internal staff, developers and test accounts",
-      "duplicate accounts of the same person where detectable",
+      "bots, crawlers and automated traffic",
+      "internal staff, developers and test/demo accounts",
+      "duplicate accounts or devices of the same person where detectable",
       "registered-but-inactive accounts",
-      "spam or fake signups",
-      "uptime/health-check monitors"
+      "fake/spam signups",
+      "anonymous one-off page loads with no real engagement"
      ],
      "windows": [
       "24h",
@@ -25,9 +25,9 @@
       "30d"
      ],
      "priority": "core",
-     "quantity": "Distinct individual humans who performed at least one meaningful use action (not merely a page load, login or being registered) in LindyBooks within the window. One person counted once across devices/sessions/accounts where identifiable.",
-     "question": "How many distinct real human people actively used LindyBooks in the recent period?",
-     "population": "Distinct human users of LindyBooks who performed a meaningful engagement action within the window",
+     "quantity": "Distinct individual humans who performed at least one meaningful use action (e.g. opened and engaged with the product beyond signing up or loading a page) in the window; each person counted once across devices/accounts where identifiable",
+     "question": "How many distinct real human people have actually used LindyBooks recently?",
+     "population": "Real human end users of LindyBooks who engaged in meaningful use during the window",
      "answer_type": "count",
      "acceptable_forms": [
       "exact",
@@ -37,44 +37,27 @@
      ]
     },
     {
-     "id": "real_vs_filtered_share",
-     "unit": "percent",
-     "exclude": [],
+     "id": "registered_vs_active",
+     "unit": "accounts",
+     "exclude": [
+      "test/internal accounts"
+     ],
      "windows": [
-      "7d",
-      "30d"
+      "all_time"
      ],
      "priority": "supporting",
-     "quantity": "Excluded non-human/internal/duplicate identities divided by all raw identities observed in the same window",
-     "question": "What share of raw observed users or traffic was excluded as non-real, to show how reliable the real-people count is?",
-     "population": "All raw observed LindyBooks visitors/accounts in the window",
-     "answer_type": "amount",
+     "quantity": "Total registered accounts, for context against active real people",
+     "question": "How does the count of actively-using real people compare to total registered accounts?",
+     "population": "All accounts ever created",
+     "answer_type": "count",
      "acceptable_forms": [
-      "estimate",
-      "range"
-     ]
-    },
-    {
-     "id": "trend",
-     "unit": "percent change",
-     "exclude": [],
-     "windows": [
-      "7d",
-      "30d"
-     ],
-     "priority": "supporting",
-     "quantity": "Change in real active users versus the prior period of equal length",
-     "question": "Is the real active user count rising or falling relative to the previous equivalent period?",
-     "population": "Same as active_real_users",
-     "answer_type": "amount",
-     "acceptable_forms": [
-      "estimate",
-      "exact"
+      "exact",
+      "estimate"
      ]
     }
    ],
    "deliverable": {
-    "why": "'At a glance' means a view readable in seconds showing a single headline number that stays current, with no report-reading needed.",
+    "why": "'At a glance' implies a view readable in seconds that stays current, showing one headline number of real active people.",
     "form": "glance_view",
     "refresh": "continuous",
     "deliver_at_local": null,
@@ -176,5 +159,5 @@
   "apis": [],
   "existing_services": []
  },
- "at": "2026-10-01T04:16:38Z"
+ "at": "2026-10-02T12:29:13Z"
 }

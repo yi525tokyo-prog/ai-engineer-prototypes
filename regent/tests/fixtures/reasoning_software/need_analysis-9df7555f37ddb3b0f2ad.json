@@ -1,9 +1,9 @@
 {
  "task": "need_analysis",
- "key": "25d4050b84283fbc0ba9",
+ "key": "9df7555f37ddb3b0f2ad",
  "model": "claude-sonnet-5-5",
- "cost_usd": 0.021473600000000002,
- "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current).",
+ "cost_usd": 0.033090800000000004,
+ "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide\nwhether they want to know something (information), to have an ability they will keep using (tool), or to have\nsomething done once (action). Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current). For tool and action needs list requirements: what must be\npossible, each with an observable acceptance check, tied to the words it comes from; questions may then be empty.",
  "payload": {
   "sentence": "How many people actually read LindyBooks these days?"
  },
@@ -11,8 +11,10 @@
   "type": "object",
   "required": [
    "handled_as",
+   "need_type",
    "subjects",
    "questions",
+   "requirements",
    "deliverable",
    "definitions_to_state"
   ],
@@ -183,6 +185,50 @@
      }
     }
    },
+   "need_type": {
+    "type": "string",
+    "enum": [
+     "information",
+     "tool",
+     "action"
+    ],
+    "description": "information: wants to know something; tool: wants an ability they keep using (an app, a place to do X); action: wants something done once"
+   },
+   "requirements": {
+    "type": "array",
+    "description": "for tool and action needs: what must be possible, each with an observable acceptance check",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "capability",
+      "acceptance",
+      "priority"
+     ],
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "capability": {
+       "type": "string"
+      },
+      "acceptance": {
+       "type": "string"
+      },
+      "priority": {
+       "type": "string",
+       "enum": [
+        "core",
+        "supporting"
+       ]
+      },
+      "from_words": {
+       "type": "string",
+       "description": "the words in the sentence this comes from"
+      }
+     }
+    }
+   },
    "definitions_to_state": {
     "type": "array",
     "items": {
@@ -197,6 +243,7 @@
  },
  "output": {
   "handled_as": "software_capability",
+  "need_type": "information",
   "subjects": [
    {
     "name": "LindyBooks",
@@ -207,18 +254,19 @@
   ],
   "questions": [
    {
-    "id": "recent_active_readers",
-    "question": "How many distinct real people have actually read LindyBooks content in the recent period?",
+    "id": "active_readers_recent",
+    "question": "How many distinct real people actually read LindyBooks in the recent period?",
     "answer_type": "count",
-    "quantity": "Distinct humans who engaged with LindyBooks content beyond a mere visit/open/download (e.g. read or consumed a meaningful portion, such as an engaged session or a minimum amount of content consumed), counted once per person across devices where possible",
-    "unit": "distinct people",
-    "population": "Human readers who consumed LindyBooks content during the window",
+    "quantity": "Distinct human individuals who actually read content (engaged with the reading content, not merely landing on or loading a page) on LindyBooks within the window",
+    "unit": "people (distinct readers)",
+    "population": "Distinct human readers of LindyBooks content who engaged with it, deduplicated across devices/sessions where possible",
     "exclude": [
-     "bots, crawlers and automated fetchers",
-     "people who only landed/opened/downloaded/bought but did not read",
-     "the owner/authors/staff and test traffic",
-     "duplicate counts of the same person across devices or sessions",
-     "bounces and very short visits"
+     "bots and crawlers",
+     "the owner/team/internal users",
+     "one-page bounces or visitors who never engaged with reading content",
+     "duplicate counts of the same person across sessions/devices",
+     "subscribers who did not read",
+     "repeat counts of the same person across days within the window"
     ],
     "windows": [
      "30d",
@@ -232,66 +280,25 @@
      "lower_bound"
     ],
     "priority": "core"
-   },
-   {
-    "id": "reader_trend",
-    "question": "Is the number of actual readers rising, flat or falling versus prior periods ('these days')?",
-    "answer_type": "amount",
-    "quantity": "Distinct actual readers per period compared against the previous equivalent period",
-    "unit": "distinct people per period, and percent change",
-    "population": "Same as the core reader count",
-    "exclude": [
-     "bots",
-     "non-reading visits",
-     "staff/test traffic"
-    ],
-    "windows": [
-     "30d vs previous 30d",
-     "12 months by month"
-    ],
-    "acceptable_forms": [
-     "estimate",
-     "range"
-    ],
-    "priority": "supporting"
-   },
-   {
-    "id": "visitors_vs_readers",
-    "question": "How does the number of actual readers compare with total visitors/audience (registered, subscribed or opened)?",
-    "answer_type": "count",
-    "quantity": "Total distinct visitors/subscribers/owners versus distinct actual readers in the same window",
-    "unit": "distinct people",
-    "population": "All people who touched LindyBooks in the window",
-    "exclude": [
-     "bots",
-     "staff/test traffic"
-    ],
-    "windows": [
-     "30d"
-    ],
-    "acceptable_forms": [
-     "estimate",
-     "lower_bound",
-     "upper_bound"
-    ],
-    "priority": "supporting"
    }
   ],
+  "requirements": [],
   "deliverable": {
    "form": "answer_once",
    "refresh": "once",
-   "why": "The principal asked a one-off 'how many' question about the current state; a single number with a stated definition and window suffices, with trend as context."
+   "why": "The sentence asks a one-off 'how many' question about the current state ('these days'); no recurring delivery or glanceable view is implied.",
+   "deliver_at_local": null,
+   "max_seconds_to_read": null
   },
   "definitions_to_state": [
-   "What LindyBooks is (a website, app, publication, book series or store) is unknown and must be confirmed",
-   "What counts as 'read' (opened, scrolled, minimum time, percent of a book/article completed)",
-   "What 'people' means: distinct humans, not devices, sessions, page views or accounts; how multiple devices and anonymous visitors are handled",
-   "What 'these days' means: default to the last 30 days, with 7d and 90d for context",
-   "Which exclusions apply (bots, staff, test traffic, non-readers)",
-   "Whether the answer is exact or an estimate/range/lower bound given tracking limits (e.g. privacy blocking, no login)",
-   "Which content or channels are included (all books, web, app, email, print/offline readers not measurable)"
+   "What LindyBooks is (unknown: a website, app, book series, or publisher); not determinable from the sentence",
+   "What counts as 'read' (opened, engaged for a minimum time/scroll depth, completed a book/article)",
+   "What 'people' means: distinct humans vs. visits/sessions/devices; bots and internal traffic excluded",
+   "What 'these days' means as a window (default recent 30 days, with 7d and 90d for context)",
+   "What to report if exact is impossible: estimate or range with stated method, or lower bound",
+   "Whether the figure is unique readers over the whole window or average per day/month"
   ],
-  "success_looks_like": "A single stated number of distinct actual human readers of LindyBooks over the last 30 days, with the reading threshold and exclusions defined, labeled exact or estimate (with range), and a brief trend note versus the prior period."
+  "success_looks_like": "A single number (or honest range/lower bound) of distinct human readers who actually engaged with LindyBooks content over the last 30 days, with 7d and 90d for context, bots/internal/bounces excluded, and the definition of 'read' stated."
  },
- "at": "2026-10-01T04:17:25Z"
+ "at": "2026-10-02T12:29:58Z"
 }

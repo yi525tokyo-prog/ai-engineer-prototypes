@@ -273,19 +273,24 @@ def test_from_one_sentence_to_a_capability_regent_keeps_using(db, services, repl
     # the conventional answer is ruled out by the product's own public promise
     assert routes["software-add-analytics"].status == "invalidated"
     assert "tracking" in routes["software-add-analytics"].invalidated_reason
-    assert routes["software-compose-cloudflare_analytics"].status == "selected"
+    assert routes["software-compose-public"].status == "selected"
+    # every platform source the principal could unlock measures only proxies for "real people actually
+    # using": no route asks for a credential, and no interrupt is raised
+    assert not [k for k in routes if k.startswith("software-compose-") and k != "software-compose-public"]
+    assert db.scalars(select(HumanInterrupt).where(HumanInterrupt.mission_id == m.id)).all() == []
     cap = db.scalar(select(SwCapability).where(SwCapability.mission_id == m.id))
     assert cap.verification["passed"] and cap.status == "degraded" and cap.implementation == "composed"
     r = K.read(db, cap, count_use=False)
     assert all(x["value"] is None for x in r["metrics"] if x["status"] == "blocked")
+    # the headline is honestly Unknown; what is shown is labelled a proxy, never a bound
+    head = min((x for x in r["metrics"] if x.get("headline")), key=lambda x: x["headline"])
+    assert head["status"] == "unknowable" and head["value"] is None
+    shown = [x for x in r["metrics"] if x["value"] is not None]
+    assert shown and all(x["form"] in ("proxy", "context") for x in shown)
+    assert all(x["label"].startswith("Proxy") for x in shown if x["form"] == "proxy")
     assert services.tools.get(cap.tool_name) is not None
-    # exactly one bounded human interrupt: a credential only the principal holds
-    [hi] = db.scalars(select(HumanInterrupt).where(HumanInterrupt.mission_id == m.id)).all()
-    assert hi.kind == "credential" and hi.resume_condition["fact"] == "credential.CLOUDFLARE_API_TOKEN"
-    assert hi.estimated_time_seconds <= 300
-    assert m.status == "waiting_human"
     t = ledger(db, m.id)
-    assert t["active_seconds_spent"] < 30 and t["active_seconds_requested_open"] == hi.estimated_time_seconds
+    assert t["active_seconds_spent"] < 30 and t["active_seconds_requested_open"] == 0
     # a later mission, worded differently, reuses it instead of rebuilding
     m2 = _run(db, LINDY_AGAIN)
     ops = {o.tool + "." + o.action for o in db.scalars(select(Operation).where(Operation.mission_id == m2.id))}
