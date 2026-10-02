@@ -476,6 +476,9 @@ def inventory(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, re
         ev = (c.get("evidence") or "").strip()
         ok = bool(ev) and (_loose(ev) in _loose(haystack) or any(_loose(ev) in _loose(p["context"]) for p in promises))
         constraints.append({**c, "evidence_found": ok})
+    if not sem.get("constraints") and meta.get("by") == "none":
+        # the worker could not interpret the commitments, but they were seen in public: they still bind
+        constraints += _literal_commitments(promises)
     # platform connectors the fingerprints make applicable
     platform_sources = []
     for d in deployments:
@@ -504,6 +507,27 @@ def inventory(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, re
                      f"{len(platform_sources)} platform sources, {len(constraints)} commitments, "
                      f"{len(existing)} existing capabilities")
     return inv
+
+
+_COMMITMENT_WORDS = (
+    (r"\bno (?:third[- ]party )?(?:tracking|trackers?|analytics|cookies)\b|\bdon'?t track\b|\bnot tracked\b",
+     ["third_party_tracking", "adds_client_code"]),
+    (r"\bno ads\b|\bad[- ]free\b", ["shows_ads"]),
+    (r"\bno (?:accounts?|sign[- ]?ups?|log[- ]?ins?)\b", ["requires_accounts"]),
+)
+
+
+def _literal_commitments(promises: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Commitments read literally from the promise phrases the fingerprint found (used when no
+    reasoning worker could interpret them): conservative, quoted, and marked as such."""
+    out = []
+    for p in promises:
+        text = f"{p.get('phrase', '')} {p.get('context', '')}"
+        forbids = sorted({f for rx, fs in _COMMITMENT_WORDS if re.search(rx, text, re.I) for f in fs})
+        if forbids:
+            out.append({"statement": p.get("phrase") or p.get("context", "")[:120], "evidence": p.get("phrase", ""),
+                        "forbids": forbids, "evidence_found": True, "interpreted_by": "literal reading"})
+    return out
 
 
 def _loose(s: str) -> str:

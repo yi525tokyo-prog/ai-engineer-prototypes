@@ -320,3 +320,12 @@ def test_a_different_need_uses_public_data_and_existing_services(db, services, r
     db.expire_all()
     sent = list(db.scalars(select(Event).where(Event.type == "principal_notified")))
     assert sent and sent[0].payload["text"].startswith(head["display"])
+
+
+def test_a_public_commitment_binds_even_when_no_worker_can_interpret_it():
+    from regent.software.discover import _literal_commitments
+
+    [c] = _literal_commitments([{"phrase": "No ads, no accounts, no tracking.",
+                                 "context": "Free classics. No ads, no accounts, no tracking."}])
+    assert {"third_party_tracking", "adds_client_code"} <= set(c["forbids"]) and c["evidence_found"]
+    assert _literal_commitments([{"phrase": "We value your privacy", "context": "cookies help us"}]) == []
