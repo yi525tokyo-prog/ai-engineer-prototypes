@@ -91,7 +91,7 @@ def render(out: dict[str, Any]) -> str:
          "Only sentences were given. Regent analysed each one, looked at the world, chose a route, and for the "
          "application routes delegated code to a file-only coding worker. Regent then built, tested, ran, "
          "browser-accepted, repaired, promoted and registered what came back, and later missions used that "
-         "application. Every figure below was read back from Regent's own records ([`application-capability.json`](application-capability.json)); the code the worker delivered, with Regent's briefs and repair rounds, is in [`application-capability-app/`](application-capability-app).", ""]
+         "application. Every figure below was read back from Regent's own records ([`application-capability.json.gz`](application-capability.json.gz)); the code the worker delivered, with Regent's briefs and repair rounds, is in [`application-capability-app/`](application-capability-app).", ""]
     L += ["## Result: " + ("PASS" if all(ok for ok, _ in path_checks(out)) else "FAIL"), ""]
     L += [f"- [{'x' if ok else ' '}] {text}" for ok, text in path_checks(out)] + [""]
     total_h = 0.0

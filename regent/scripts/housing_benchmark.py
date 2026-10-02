@@ -296,8 +296,10 @@ def main() -> None:
     if ticks is not None and a.recheck_after_hours:
         ticks += advance_and_recheck(a.recheck_after_hours, 4)
     if ticks is not None:
-        Path(a.out).with_suffix(".ticks.json").write_text(json.dumps(ticks, ensure_ascii=False, default=str,
-                                                                       indent=1))
+        import gzip
+
+        Path(a.out).with_suffix(".ticks.json.gz").write_bytes(
+            gzip.compress(json.dumps(ticks, ensure_ascii=False, default=str).encode(), 9))
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(report(ticks))

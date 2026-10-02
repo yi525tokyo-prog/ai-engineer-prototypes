@@ -174,9 +174,12 @@ def main() -> None:
     for key, name in (("A", "software-lindybooks-view.png"), ("D", "software-laundry-view.png")):
         if out[key].get("view_html"):
             screenshot(out[key]["view_html"], outp.parent / name)
-    (outp.with_suffix(".json")).write_text(json.dumps(
+    import gzip
+
+    # the full record, compressed: complete for anyone who audits the run, not thousands of diff lines
+    outp.with_suffix(".json.gz").write_bytes(gzip.compress(json.dumps(
         {k: ({kk: vv for kk, vv in v.items() if kk != "view_html"} if isinstance(v, dict) else v)
-         for k, v in out.items()}, ensure_ascii=False, indent=1, default=str))
+         for k, v in out.items()}, ensure_ascii=False, default=str).encode(), 9))
     from software_report import render  # noqa: E402  (sibling module)
 
     outp.write_text(render(out))

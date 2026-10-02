@@ -2,7 +2,7 @@
 
 Started 2026-10-01T11:49:35Z; 638 s wall clock. Workspace `/home/user/ai-engineer-prototypes/regent/var/appbench-cold`.
 
-Only sentences were given. Regent analysed each one, looked at the world, chose a route, and for the application routes delegated code to a file-only coding worker. Regent then built, tested, ran, browser-accepted, repaired, promoted and registered what came back, and later missions used that application. Every figure below was read back from Regent's own records ([`application-capability.json`](application-capability.json)); the code the worker delivered, with Regent's briefs and repair rounds, is in [`application-capability-app/`](application-capability-app).
+Only sentences were given. Regent analysed each one, looked at the world, chose a route, and for the application routes delegated code to a file-only coding worker. Regent then built, tested, ran, browser-accepted, repaired, promoted and registered what came back, and later missions used that application. Every figure below was read back from Regent's own records ([`application-capability.json.gz`](application-capability.json.gz)); the code the worker delivered, with Regent's briefs and repair rounds, is in [`application-capability-app/`](application-capability-app).
 
 ## Result: PASS
 
