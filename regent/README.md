@@ -51,15 +51,17 @@ remembers it. Regent keeps running there, so reminders and things it watches go 
 computer is off. Apps it builds open on a separate address of their own, so an app's code can
 never act on your Regent page.
 
-It needs:
-- Docker and Node 20+ on the computer you deploy from;
-- the Workers Paid plan (container hosting);
-- three settings:
-  - `CLOUDFLARE_API_TOKEN`, with the "Edit Cloudflare Workers" template plus Containers: Edit and
-    Workers R2 Storage: Edit;
-  - `CLOUDFLARE_ACCOUNT_ID`;
-  - `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, which uses your Claude plan) or
-    `ANTHROPIC_API_KEY`.
+On a computer with Docker (running) and Node 20+:
+
+```bash
+cd regent/deploy/cloudflare
+./deploy.sh
+```
+
+It asks for what it needs as it goes:
+- **Cloudflare:** you sign in in your browser (`wrangler login`), or it uses `CLOUDFLARE_API_TOKEN` if set.
+- **Claude:** it runs `claude setup-token`, so Regent thinks with your Claude plan, and asks you to paste what that command prints. Alternatively it uses `ANTHROPIC_API_KEY` if set.
+- **Plan:** container hosting needs the Workers Paid plan.
 
 Your data is saved to R2 within a minute of any change and restored whenever the container is
 replaced. Running the script again updates Regent in place.
