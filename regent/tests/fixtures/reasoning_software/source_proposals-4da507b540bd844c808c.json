@@ -1,0 +1,166 @@
+{
+ "task": "source_proposals",
+ "key": "4da507b540bd844c808c",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.0137074,
+ "instructions": "You advise an operational agent that must answer the principal's need with live data. Propose\n(1) public data APIs that need no key and return JSON relevant to the questions -- give exact GET URLs with every\nparameter filled in from the resolved subjects (coordinates, time zone, identifiers), and the JSON paths you expect\nin the answer; and (2) pages of existing services people already use that answer the question directly (give the\nexact page URL for this subject, plus the link texts a person would click from the site's home page to reach it,\nin case the URL has moved). Each proposal is fetched and checked; propose only what you are confident exists.\nEach source must answer the question at exactly the granularity asked (a city, not its metropolitan area or country;\nthe named thing, not a category). For facts about a named place, person, organisation or thing, Wikidata's public\nAPI (e.g. https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q...&props=claims&format=json, or the SPARQL\nendpoint) is usually a reliable keyless source. Prefer few, reliable sources. If nothing beyond what was already\nobserved is relevant, return empty lists.",
+ "payload": {
+  "need": {
+   "sentence": "I want to know, at a glance, how many real people are actually using LindyBooks.",
+   "questions": [
+    {
+     "id": "active_real_users",
+     "unit": "people",
+     "exclude": [
+      "bots, crawlers and automated traffic",
+      "internal staff, team and test accounts",
+      "duplicate accounts or devices of the same person where detectable",
+      "spam or fake sign-ups",
+      "registered but inactive accounts",
+      "one-touch bounce visits with no meaningful action"
+     ],
+     "windows": [
+      "24h",
+      "7d",
+      "30d"
+     ],
+     "priority": "core",
+     "quantity": "Distinct individual human users who performed at least one meaningful use action (beyond merely registering or loading a page) in LindyBooks during the window, deduplicated across devices/sessions/accounts where possible",
+     "question": "How many distinct real human people actively used LindyBooks in the recent period?",
+     "population": "Distinct human users of LindyBooks who performed a meaningful engagement action in the window",
+     "answer_type": "count",
+     "acceptable_forms": [
+      "exact",
+      "estimate",
+      "range",
+      "lower_bound"
+     ]
+    },
+    {
+     "id": "trend_vs_prior",
+     "unit": "people and percent",
+     "exclude": [
+      "same exclusions as active_real_users"
+     ],
+     "windows": [
+      "7d",
+      "30d"
+     ],
+     "priority": "supporting",
+     "quantity": "Change in active real users versus the prior equal-length window",
+     "question": "Is the active real-user count up or down compared to the previous equivalent period?",
+     "population": "Same as active_real_users",
+     "answer_type": "amount",
+     "acceptable_forms": [
+      "estimate",
+      "exact"
+     ]
+    }
+   ],
+   "deliverable": {
+    "why": "'At a glance' means a view readable in seconds that stays current, headlined by one number of real active users.",
+    "form": "glance_view",
+    "refresh": "continuous",
+    "deliver_at_local": null,
+    "max_seconds_to_read": 5
+   }
+  },
+  "principal": {
+   "country": null,
+   "language": "en"
+  },
+  "subjects": [
+   {
+    "kind": "product",
+    "name": "LindyBooks",
+    "deployments": [
+     "lindy-books.org"
+    ]
+   }
+  ],
+  "rejected_proposals": [],
+  "instruction": "Every source above was rejected for the stated reason (robots.txt disallow is final: do not propose that host again). Propose different sources."
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "apis",
+   "existing_services"
+  ],
+  "properties": {
+   "apis": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "url",
+      "why",
+      "expected_fields",
+      "question"
+     ],
+     "properties": {
+      "url": {
+       "type": "string",
+       "description": "full GET URL, parameters filled in"
+      },
+      "why": {
+       "type": "string"
+      },
+      "expected_fields": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "dotted JSON paths, list indexes as numbers"
+      },
+      "question": {
+       "type": "string"
+      },
+      "needs_key": {
+       "type": "boolean"
+      }
+     }
+    }
+   },
+   "existing_services": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "url",
+      "name",
+      "why",
+      "question",
+      "link_texts"
+     ],
+     "properties": {
+      "url": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "why": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "link_texts": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "visible link texts a person would click, from the site's home page to this page, in the site's language"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "apis": [],
+  "existing_services": []
+ },
+ "at": "2026-10-03T03:19:21Z"
+}

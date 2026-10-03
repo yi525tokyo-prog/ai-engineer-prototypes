@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "regent",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  "containers": [
+    {
+      "class_name": "Regent",
+      "image": "../../Dockerfile",
+      "image_build_context": "../..",
+      // 4 GiB: Regent, Claude Code and a headless browser at the same time
+      "instance_type": "standard-1",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": { "bindings": [{ "name": "REGENT", "class_name": "Regent" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Regent"] }],
+  "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "regent-backups" }],
+  "triggers": { "crons": ["*/5 * * * *"] }
+}

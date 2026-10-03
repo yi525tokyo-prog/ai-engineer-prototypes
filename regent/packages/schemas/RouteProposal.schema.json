@@ -1,0 +1,575 @@
+{
+  "$defs": {
+    "Blocker": {
+      "properties": {
+        "kind": {
+          "default": "fact",
+          "enum": [
+            "fact",
+            "capability"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "fact": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fact"
+        },
+        "op": {
+          "default": "eq",
+          "title": "Op",
+          "type": "string"
+        },
+        "value": {
+          "default": null,
+          "title": "Value"
+        },
+        "capability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "title": "Blocker",
+      "type": "object"
+    },
+    "CostEstimate": {
+      "properties": {
+        "money": {
+          "default": 0.0,
+          "title": "Money",
+          "type": "number"
+        },
+        "api_usd": {
+          "default": 0.0,
+          "title": "Api Usd",
+          "type": "number"
+        },
+        "minutes": {
+          "default": 0.0,
+          "title": "Minutes",
+          "type": "number"
+        },
+        "attention_s": {
+          "default": 0.0,
+          "title": "Attention S",
+          "type": "number"
+        }
+      },
+      "title": "CostEstimate",
+      "type": "object"
+    },
+    "Effect": {
+      "properties": {
+        "set": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Set"
+        },
+        "mul": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mul"
+        },
+        "add": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Add"
+        },
+        "from_fact": {
+          "default": false,
+          "title": "From Fact",
+          "type": "boolean"
+        }
+      },
+      "title": "Effect",
+      "type": "object"
+    },
+    "FallbackSpec": {
+      "properties": {
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "inputs": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inputs"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool",
+        "action"
+      ],
+      "title": "FallbackSpec",
+      "type": "object"
+    },
+    "OperationSpec": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "goal": {
+          "title": "Goal",
+          "type": "string"
+        },
+        "tool": {
+          "title": "Tool",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "inputs": {
+          "additionalProperties": true,
+          "title": "Inputs",
+          "type": "object"
+        },
+        "kind": {
+          "default": "step",
+          "enum": [
+            "step",
+            "probe",
+            "acquire"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "depends_on": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "resolves": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Resolves",
+          "type": "array"
+        },
+        "emits": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "output path -> fact key",
+          "title": "Emits",
+          "type": "object"
+        },
+        "verification": {
+          "$ref": "#/$defs/VerificationSpec"
+        },
+        "timeout_s": {
+          "default": 60.0,
+          "title": "Timeout S",
+          "type": "number"
+        },
+        "retry": {
+          "$ref": "#/$defs/RetryPolicy"
+        },
+        "cost_estimate": {
+          "$ref": "#/$defs/CostEstimate"
+        },
+        "authority": {
+          "anyOf": [
+            {
+              "enum": [
+                "AUTO",
+                "COMMIT",
+                "IDENTITY"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Authority"
+        }
+      },
+      "required": [
+        "key",
+        "goal",
+        "tool",
+        "action"
+      ],
+      "title": "OperationSpec",
+      "type": "object"
+    },
+    "RetryPolicy": {
+      "properties": {
+        "max_attempts": {
+          "default": 2,
+          "title": "Max Attempts",
+          "type": "integer"
+        },
+        "backoff_s": {
+          "default": 0.0,
+          "title": "Backoff S",
+          "type": "number"
+        },
+        "fallback": {
+          "items": {
+            "$ref": "#/$defs/FallbackSpec"
+          },
+          "title": "Fallback",
+          "type": "array"
+        }
+      },
+      "title": "RetryPolicy",
+      "type": "object"
+    },
+    "RouteEstimates": {
+      "properties": {
+        "expected_upside": {
+          "default": 0.0,
+          "description": "Upside if the route succeeds, in mission value units",
+          "title": "Expected Upside",
+          "type": "number"
+        },
+        "success_probability": {
+          "default": 0.5,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Success Probability",
+          "type": "number"
+        },
+        "time_cost_hours": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Time Cost Hours",
+          "type": "number"
+        },
+        "money_cost": {
+          "default": 0.0,
+          "description": "Cash cost, in the money resource unit",
+          "minimum": 0,
+          "title": "Money Cost",
+          "type": "number"
+        },
+        "information_gain": {
+          "default": 0.0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Information Gain",
+          "type": "number"
+        },
+        "reversibility": {
+          "default": 0.5,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Reversibility",
+          "type": "number"
+        },
+        "optionality": {
+          "default": 0.5,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Optionality",
+          "type": "number"
+        },
+        "risk": {
+          "default": 0.3,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Risk",
+          "type": "number"
+        },
+        "authority_cost": {
+          "default": 0.0,
+          "description": "How much human authority/attention the route consumes",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Authority Cost",
+          "type": "number"
+        }
+      },
+      "title": "RouteEstimates",
+      "type": "object"
+    },
+    "Sensitivity": {
+      "description": "How a route's estimates respond to a fact about the world.",
+      "properties": {
+        "fact": {
+          "title": "Fact",
+          "type": "string"
+        },
+        "op": {
+          "default": "eq",
+          "enum": [
+            "eq",
+            "ne",
+            "lt",
+            "gt",
+            "le",
+            "ge",
+            "in",
+            "exists",
+            "missing",
+            "truthy",
+            "falsy"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "value": {
+          "default": null,
+          "title": "Value"
+        },
+        "effects": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Effect"
+          },
+          "title": "Effects",
+          "type": "object"
+        },
+        "rationale": {
+          "default": "",
+          "title": "Rationale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fact"
+      ],
+      "title": "Sensitivity",
+      "type": "object"
+    },
+    "Uncertainty": {
+      "properties": {
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "fact_key": {
+          "title": "Fact Key",
+          "type": "string"
+        },
+        "affects": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Affects",
+          "type": "array"
+        },
+        "resolvable_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolvable By"
+        }
+      },
+      "required": [
+        "question",
+        "fact_key"
+      ],
+      "title": "Uncertainty",
+      "type": "object"
+    },
+    "VerificationSpec": {
+      "properties": {
+        "method": {
+          "default": "schema",
+          "enum": [
+            "none",
+            "schema",
+            "predicate",
+            "state_check",
+            "model",
+            "human_confirmed"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "required_keys": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Keys",
+          "type": "array"
+        },
+        "predicate": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Predicate"
+        },
+        "check": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Check"
+        }
+      },
+      "title": "VerificationSpec",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "key": {
+      "title": "Key",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "thesis": {
+      "title": "Thesis",
+      "type": "string"
+    },
+    "archetype": {
+      "default": "direct",
+      "title": "Archetype",
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "estimates": {
+      "$ref": "#/$defs/RouteEstimates"
+    },
+    "estimate_rationale": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Estimate Rationale",
+      "type": "object"
+    },
+    "sensitivities": {
+      "items": {
+        "$ref": "#/$defs/Sensitivity"
+      },
+      "title": "Sensitivities",
+      "type": "array"
+    },
+    "dependencies": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Dependencies",
+      "type": "array"
+    },
+    "blockers": {
+      "items": {
+        "$ref": "#/$defs/Blocker"
+      },
+      "title": "Blockers",
+      "type": "array"
+    },
+    "required_capabilities": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Required Capabilities",
+      "type": "array"
+    },
+    "operations": {
+      "items": {
+        "$ref": "#/$defs/OperationSpec"
+      },
+      "title": "Operations",
+      "type": "array"
+    },
+    "uncertainty": {
+      "items": {
+        "$ref": "#/$defs/Uncertainty"
+      },
+      "title": "Uncertainty",
+      "type": "array"
+    }
+  },
+  "required": [
+    "key",
+    "title",
+    "thesis"
+  ],
+  "title": "RouteProposal",
+  "type": "object"
+}

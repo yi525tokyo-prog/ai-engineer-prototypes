@@ -1,0 +1,8 @@
+{
+  "name": "lindy-reading-place",
+  "version": "1.0.0",
+  "build": null,
+  "test": "node --test test/app.test.js",
+  "start": "node server.js",
+  "health": "/api/health"
+}

@@ -1,0 +1,329 @@
+# Regent
+
+Tell Regent what you want handled, in your own words. It works out what that needs, does the work
+in the background, asks you only when it truly needs you, and keeps what it builds or learns for
+next time.
+
+## Use it
+
+You need Python 3.11+ and [Claude Code](https://claude.com/claude-code) installed and signed in
+(the `claude` command). Regent uses it to understand requests and, when you approve, to build
+small apps for you.
+
+```bash
+git clone https://github.com/yi525tokyo-prog/ai-engineer-prototypes.git
+cd ai-engineer-prototypes/regent
+./start
+```
+
+The first run sets itself up (a minute or two). After that `./start` opens Regent in your browser
+in a few seconds at <http://127.0.0.1:7777>. It runs on your computer only. Your data lives in
+`~/.regent`. Stop it with Ctrl+C; anything in progress resumes the next time you start it.
+
+Then type what you want into the box. For example:
+
+- "Every evening, tell me if I'll need an umbrella in Tokyo tomorrow." You get a yes/no answer,
+  kept current, with a message each evening.
+- "Remind me to call my mother on Sunday." Regent reminds you itself, in the page and as a
+  browser notification.
+- "I want a simple private place to keep track of the books I'm reading." Regent asks once
+  whether to build a small app (about 5–10 minutes, about $1 of AI usage), tests it itself, and
+  gives you a link and a passphrase.
+- "Add Dune to my reading list — I'm halfway." Regent does it in the app it built for you.
+
+On the page:
+- **Needs you** holds the only things you have to do: plain questions with buttons.
+- **From Regent** holds its messages.
+- **Your requests** shows what Regent is doing now and what came out of it. Each request has
+  Stop, Try again / Redo from scratch, and Remove.
+
+If something goes wrong, Regent says so in plain words and offers to try again. If a request is
+something Regent can't take on yet, it says so instead of pretending.
+
+Options: `./start --port 7778` uses another port. `REGENT_HOME=/path ./start` keeps the data
+elsewhere.
+
+### From your phone, or with your computer off: Regent on Cloudflare
+
+`deploy/cloudflare/deploy.sh` puts the same Regent on your Cloudflare account and prints one link
+to open on each device. The link carries a private key; after the first visit, the device
+remembers it. Regent keeps running there, so reminders and things it watches go on while your
+computer is off. Apps it builds open on a separate address of their own, so an app's code can
+never act on your Regent page.
+
+On a computer with Docker (running) and Node 20+:
+
+```bash
+cd regent/deploy/cloudflare
+./deploy.sh
+```
+
+It asks for what it needs as it goes:
+- **Cloudflare:** you sign in in your browser (`wrangler login`), or it uses `CLOUDFLARE_API_TOKEN` if set.
+- **Claude:** it runs `claude setup-token`, so Regent thinks with your Claude plan, and asks you to paste what that command prints. Alternatively it uses `ANTHROPIC_API_KEY` if set.
+- **Plan:** container hosting needs the Workers Paid plan.
+
+Your data is saved to R2 within a minute of any change and restored whenever the container is
+replaced. Running the script again updates Regent in place.
+
+---
+
+## For developers
+
+Under the page, Regent is an **operational principal**. It keeps a model of your world, generates
+competing strategies, picks one, does the machine-executable work, asks for bounded real-world
+actions, verifies outcomes, and changes strategy when the evidence changes.
+
+```
+OBSERVE → MODEL WORLD STATE → ACQUIRE (what don't I know?) → GENERATE ROUTES → EVALUATE ROUTES
+        → SELECT PLAN → DECOMPOSE → EXECUTE → VERIFY → UPDATE WORLD → FULL RE-EVALUATION → REPLAN
+```
+
+The loop is plain, explicit code in [`regent/core/loop.py`](regent/core/loop.py). No agent
+framework sits in between. The engineering cockpit (`apps/web`) and the seeded case study below
+are developer tools; the page above is the product.
+
+## What runs today
+
+All of this is exercised end to end by the test suite, against PostgreSQL and real Chromium.
+
+1. **Missions** form a graph: a root objective, sub-goals you add, and sub-missions Regent spawns
+   itself, such as capability acquisition. Success criteria are conditions over world facts.
+2. **Events → world state.** An append-only event store drives projections: 21 entity kinds,
+   typed relations, facts, resources, ledger, constitution, grants, capabilities and skills.
+   State can be rebuilt from the log or from a snapshot, and any two snapshots can be diffed.
+3. **Competing routes.** Every available model provider proposes routes independently. Proposals
+   are merged by key, with each provider's estimates kept separately. Disagreement becomes
+   explicit uncertainty; it is never averaged away as consensus.
+4. **Structured evaluation, owned by Regent.** Models estimate; Regent scores. Each score is split
+   into components (expected value with a concave utility, information gain, optionality,
+   reversibility, time, money measured against *free* cash, risk, authority cost, constitution
+   tag bonuses). Weights come from base weights × constitution × resource scarcity.
+5. **Evidence-driven updates.** Routes declare *sensitivities*: "if `contract.X.budget_status` is
+   `frozen`, success probability ×0.25". When a verified fact arrives, estimates move and the
+   decision log records exactly which evidence moved which number.
+6. **Value of information.** For every unknown fact some route depends on, Regent simulates each
+   branch and asks: *could learning this flip the plan?* Probes that resolve such facts run in
+   parallel, even for routes that are not selected.
+7. **Selection with hysteresis.** An incumbent is replaced only when it becomes unviable or is
+   beaten by a margin. Sunk cost never enters the score.
+8. **Execution against real tools**: LLM, search, Playwright browser, sandboxed filesystem,
+   pytest/Python execution, GitHub, email, calendar, maps, HTTP, commerce, payments,
+   agent delegation, and the human. Every call is authority-checked, affordability-checked,
+   concurrent, time-limited and retried, with fallback reroutes.
+9. **Authority** has three levels: `AUTO`, `COMMIT` and `IDENTITY`. Standing grants carry
+   constraints such as "known contacts only" or "≤ ¥3,000". Regent never asks when authority
+   already exists.
+10. **Human interrupts** are structured and bounded: reason, exact action, time estimate, blocking
+    operation, and a machine-checkable resume condition. Regent resumes by itself when, say, the
+    page stops showing a CAPTCHA.
+11. **Verification**: schema, predicate, independent state check (for example, read the outbox
+    back), model, or human-confirmed. Only verified results become evidence and facts.
+12. **Capability acquisition.** "Cannot" is not terminal. A missing capability opens a
+    sub-mission whose competing routes are the nine acquisition strategies. In the case study
+    Regent *writes, tests and registers* an invoice tool, which a later route then uses.
+13. **Skills.** A run of attempt → failure → reroute → success is generalized into a skill,
+    stored privately and published to the global domain through a privacy filter. The executor
+    reuses learned reroutes before failing again.
+14. **Constitution** items are inferred from explicit statements, overrides, rejections and
+    repeated choices. Each carries a Beta-distributed confidence. Items are grouped into hard
+    constraints, strong and weak preferences, priorities and unresolved conflicts.
+15. **Treasury.** Cash, API spend, compute and principal attention are ledgered. Scarcity
+    re-weights the evaluation, and budget guards block unaffordable operations.
+16. **Audit.** Each decision stores:
+    - the snapshot it was made against
+    - the routes considered, the selection and the reason
+    - the evidence and model outputs used
+    - the authority decision and the outcome
+17. **Cockpit UI.** The panels are NOW, BEST ROUTE, WHY, EXECUTING, BLOCKED BY YOU,
+    ALTERNATIVES, CHANGES, WORLD and MISSION, plus constitution, system and simulation controls.
+    It is not a chat window.
+
+18. **World acquisition, with geography in the search space.** Told only 「住居を安定させたい」
+    ("I want to stabilize my housing"), with nothing seeded and no country given, Regent:
+    - builds a candidate world of cities from public directories;
+    - treats the language of the request as evidence about where the principal *is*, not where
+      they should live;
+    - prices shortlisted cities live, in one currency (ECB rates);
+    - chooses regions across countries and continents;
+    - acquires each through a source pack (the Japan pack, or a generic pack that works anywhere),
+      bootstrapping local sources by discovery where it has none;
+    - extracts claims with provenance, resolves identities, keeps conflicts, runs a funnel per region;
+    - compares strategies across borders: leasing in several countries, rooms, hostels, or waiting.
+      The right to live abroad is an explicit uncertainty.
+
+    See [World acquisition](docs/ARCHITECTURE.md#world-acquisition-regentacquisition) and the
+    [cross-geography benchmark](docs/benchmarks/housing-cross-geography.md).
+
+19. **Software needs, from one sentence.** Told only "I want to know, at a glance, how many real
+    people are actually using LindyBooks", Regent:
+    - works out what that means (distinct humans, excluding bots, staff and duplicates; honest
+      forms when an exact count is impossible);
+    - finds LindyBooks on the live web, reads its API from its own code, and finds its public
+      promise "No ads, no accounts, no tracking", which then rules out the conventional
+      analytics-script route;
+    - composes a capability from what the product publishes, verifies it with its own acceptance
+      suite (independent reads, a real browser), and activates it as a tool, a glance view and
+      world facts;
+    - audits what each measurement can support (`semantics.py`). Payment events are not active
+      users, distinct IPs are not an upper bound on humans, and test-mode events are not real
+      users. Every such figure is shown as a labelled **proxy**, and the headline says
+      "Unknown". Regent therefore does not ask the principal for a credential that would only
+      unlock another proxy;
+    - reuses the capability when the need comes back in other words, and keeps it current on its own.
+
+    A second, different need ("Every morning, tell me whether it's a good day to dry laundry
+    outside in Osaka") goes through the same machinery: a place, third-party data, existing
+    services competing with building, a decision rule and a morning delivery. See
+    [Software needs](docs/ARCHITECTURE.md#software-needs-and-capabilities-regentsoftware) and the
+    [benchmark](docs/benchmarks/software-needs.md).
+
+  - **Applications Regent has built, runs and keeps using.** The starting sentence is "I want my
+    own private place, usable from any browser, where I can pick books from the LindyBooks
+    catalogue and keep my place and my notes - not in some other company's app". Regent finds
+    that no existing product does this; Notion and Memos compete and lose. It then:
+    - designs the interface and its own acceptance scenarios;
+    - delegates construction to a file-only coding worker, which delivered a Node app of 2,152
+      lines;
+    - inspects, builds, tests, runs and browser-accepts it. Its privacy check caught the first
+      version exposing the shelf; the worker repaired it in 3 rounds;
+    - promotes it, registers it as a tool and keeps it running.
+
+    Later sentences use it through its API ("Put The Odyssey on my reading list…"), and a
+    sharing need **extends it to v2**. v2 is tested on a copy of the real data against v1's
+    scenarios, promoted with a backup, and loses no record. Opened by a stranger, the share link
+    shows that book's notes and nothing else. When the live process is killed, maintenance
+    brings it back. This was run for real from cold state; see the
+    [benchmark](docs/benchmarks/application-capability.md) and
+    [Applications](docs/ARCHITECTURE.md#applications-appdesignpy-appbuildpy-appservicepy-appacceptpy-appcappy).
+
+## Software needs
+
+```bash
+# fresh DB, only the sentences, live web; the reasoning worker is the Claude Code CLI (tool-less)
+REGENT_DATABASE_URL=postgresql+psycopg://regent:regent@localhost:5432/regent_swbench \
+  python scripts/software_benchmark.py --out docs/benchmarks/software-needs.md
+
+# applications: the coding worker runs for real (principal opt-in), approvals are counted as human time
+REGENT_DATABASE_URL=postgresql+psycopg://regent:regent@localhost:5432/regent_appbench \
+REGENT_WORKSPACE=var/appbench REGENT_CODING_AGENT=claude-code \
+  python scripts/app_benchmark.py --out docs/benchmarks/application-capability.md
+```
+
+API: `/software/{slug}` (glance view), `/api/software/capabilities[/{slug}[/collect]]`,
+`/api/software/resources`, `/api/missions/{id}/software` (need, discovery, inventory, capability,
+human time).
+
+## World acquisition
+
+```bash
+# the unseen-query benchmark: fresh DB, only the mission sentence, live web
+REGENT_DATABASE_URL=postgresql+psycopg://regent:regent@localhost:5432/regent_bench \
+  python scripts/housing_benchmark.py --ticks 8 --pages 300 --recheck-after-hours 7 \
+  --out docs/benchmarks/housing-cross-geography.md
+```
+
+API endpoints:
+- `/api/acquisition/overview`: regions chosen and rejected, funnel, sources and access status,
+  candidates with beliefs
+- `/api/acquisition/entities/{id}`: every claim per attribute with URL, time and confidence;
+  the hypotheses, conflicts, identity decisions and enrichment jobs
+- `/api/acquisition/requests`, `/sources` and `/documents`
+- `POST /api/acquisition/run`
+
+The cockpit shows these in the **World acquisition** panel. Clicking a candidate opens its
+claims.
+
+## The case study (seeded)
+
+You are a freelance developer with **0.86 months of runway**, one client meeting in three days,
+one software project (`ledgerline`, whose test suite has two real failing tests), four unanswered
+messages, and a home internet outage.
+
+| Step | What Regent does |
+|---|---|
+| Ingest | Messages, meeting, contracts, places, cash, preferences and grants arrive as events. |
+| Compete | Five routes for the root mission: win the Kinoshita client, take Northbridge's 3‑month exclusive contract, bridge with short gigs, launch ledgerline as a paid beta, or buy time by deferring rent. Three routes for the workplace sub-mission. |
+| Choose | *Win Kinoshita* ranks first. Money pressure pushes toward Northbridge, but the principal's preferences for keeping the project alive and for optionality hold it back. |
+| Work | Runs the real test suite (8 passed, 2 failed), triages the failures, estimates travel, blocks prep time on the calendar, scans the gig market, and books Aoi's free desk by replying under the standing *known contacts* grant. |
+| Detect a gap | Opens a sub-mission for the missing `invoice.generate` capability, then builds, tests and registers the tool. |
+| Ask once | The client portal shows a CAPTCHA. Regent raises one interrupt: *complete the human-verification challenge (~20 s)*. The reply to the client, which depends on the portal, waits. |
+| Resume | You solve it in your own browser. Regent sees that the page has changed, re-runs the browser operation and reads: **budget frozen, pilot only (¥150k), meeting remote**. |
+| Revise | Kinoshita drops from 1.78 to 0.36. Regent switches to Northbridge, cancels the now-pointless steps, replies to Northbridge, writes a pause note for ledgerline, tells Kinoshita the door is open for January, and records the constitution conflict it just accepted. |
+| Again | Inject *Northbridge withdraws* from the cockpit: that route is invalidated and Regent switches to the gig route, which uses the tool it built earlier. |
+
+## Run it
+
+With Docker:
+
+```bash
+cd regent
+docker compose up --build          # Postgres+pgvector, API + loop worker + Chromium, cockpit
+open http://localhost:3000         # click "Load case study"
+```
+
+Without Docker (PostgreSQL reachable at `REGENT_DATABASE_URL`; SQLite also works):
+
+```bash
+cd regent
+pip install -e ".[providers,browser,dev]" && python -m playwright install chromium
+REGENT_BACKGROUND_LOOP=1 uvicorn apps.api.main:app --port 8000 &
+cd apps/web && npm install && REGENT_API_URL=http://localhost:8000 npm run dev
+```
+
+Headless:
+
+```bash
+python -m regent.cli seed && python -m regent.cli run && python -m regent.cli status
+python -m regent.cli interrupts           # then solve the portal at the printed URL
+python -m regent.cli run && python -m regent.cli status
+```
+
+Tests:
+
+```bash
+pytest                              # 39 tests; PostgreSQL if reachable, else SQLite
+cd apps/web && npm test && npm run typecheck
+python scripts/ui_smoke.py          # real-browser run through the cockpit (servers must be up)
+```
+
+## Credentials
+
+Regent never blocks on a missing credential. The integration interface exists, a local backend
+is used instead, and the gap is listed at `GET /api/system` and in the cockpit's System panel.
+
+| Variable | Enables | Without it |
+|---|---|---|
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY` | Remote route generation, critique, drafting and code synthesis (Claude, GPT, Grok), compared side by side | Local deterministic strategist (playbooks + templates) |
+| `REGENT_SEARCH_API_KEY` | Live web search (Brave) | Local index; Regent learns the reroute as a skill |
+| `GITHUB_TOKEN` | GitHub API | Local git inspection |
+| `REGENT_SMTP_URL`, `GOOGLE_CALENDAR_CREDENTIALS`, `GOOGLE_MAPS_API_KEY` | Real mail, calendar and maps | Persisted local mailbox, calendar and places |
+| `STRIPE_API_KEY` | Payments | Capability stays *missing*; acquisition options are listed |
+| `REGENT_AGENT_ENDPOINT`, `REGENT_GLOBAL_BRAIN_URL` | External agent delegation, distributed global brain | Unavailable / local global domain |
+| `REGENT_REASONER` (`auto` / `claude-code` / `replay:<dir>` / `off`) | Need analysis, field meanings, source proposals, decision rules via the Claude Code CLI | Local parser; software needs get weaker analyses and say so |
+| `REGENT_CODING_AGENT=claude-code` | The principal's opt-in to an autonomous coding agent (each run still needs an approved operation) | Application-building routes are listed but cannot be started |
+| `CLOUDFLARE_API_TOKEN`, `STRIPE_RESTRICTED_KEY`, `GOOGLE_SEARCH_CONSOLE_TOKEN`, `PLAUSIBLE_API_KEY` | Platform sources for software capabilities (or provided through a credential interrupt) | The source shows "not connected"; never a number |
+
+## Layout
+
+```
+apps/api/            ASGI entrypoint (FastAPI app lives in regent/api)
+apps/web/            Next.js cockpit
+regent/core/         observe · world · constitution · goals · routes · evaluate · planner ·
+                     executor · verify · replan · capabilities · authority · human ·
+                     treasury · memory · audit · loop.py
+regent/models/       provider interface, Anthropic/OpenAI/xAI, local strategist, registry
+regent/tools/        tool abstraction, registry, built-in tools
+regent/connectors/   email, calendar, maps, search, commerce, GitHub backends
+regent/browser/      Playwright driver, HTTP fallback, blocker detection
+regent/global_brain/ private/shared/global domains, privacy filter, sync interface
+regent/software/     software needs: reasoner, need analysis, discovery, sources, routes,
+                     capabilities (runtime, safe metric language), acceptance suite, reuse
+regent/sim/          seeded case study + simulated client portal
+packages/schemas/    JSON Schema for provider/tool contracts
+infra/               Dockerfiles, dev script
+docs/                architecture, screenshots
+tests/               pytest suite
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and its current limits.

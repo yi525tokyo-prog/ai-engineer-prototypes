@@ -1,0 +1,41 @@
+# Local Regent: PostgreSQL (+pgvector), API (FastAPI + loop worker + Playwright), cockpit (Next.js).
+#   docker compose up --build        then open http://localhost:3000 and click "Load case study"
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: regent
+      POSTGRES_PASSWORD: regent
+      POSTGRES_DB: regent
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U regent"]
+      interval: 2s
+      retries: 30
+  api:
+    build: { context: ., dockerfile: infra/api.Dockerfile }
+    depends_on: { db: { condition: service_healthy } }
+    environment:
+      REGENT_DATABASE_URL: postgresql+psycopg://regent:regent@db:5432/regent
+      REGENT_WORKSPACE: /data/workspace
+      # The browser inside this container and your own browser both reach the API here:
+      REGENT_PUBLIC_API_URL: http://localhost:8000
+      REGENT_BACKGROUND_LOOP: "1"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      REGENT_SEARCH_API_KEY: ${REGENT_SEARCH_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    ports: ["8000:8000"]
+    volumes: [workspace:/data/workspace]
+  web:
+    build:
+      context: .
+      dockerfile: infra/web.Dockerfile
+      args: { REGENT_API_URL: "http://api:8000" }
+    depends_on: [api]
+    ports: ["3000:3000"]
+volumes:
+  pgdata: {}
+  workspace: {}

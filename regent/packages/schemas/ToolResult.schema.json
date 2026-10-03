@@ -1,0 +1,137 @@
+{
+  "$defs": {
+    "Blocked": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "selector": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selector"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Blocked",
+      "type": "object"
+    },
+    "CostEstimate": {
+      "properties": {
+        "money": {
+          "default": 0.0,
+          "title": "Money",
+          "type": "number"
+        },
+        "api_usd": {
+          "default": 0.0,
+          "title": "Api Usd",
+          "type": "number"
+        },
+        "minutes": {
+          "default": 0.0,
+          "title": "Minutes",
+          "type": "number"
+        },
+        "attention_s": {
+          "default": 0.0,
+          "title": "Attention S",
+          "type": "number"
+        }
+      },
+      "title": "CostEstimate",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "status": {
+      "default": "ok",
+      "enum": [
+        "ok",
+        "failed",
+        "blocked"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "outputs": {
+      "additionalProperties": true,
+      "title": "Outputs",
+      "type": "object"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "blocker": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Blocked"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "cost": {
+      "$ref": "#/$defs/CostEstimate"
+    },
+    "facts": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Facts",
+      "type": "array"
+    },
+    "claims": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "degraded": {
+      "default": false,
+      "title": "Degraded",
+      "type": "boolean"
+    }
+  },
+  "title": "ToolResult",
+  "type": "object"
+}

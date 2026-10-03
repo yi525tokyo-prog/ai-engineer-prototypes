@@ -1,0 +1,7 @@
+{
+  "name": "regent-cloudflare",
+  "private": true,
+  "scripts": { "deploy": "./deploy.sh" },
+  "dependencies": { "@cloudflare/containers": "^0.3.7" },
+  "devDependencies": { "wrangler": "^4.147.0", "typescript": "^5.6.0", "@cloudflare/workers-types": "^5.20261003.1" }
+}

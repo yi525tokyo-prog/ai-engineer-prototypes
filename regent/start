@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Start Regent and open it in your browser. First run sets itself up (a minute or two); after that it starts in seconds.
+set -euo pipefail
+cd "$(dirname "$0")"
+PY="${PYTHON:-python3}"
+if ! "$PY" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; then
+  echo "Regent needs Python 3.11 or newer (found: $("$PY" --version 2>&1)). Install it, or run: PYTHON=python3.12 ./start"; exit 1
+fi
+if [ ! -x .venv/bin/python ]; then
+  echo "First run: setting Regent up (one time)…"
+  "$PY" -m venv .venv
+fi
+# (re)install when the dependency list changed since the last install (e.g. after an update)
+STAMP=".venv/.installed-$(cksum pyproject.toml | cut -d' ' -f1)"
+if [ ! -f "$STAMP" ]; then
+  .venv/bin/pip install -q --upgrade pip >/dev/null
+  .venv/bin/pip install -q -e ".[browser]"
+  rm -f .venv/.installed-* && touch "$STAMP"
+fi
+MARK="${REGENT_HOME:-$HOME/.regent}/.browser-ready"
+if [ ! -f "$MARK" ]; then
+  echo "Installing the browser Regent uses to test what it builds (one time)…"
+  .venv/bin/python -m playwright install chromium >/dev/null 2>&1 && mkdir -p "$(dirname "$MARK")" && touch "$MARK" \
+    || echo "  (could not install it now; Regent still works, and will skip in-browser checks)"
+fi
+exec .venv/bin/python -m regent "$@"

@@ -1,0 +1,586 @@
+# Regent architecture
+
+## Roles
+
+The **principal** (the human) owns values, hard constraints, permissions, identity and final
+overrides. **Regent** owns operational strategy: planning, route generation, resource
+allocation, tool and model selection, execution, verification, replanning and capability
+acquisition. The principal is also a *callable real-world interface*. They are asked only for
+bounded actions software cannot perform, never for the next step.
+
+## The loop (`regent/core/loop.py`)
+
+`RegentLoop.tick(mission)` runs one pass. Each phase is a named block in the code and is
+recorded in `mission.attrs.last_tick`, which the cockpit shows.
+
+| Phase | What happens | Code |
+|---|---|---|
+| observe | New events since the mission last looked; resume conditions of open interrupts are checked (e.g. the page no longer shows a CAPTCHA) | `observe/events.py`, `human/interrupts.py` |
+| model | `WorldView` is loaded from projections; a snapshot is taken if anything changed | `world/state.py`, `world/projector.py` |
+| acquire | For missions a domain adapter is responsible for (by tag, or by the mission's own words): "what don't I know that blocks a decision?" Each information need (discover / enrich / recheck) becomes an AUTO `acquire` operation | `loop._acquisition_needs`, `acquisition/service.py` |
+| generate | If the world's structural signature changed (or no route is alive), every available provider proposes routes; proposals are merged and criticized | `routes/generator.py` |
+| evaluate | Effective estimates, blockers, hard constraints, score components, ranking, decision-relevant uncertainties | `evaluate/evaluator.py` |
+| select | Hysteresis selection; a decision is recorded with its snapshot | `planner/planner.py`, `replan/replanner.py` |
+| decompose | Operations for the selected route; value-of-information probes across live routes; capability-acquisition sub-missions for the top two routes | `planner/planner.py`, `capabilities/manager.py` |
+| execute | Authority, affordability and learned-skill shortcuts, then concurrent tool calls with retries/fallbacks; blockers become interrupts | `executor/executor.py` |
+| verify | Declared verification → evidence → facts (cited to the evidence) | `verify/verifier.py` |
+| update_world | Consequences: message answered, capability registered, skill extracted | `replan/replanner.py` |
+| replan | Full re-evaluation of *every* route against the updated world; a switch records which evidence moved which estimate | `replan/replanner.py` |
+
+`run_all()` drives every active mission, including ones spawned during the pass, until
+quiescent. The API runs it in a background worker (`BackgroundLoop`) and immediately after any
+write (new event, interrupt response, override).
+
+Mission status is derived rather than set by hand:
+
+- `completed`: the success criteria hold.
+- `active`: operations are runnable.
+- `waiting_human`: only interrupts remain.
+- `monitoring`: nothing to do until the world changes.
+
+## World acquisition (`regent/acquisition/`)
+
+Regent gets the world it needs from the public internet instead of being handed it. The unit of
+storage is the **claim**, not the page. Geography is part of the search space: Regent does not
+assume the principal should live where they are now.
+
+```
+housing need ─► where could the principal live?  (GeographyResolver: regions compete)
+   ─► for each chosen region: which sources?     (source registry ← country pack seeds, global
+                                                   aggregators, discovery on the web)
+   ─► navigate from entry pages to that city's listings (robots.txt, rate limits, honest UA)
+   ─► extract Mentions/Claims (Japanese extractor, or the site-agnostic generic extractor)
+   ─► identity resolution ─► beliefs + conflicts + freshness ─► funnel per region
+   ─► deep research ─► projection ─► strategies compete across regions (money in one currency)
+```
+
+### Layers
+
+| Layer | Where | Geography-specific? |
+|---|---|---|
+| Claims, beliefs, conflicts, freshness, identity bookkeeping, fetch policy, replay | `claims.py`, `resolution.py`, `fetch.py`, `replay.py` | no |
+| Source discovery + learned source registry | `discovery.py`, table `acq_source_recipes` | no (domain supplies vocabulary) |
+| Housing ontology: Region → Building → Unit (listing claims) | `housing/ontology.py` | no |
+| Geography resolver | `housing/geography.py` | no |
+| Generic listing extractor (JSON-LD, embedded app state, DOM cards; any currency) | `housing/generic_extract.py`, `housing/locale.py` | no |
+| Adapter: orchestration, funnel per region, projection, strategies | `housing/adapter.py` | no |
+| **Japan pack**: SUUMO/HOME'S/CHINTAI/at home/UR/Oakhouse/monthly-mansion, Japanese extractor, GSI geocoder, MLIT rail/library/university data, Tokyo hubs, prefecture codes | `housing/packs/japan.py`, `housing/extractor.py`, `housing/text.py` | Japan only |
+| **Generic pack**: any country — registry sources + global aggregators + discovery; UK postcodes.io / US Census geocoding where they exist; distance to centre | `housing/packs/generic.py` | no |
+| Seeds: a few local entry points for GB/US/DE/NZ, official guidance pages, global aggregators | `housing/packs/seeds.py` | seed data only |
+
+### Geography (`housing/geography.py`)
+
+1. **Principal evidence.** World facts (`principal.country`, `principal.citizenship`,
+   `principal.stay_in_country`, `principal.regions`) and weak signals such as the mission's language.
+   Evidence about where the principal *is* changes the stay prior and moving costs. It never
+   decides where they *should live*.
+2. **Candidate world.** Cities come from public directories: HousingAnywhere and Spotahome city
+   lists (with live listing counts) and the Craigslist worldwide site list. Packs contribute their
+   own region lists as a fallback. Nothing is hand-picked. A city name that is ambiguous across
+   countries (London GB vs London, Ontario) is not attached to either.
+3. **Screening.** Countries first, by source coverage, supply and home evidence, with the best
+   country of each continent included. Then cities within a country, by directory supply, how
+   prominently the country's own portals link them, and GeoNames population (Open-Meteo geocoder).
+4. **Price signal.** One live listing page per shortlisted city. It comes from the country's own
+   portals first (apartments), with global aggregators as a fallback; rooms-only signals are
+   labelled and earn no affordability credit. Prices are converted to the reference currency with
+   ECB rates.
+5. **Choice.** A transparent utility decides:
+   `0.40·affordability + 0.20·supply + 0.15·coverage + 0.15·stay prior + 0.10·relocation distance`.
+   Constraints: at most one city per foreign country (two in the home country), at most two
+   foreign regions per continent, default 5 regions. Every candidate that was not chosen is
+   recorded with its reason.
+
+The right to live somewhere is a prior (`stay_rules.p_allowed`): 0.3 abroad with unknown
+citizenship, higher where the principal appears to live. Every relocation route carries it as
+success probability and as the uncertainty `principal.right_to_reside.<CC>`. The value-of-information
+analysis can then show that asking the principal about citizenship flips the plan.
+
+### Sources and discovery (`discovery.py`)
+
+For a country with too few known local sources, `SourceDiscovery` assembles candidates from five
+channels:
+- the **registry** (earlier verifications, pack seeds);
+- **search** (Brave API when `REGENT_SEARCH_API_KEY` is set);
+- **authority** pages (official housing and visa guidance), whose outbound links are followed;
+- **snowball** links from verified sources;
+- **probe**: domains built from the local language's words for housing and the country TLD
+  (`alquiler` + `.es`, `realestate` + `.co.nz`).
+
+A candidate is **verified only by use**: navigation from its entry page must reach pages the
+extractor turns into records located in the requested city. The check uses the city in the URL
+or in at least 40 % of the records, so a nationwide page that merely mentions the city fails.
+Sale, vacation and hotel paths are avoided. Blocked candidates (robots, 403/405/429, CAPTCHA,
+bot challenges) are recorded and never retried aggressively: a host that refused three times and
+never answered is skipped. A verified source stores the navigation trail per city, so the next
+run goes straight to the listings.
+
+### Claims and beliefs (`claims.py`)
+
+A claim's weight is source reliability × extractor confidence × freshness decay. Per value,
+support is the noisy-OR over independent hosts. A host's own later observation supersedes its
+earlier one, but never another host's. The belief is the top hypothesis with
+`confidence = share × support`, and every other hypothesis is kept with its sources.
+
+Attribute semantics come from the ontology:
+- tolerant numbers (rent ±0.5 %, build year ±1);
+- normalized text;
+- hierarchical addresses (Japanese prefecture|city|town|chōme, or a street key elsewhere);
+- sets: stations, where only the same station's walk time differing by more than 3 minutes is a
+  conflict.
+
+Rents are claimed in the source's currency, with the period normalized to monthly (pcm, per
+week, per night, Kaltmiete) and the raw text kept as evidence. Comparison across regions converts
+at read time.
+
+### Identity (`resolution.py`, `housing/resolver.py`)
+
+- **Common bookkeeping:** blocking, log-odds pairwise scores, merge at ≥0.85, 0.5–0.85 recorded
+  as ambiguous and not merged, and every decision (including "new") logged in `acq_links`.
+- **Japan pack rules:** layout, area, floor and room number; the same site showing different
+  terms means a different listing.
+- **Generic rules:** the same listing URL is the same unit; another URL on the same site is
+  another listing; across sites, bedrooms, area, rent and title must agree. Buildings match on
+  street address, postcode or coordinates.
+
+### Access policy (`fetch.py`)
+
+- robots.txt is obeyed; a server error on robots.txt counts as disallow;
+- a per-host delay applies, and Crawl-delay is honoured;
+- the crawler is stateless: cookies are cleared before every request, so one navigation cannot
+  steer the next;
+- HTTP 401/403/405/429/451, CAPTCHA walls and empty-202 bot challenges are recorded as `blocked`
+  and never bypassed;
+- a browser is used only when a static page yields no records;
+- rechecks and verifications never answer from cache.
+
+### Funnel, strategies, freshness
+
+- **Funnel:** one per region, against that region's own live market (median ×1.15 cap, household
+  fit by bedrooms or Japanese layout, minimum area, walk time where known). Three candidates per
+  region go to deep research.
+- **Strategies** compete across regions:
+  - lease in each region (money in the reference currency, deposit a labelled 1-month prior if
+    unstated, relocation a labelled prior of 150 USD + 0.08 USD/km);
+  - furnished mid-term and room options, from the cheapest live evidence;
+  - hostel days (live Hostelworld prices where acquired);
+  - existing base;
+  - defer until the work location and right to stay are known.
+- **Freshness:** availability 6 h, rent 24 h, structure 1 y. Stale beliefs make the ACQUIRE
+  phase create a recheck, which re-observes the source.
+
+**Replay** (`replay.py`): `export_fixtures` copies recorded pages and robots.txt into a
+directory, and `ReplayTransport` serves them to the same `Fetcher`. The tests run the real
+geography, discovery, extraction, resolution, funnel and loop on pages Regent captured from the web.
+
+## Data model (PostgreSQL; SQLite fallback)
+
+- **Event store** (`events`): append-only, with a sequence number, type, payload, source,
+  mission and domain. All meaningful changes are events: world facts, messages, resource
+  changes, grants, constitution updates, capability changes, skill publications, and loop
+  activity (`route_selected`, `plan_changed`, `tool_failed`, …).
+- **Projections**: `entities` (21 kinds, from person to human_interrupt), `relations`
+  (`member_of`, `owns`, `depends_on`, `blocked_by`, …), `facts` (key/value, confidence, evidence
+  id), `resources`, `ledger`, `constitution`, `authority_grants`, `capabilities`, `skills`,
+  `global_facts`. `projector.rebuild()` wipes and replays them, optionally from a `snapshot`.
+  Tests assert that a rebuilt world equals the live one.
+- **Operational state**: `missions`, `routes`, `route_scores` (score history per tick),
+  `operations`, `human_interrupts`, `evidence`, `decisions`, `model_calls`, `built_tools`. These
+  rows are mutated in place, but every mutation also emits an event and, for strategy, a
+  `decision`. History is therefore complete, but only the *world* is replayable. Replaying
+  operational state would re-execute side effects, which is deliberately not done.
+- **Memory** (`memory`): pgvector `vector(256)` embeddings on PostgreSQL. The default embedder is
+  a deterministic feature hasher; a provider embedding model can replace it without a schema
+  change.
+
+A graph database was not introduced. Relations are first-class rows, and the queries needed
+(neighbours, typed edges) are cheap in SQL.
+
+## Routes
+
+A `RouteProposal` (`regent/schemas.py`, exported to `packages/schemas`) carries:
+
+- thesis
+- estimates: upside, P(success), time, money, information gain, reversibility, optionality,
+  risk, authority cost
+- rationale for the estimates
+- sensitivities
+- blockers
+- required capabilities
+- dependencies
+- uncertainties
+- concrete operations
+
+A **sensitivity** is how a route states its dependence on an unknown fact:
+`{fact, op, value, effects: {field: {mul|add|set|from_fact}}, rationale}`. It is the bridge
+between evidence and strategy. It makes replanning deterministic and explainable, and it is
+what the value-of-information calculation perturbs.
+
+### Scoring (`evaluate/evaluator.py`)
+
+```
+score =  w_ev · p · U(upside / value_scale)          U concave above 1 ("enough")
+       + w_info · info + w_opt · optionality + w_rev · reversibility
+       − w_time · min(hours/40, 1.5) − w_money · min(cost / free_cash, 1.5)
+       − w_risk · risk − w_auth · authority_cost + Σ constitution tag bonuses
+```
+
+- `free_cash` is the cash balance minus commitments due within max(horizon, 30 days).
+- Weights are the base weights × constitution multipliers (items can be scoped to mission tags)
+  × scarcity. Scarcity comes from the treasury: under one month of runway, money pressure is 1.0.
+- Hard constraints invalidate a route. Capability blockers make it unselectable until the
+  capability is acquired.
+- Selection margin is `SWITCH_MARGIN = 0.03`.
+
+### Multiple providers
+
+`ProviderRegistry.all_available()` generates and criticizes routes. Each provider's estimates are
+stored under `route.estimate_sources[provider]`. The combined estimate is a weighted mean, and
+spread above 25% becomes an explicit uncertainty. Critique adjustments are recorded as a
+low-weight source (0.3). They are never applied as truth. Evidence (via sensitivities) always
+outranks model opinion.
+
+The local strategist (`models/local.py`, `models/playbooks.py`) generates routes from entity
+attributes: contracts, marketplaces, monetizable projects, negotiable commitments and
+workplaces. Generic archetypes (direct, information-first, delegate, defer) guarantee at least
+three routes for any objective. It is weaker than a frontier model, but it makes the system run
+with zero credentials and makes the tests deterministic.
+
+## Authority
+
+| Level | Examples | Behaviour |
+|---|---|---|
+| AUTO | research, analysis, drafts, local files, tests, private calendar holds | Run |
+| COMMIT | send, invite, purchase, POST, browser click/type/upload | Run if a standing grant matches (`fnmatch` scope + constraints); else a bounded approve/deny interrupt ("Always allow" creates a grant) |
+| IDENTITY | CAPTCHA, login, biometric, signature, payment entry, physical action | Always a human interrupt |
+
+Operation specs may *raise* their authority level but never lower it. Unknown tool actions are
+treated as COMMIT.
+
+## Human interrupts
+
+`{kind, reason, required_action, estimated_time_seconds, blocking_operation, resume_condition,
+response_schema, context}`.
+
+Resume conditions:
+
+- `response`: wait for the principal's answer.
+- `fact`: a world fact appears.
+- `page_state`: the blocker is gone from the page. Checked by HTTP, throttled to once per 5 s.
+
+On resolution, one of three things happens:
+
+- A blocked browser operation is re-run.
+- An authorization marks the operation approved once.
+- A human-routed operation is verified from the principal's response.
+
+The principal's time is spent from the `attention` resource.
+
+## Capability acquisition
+
+`CapabilityManager.open_acquisition()` creates a child mission tagged `capability_acquisition`.
+Its routes are built from the nine acquisition strategies:
+
+1. existing tool
+2. alternative service
+3. better model
+4. activate or build a connector (a bounded credential action)
+5. browser automation
+6. generate code
+7. manual human action
+8. purchase
+9. avoid the dependency
+
+The normal evaluator picks among them. The `generate_code` path (`code.build_tool`) asks a
+provider for a tool (the local strategist has vetted templates), writes it to the workspace,
+runs its tests, and registers it in the tool registry. It is persisted in `built_tools` and
+reloaded on restart.
+
+The template path is the narrow, older mechanism: it fills a tool-sized gap that a route
+names (`invoice.generate`). Needs stated as outcomes ("I want to know…", "tell me every
+morning…") go through software capabilities, below, which choose between existing software,
+integration and building, and keep what they build verified and in use.
+
+## Software needs and capabilities (`regent/software/`)
+
+Told only "I want to know, at a glance, how many real people are actually using LindyBooks",
+Regent decides what information is needed, looks at the world, chooses a route, builds and
+verifies a capability, raises one bounded interrupt, and keeps using what it built. Nothing
+names a provider, metric, framework, database, UI or deployment.
+
+### Workers are resources, never authorities (`reasoner.py`, `resources.py`)
+
+- **Reasoning worker**: the Claude Code CLI, headless and *tool-less* (`claude -p --tools ""
+  --json-schema …`), in an empty scratch directory with a minimal environment. It answers narrow
+  schema-bound questions. Each answer is recorded (`<workspace>/reasoning`) and replayable
+  (`REGENT_REASONER=replay:<dir>`). Answers are claims: quotes must be found in what Regent
+  observed, field paths must exist, URLs must answer, regexes must reproduce their example on the
+  live page, rules must parse and evaluate. Failures are fed back once ("rejected because …").
+- **Coding agent**: Claude Code with file-edit tools only (`Read,Write,Edit,Glob,Grep`), in its
+  own workspace with a minimal environment. It cannot run anything. Starting it is a
+  `COMMIT`-level act: it needs the principal's opt-in (`REGENT_CODING_AGENT=claude-code`) and an
+  approved operation (an authorization interrupt, or a standing grant). What it writes is an
+  untrusted artifact that Regent inspects, builds, tests, runs and accepts itself (see
+  *Applications* below).
+- **HTTP / browser / human**: the acquisition fetcher (robots.txt, honest UA, block detection),
+  Playwright, and interrupts. `GET /api/software/resources` lists availability.
+
+### The pipeline (the loop's ACQUIRE phase, `domain.py`)
+
+1. **analyze** (`need.py`): sentence → subjects (as written), questions with precise quantity,
+   population, exclusions, windows, honest answer forms and answer type, deliverable (glance view,
+   alert…), definitions that must be stated. Regent drops subjects not in the sentence. Then
+   **reuse** (`reuse.py`): an existing capability about the same subject and *the same need*
+   (judged separately from how well it answers today) is read instead of rebuilt.
+2. **discover** (`discover.py`, `probe.py`): products are found by name (slug variants × TLDs ×
+   hosting platforms' default domains), verified by how the page presents itself, merged with
+   their aliases, fingerprinted (platform headers, CSP, analytics signatures, service worker,
+   commitments in text and meta), and their API is read from the app's own code (GET only;
+   write-only endpoints are marked; an API that answers every path with its index is not a
+   source). Places are geocoded. Topics are not probed. Everything is stored as claims with the
+   document they came from.
+3. **inventory** (`discover.py`, `sources.py`): public data APIs and existing services are
+   proposed by the reasoning worker and admitted only by use; a robots.txt disallow is final; a
+   moved page is reached by following link texts. Each field gets a meaning and a relation to the
+   need, and Regent's **premise audit** (`semantics.py`) decides what it may claim. The worker
+   states, for each field, whether the premises a claim needs hold, each with a verbatim quote
+   that must be found in what Regent observed:
+   - membership: what is counted is the population asked about. For "real people" that means
+     human, external, and excluding bots, the operator and tests.
+   - distinctness: one unit per person.
+   - coverage: every member is counted.
+   - no merging: distinct people are never one unit.
+   - window.
+
+   Regent then derives the relation:
+   - a **measure** needs all of them;
+   - a **lower bound** needs membership, distinctness and window;
+   - an **upper bound** needs coverage, no merging and window;
+   - membership without distinctness earns only "at least one";
+   - everything else is a **proxy**, labelled as one, with what it lacks.
+
+   So payment events are not active users, distinct IPs are not an upper bound on humans (NAT
+   merges people, and bots and the operator are counted too), and test-mode events never become
+   real users. When only proxies remain, the headline is "Unknown" and the proxies sit below it.
+   The acceptance suite rejects any spec that states a bound its premises do not earn.
+   Platform connectors the fingerprint makes applicable (Cloudflare analytics,
+   Stripe, Search Console, Plausible…) are listed with the credential and the smallest human action
+   that unlocks them. Verified commitments ("No ads, no accounts, no tracking.") become **hard
+   constraints** in the constitution. Yes/no questions get decision rules over admitted fields.
+
+### Routes (`routes.py`)
+
+reuse · compose from public data · compose now + one credential later · use an existing service ·
+build from data and cross-check against an existing service · add client-side analytics ·
+instrument the product · delegate to a coding agent · do it by hand on the platform's dashboard.
+Estimates come from the inventory: coverage of the core question by the honest form each route can
+reach (a lower and an upper bound together make a range), the principal's seconds, authority,
+reversibility, what it changes in the product. A route whose required operation fails (e.g. it
+fails verification) is taken out of contention and the next one is selected.
+
+### The capability (`capability.py`, `compose.py`, `expr.py`, `connectors.py`)
+
+A `SwCapability` is versioned and has: the need and its signatures; a spec (sources, metrics,
+unanswered questions with their unlock, definitions, refresh period, delivery, constraints); an
+implementation (`composed` by Regent's runtime, `external` reading an existing service,
+`delegated` code from a worker); a verification record; provenance per version. Metrics are
+expressions in a small safe language over observed series (`latest`, `increase` with counter
+resets, `count_items` in windows, comparisons for decisions) — nothing a worker writes is
+executed as code. Unknown is never zero: a metric over a blocked source shows "—" and says why.
+
+Once verified it is registered as a tool (`cap_<slug>.read/collect`), a glance view
+(`/software/<slug>`), JSON (`/api/software/capabilities/<slug>`) and world facts
+(`software.<slug>.<metric>`). The loop's maintenance pass keeps every usable capability current
+and delivers scheduled messages (`principal_notified`), independent of the mission that built it.
+
+### Regent's acceptance suite (`verify.py`)
+
+Well-formed metrics and an honest form for each; every core question answered or marked
+unknowable-yet; every public source read through the capability *and* independently with a plain
+HTTP client (timestamps that moved between reads tolerated); no number for a blocked source;
+non-negative counts; bounds consistent; no identifying data stored; sources read-only and adding
+nothing to the product; the registered tool returns what compute says; the glance view rendered in
+headless Chromium shows exactly the computed numbers. A capability is usable only when every
+critical check passes.
+
+### Credentials and human time
+
+A credential interrupt's response field typed `secret` goes to the secret store
+(`<workspace>/secrets.json`, mode 0600, or the environment); the world learns only
+`credential.<NAME> = present`, which is the interrupt's resume condition, and the waiting
+`upgrade` operation re-verifies the capability with the new source. `humantime.ledger` counts the
+principal's active seconds: writing the sentence (40 wpm) plus each interrupt (measured when the
+interface reports it, else Regent's estimate); open requests are reported separately.
+
+### Applications (`appdesign.py`, `appbuild.py`, `appservice.py`, `appaccept.py`, `appcap.py`)
+
+Some needs are not information at all. The analysis classifies each need:
+- **information**: wants to know something;
+- **tool**: wants an ability they keep using;
+- **action**: wants something done once.
+
+A tool or action need comes with requirements, each with an observable acceptance check, tied to
+the words it came from. Implied requirements are kept and marked.
+
+The inventory for a tool need is different:
+- the live endpoints the application could integrate;
+- existing products that could serve instead, with which requirements each meets as it is, what
+  account it needs and where the data would live;
+- existing capabilities.
+
+Routes compete as usual:
+- have it built;
+- use an existing product (an identity interrupt to sign up);
+- keep it by hand.
+
+When Regent already runs an application, the reuse judge (`reuse.py`) decides whether a new
+sentence is *the same need*, *can be done with it as it is* (`use_app`), or *belongs in it but needs
+a new version* (`extend_app`, which competes with "build a separate one").
+
+**design_app**: Regent's interface contract. It holds the entities, the endpoints with their ids,
+the UI's `data-testid` hooks, the auth scheme, the external hosts the app may call, and Regent's
+**own acceptance scenarios**. These are API calls (with query strings), real-browser steps,
+`restart_app`, `expect_visible` on hooks, and negative checks, tied to requirements. Each scenario
+runs against a freshly started, *empty* instance, so it creates what it relies on. `{passphrase}`
+stands for the credential.
+
+The design is a claim, so Regent checks it:
+- there is a health endpoint;
+- every scenario uses only declared endpoints and hooks;
+- every core requirement has a scenario;
+- a privacy requirement implies a credential and a negative scenario;
+- some scenario proves data survives a restart;
+- no scenario contains a placeholder value or a literal credential;
+- an upgrade drops no endpoint of the version in use.
+
+A rejected design is sent back once with the reasons.
+
+For an upgrade, Regent itself carries the version in use's scenarios into the new design as
+**regressions**, with endpoint ids mapped by method and path. Its UI hooks and allowed hosts
+carry over too. The new mission's requirement ids are namespaced, so the capability keeps both
+sets.
+
+**build_app / extend_app** (`appbuild.AppBuild`) run once each; the repair loop is inside:
+1. **delegate**: the worker gets the design, the scenarios Regent will run and the runtime
+   contract. The contract covers:
+   - `regent.json` with build/test/start/health commands;
+   - `PORT` and `DATA_DIR`;
+   - a passphrase login returning a bearer token;
+   - no tracking, CDNs or undeclared hosts.
+
+   No framework, language or database is prescribed.
+2. **inspect**: manifest valid, tests present, no analytics signatures, nothing loaded from or
+   called on undeclared hosts. A plain link is not a call; stylesheets, scripts, fetch, XHR and
+   sockets are. Files, lines and languages are recorded. Only a missing manifest stops the round
+   here.
+3. **build** (dependency install, with a timeout), then **test** (the worker's own suite).
+4. **accept**: Regent starts the app with a passphrase it generated and keeps in its secret
+   store, then runs every scenario on its own fresh instance. Steps go over HTTP and through
+   headless Chromium at a phone-sized viewport, with process restarts mid-scenario. Read-back
+   is structural: expected objects are subsets, and expected list items must be found.
+5. **migration** (upgrades): this version starts on a *copy of the live data* and must return
+   every record the version in use returns. Fields that differ between two reads of unchanged
+   data, such as `exported_at`, are recognised as volatile and ignored.
+6. **isolate**: the running app wrote nothing outside `DATA_DIR`.
+7. **repair**: every failure goes back to the worker as `REPAIR-n.md`, with the failing step,
+   the page and the server log. Rounds are bounded.
+8. **disputes**: the worker may contest a check in `DISPUTES.json` instead of working around
+   it. Regent judges each dispute against the design and the observed failure (a reasoning
+   question). A corrected scenario is applied only if it keeps the same id and kind, covers the
+   same requirements, has no fewer checks, and adds no design problem (`not_weaker`). Every
+   dispute is recorded with the capability, upheld or not.
+
+   In the first real runs, the worker declined to make the server accept a placeholder
+   passphrase ("that would be a backdoor") and disputed the scenario instead. Most disputes
+   were upheld. They exposed Regent's own defects:
+   - shared scenario state;
+   - placeholder values;
+   - a missing query-string step;
+   - volatile fields.
+9. **promote**:
+   - the live data is backed up and the previous version stopped;
+   - the new version starts on the live data at the same port;
+   - every record is compared;
+   - on loss, the backup is restored and the previous version restarted.
+10. **register**: a `SwCapability` with `implementation="application"`. Its spec carries the
+    design (with any scenario revisions), version, workspace, data directory, port and URL; its
+    verification is Regent's acceptance record. Each endpoint becomes a tool action
+    (`app_<slug>.<endpoint>`), and the principal is told the URL and where the passphrase is
+    kept.
+
+**use_app**: the reasoning worker sees only the application's endpoints and its current data.
+It may ask for GET lookups first (e.g. find a catalogue id), then plans the calls with the
+answers. Regent:
+- rejects endpoints that do not exist;
+- makes the calls;
+- reads back that the request took effect;
+- tells the principal the outcome, for example the share link.
+
+Lookups stay GET-only. An application judged "the same need" is used through its API, not read
+like a dashboard.
+
+**Lifecycle**: a running instance writes a pid file. A restarted Regent adopts a healthy instance
+of the expected version and stops anything else holding the port. The maintenance pass restarts
+a live application that is down.
+
+Benchmark: [`docs/benchmarks/application-capability.md`](benchmarks/application-capability.md).
+It covers five sentences, a real coding worker, a cold start, and the code that was delivered.
+
+## Global brain and skills
+
+Every row has a `domain`: private, shared or global. `LocalGlobalBrain.publish_fact` and
+`publish_skill` pass through `PrivacyFilter`:
+
+- Publishing is refused for emails, phone numbers, amounts, and names of private entities.
+- Skills are generalized by replacing those values with placeholders.
+
+`RemoteGlobalBrain` is the synchronization interface (`REGENT_GLOBAL_BRAIN_URL`); it sends only
+the global domain.
+
+`SkillExtractor` turns attempt → failure → reroute → success into a skill. The skill holds the
+pattern, preconditions, procedure (including the human step), failure modes, verification,
+confidence and provenance. Before running an operation, the executor applies a learned reroute
+when the same failure mode still holds.
+
+## Current limits
+
+- **Software needs.** The Cloudflare, Stripe, Search Console and Plausible connectors are real
+  clients. They were exercised only against their documented response shapes in tests: no
+  credentials were available, and no number from them was ever shown. The reasoning worker's
+  answers vary between runs. Regent's checks make that variance visible (the benchmark records
+  which sources were admitted and why others were rejected) rather than eliminating it. Without a
+  search API, product discovery relies on the product's name being in its hostname.
+- **Applications run on this machine only.** "Usable from any browser" also needs public hosting
+  (a domain, TLS, a host account). That is an identity and payment decision for the principal,
+  and it is reported as not done. Acceptance covers only what the scenarios cover. The worker's
+  own tests are evidence about its intent, not Regent's verdict.
+
+- **No web-search engine.** Every HTML search engine reachable from this environment disallows
+  bots in robots.txt or serves a bot challenge. Discovery therefore navigates from known portal
+  entry pages. `REGENT_SEARCH_API_KEY` (Brave Search API) is the interface for open-web search
+  and was not exercised.
+- **Blocked sources stay blocked.** at home answers the honest crawler with HTTP 405. It is
+  recorded and skipped.
+- **Search-less discovery.** Without a search API, local portals are found by authority links,
+  snowballing and language-vocabulary domain probes. That works for some countries (Spain:
+  `alquiler.es` was found and verified) and not for others (Portugal: every probe was blocked or
+  had no listings, so only global aggregators were used).
+- **Blocked ecosystems.** Australia's, Singapore's and Thailand's major portals, and several in
+  France and the Netherlands, block honest crawlers (Kasada/Cloudflare/403). Those regions can
+  only be judged from global aggregators, and the report says so.
+- **Wikipedia/Wikidata** answer 403 from this network, and Numbeo rate-limits it, so neither is
+  used for candidate generation.
+- **Relocation cost and the right to stay** are labelled priors until the principal answers the
+  citizenship question.
+
+- **Local strategist.** Without API keys, route generation is playbook-based. The remote
+  providers are implemented against the same schema but were not exercised here (no keys in
+  this environment).
+- **Local connector backends.** Mail, calendar, maps and commerce persist locally; the real
+  backends are credential-gated interfaces.
+- **Loop worker.** The background loop is in-process and single-worker, which is enough locally.
+  A multi-worker deployment would need a job queue with row-level locking on missions.
+- **Route merging** is by key. Semantically equivalent routes from different providers with
+  different keys are not yet clustered.
+- **Uncertainty modelling** uses branch enumeration over the declared sensitivity values, not
+  full probability distributions.
