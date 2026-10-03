@@ -113,6 +113,9 @@ class RegentLoop:
         m.phase = "observe"
         rep.phase("observe", new_events=len(new_events), external=[f"{e.type}#{e.seq}" for e in external][-20:],
                   resumed_interrupts=[hi.id for hi in resumed])
+        # SQLite has one writer: commit between phases so a slow phase (reasoning, the network) never
+        # holds the database while the person is trying to use Regent
+        self.db.commit()
 
         # 2. MODEL WORLD STATE ----------------------------------------------
         m.phase = "model"
@@ -128,6 +131,7 @@ class RegentLoop:
             m.phase = "acquire"
             needs, created, ran = [], [], []
             for _round in range(4):
+                self.db.commit()
                 acq = self._acquisition_needs(m, world)
                 needs += acq["needs"]
                 created += acq["created"]
@@ -154,6 +158,7 @@ class RegentLoop:
         why = self.generator.needs_generation(m, world)
         model_outputs: list[dict] = []
         if why or force and not self.generator.routes(m.id):
+            self.db.commit()
             g = self.generator.generate(m, world, reason=why or "forced")
             model_outputs = g.provider_outputs
             rep.phase("generate", reason=why, created=[r.key for r in g.created], updated=[r.key for r in g.updated],
@@ -164,6 +169,7 @@ class RegentLoop:
         # 4-5. EVALUATE + SELECT --------------------------------------------
         m.phase = "evaluate"
         world = WorldView.load(self.db)
+        self.db.commit()
         ev = self.replanner.reevaluate(m, world, trigger="tick", snapshot_id=snap.id, model_outputs=model_outputs)
         sel = ev["selection"]
         rep.phase("evaluate", ranking=[e.summary() for e in ev["evals"]][:8],
@@ -216,6 +222,7 @@ class RegentLoop:
             m.phase = "replan"
             world = WorldView.load(self.db)
             snap2 = self._snapshot_if_changed(m, world)
+            self.db.commit()
             ev2 = self.replanner.reevaluate(m, world, trigger="post-verification", snapshot_id=snap2.id,
                                             evidence_ids=evidence_ids)
             s2 = ev2["selection"]
