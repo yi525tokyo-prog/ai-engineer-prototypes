@@ -198,8 +198,10 @@ def enrich(ctx: Context, only_constraint_pass: bool = True, allow_fetch: bool = 
     for lat, lon in todo.values():
         groups[tile_of(lat, lon)].append((lat, lon))
     all_tiles = {t for pts in groups.values() for lat, lon in pts for t in tiles_for(lat, lon, SEARCH_M + 50)}
-    missing = sum(1 for t in all_tiles for l in LAYERS if not ctx.tiles.has(l, t))
-    ctx.progress(f"enrich: {len(todo)} new locations in {len(groups)} tile groups; {len(all_tiles)} tiles needed, {missing} tile-layers to download")
+    missing = {t for t in all_tiles for l in LAYERS if not ctx.tiles.has(l, t)}
+    ctx.progress(f"enrich: {len(todo)} new locations in {len(groups)} tile groups; {len(all_tiles)} tiles needed, {len(missing)} missing")
+    if missing and allow_fetch:
+        stats["pbf"] = import_missing_from_extract(ctx, missing)
     for gi, (anchor, pts) in enumerate(sorted(groups.items()), 1):
         tiles = sorted({t for lat, lon in pts for t in tiles_for(lat, lon, SEARCH_M + 50)})
         try:
@@ -220,6 +222,36 @@ def enrich(ctx: Context, only_constraint_pass: bool = True, allow_fetch: bool = 
         ctx.progress(f"enrich: group {gi}/{len(groups)} {anchor}: {len(pts)} locations, {len(tiles)} tiles (overpass queries so far {ctx.tiles.network_queries})")
     stats["overpass_queries"] = ctx.tiles.network_queries - stats.pop("overpass_queries_before")
     return stats
+
+
+def import_missing_from_extract(ctx: Context, missing: set[tuple[int, int]]) -> dict[str, Any] | None:
+    """Build missing tiles from the regional OSM extract (download once if needed).
+    Tiles outside the extract stay missing and fall back to Overpass."""
+    ext = ctx.cfg["acquisition"].get("osm_extract") or {}
+    if not ext.get("path"):
+        return None
+    path = ctx.data_dir / ext["path"]
+    if not path.exists():
+        if not ext.get("url") or ctx.fetcher is None:
+            return None
+        ctx.progress(f"downloading OSM extract {ext['url']} (one-time)")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".part")
+        with ctx.fetcher.session.get(ext["url"], stream=True, timeout=(15, 600)) as r:
+            r.raise_for_status()
+            with open(tmp, "wb") as f:
+                for chunk in r.iter_content(1 << 20):
+                    f.write(chunk)
+        tmp.replace(path)
+    try:
+        from .geo.pbf import import_pbf
+    except ImportError:  # pyosmium not installed -> Overpass only
+        ctx.progress("pyosmium not installed; using Overpass for missing tiles")
+        return None
+    ctx.progress(f"building {len(missing)} tiles from {path.name} ...")
+    st = import_pbf(path, ctx.tiles, set(missing))
+    ctx.progress(f"extract import: {st}")
+    return st
 
 
 # ---------------------------------------------------------------------------

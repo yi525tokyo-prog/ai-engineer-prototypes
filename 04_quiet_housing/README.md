@@ -45,7 +45,7 @@ are recomputed from stored data (UI: *save & re-evaluate*).
 | Details | `/{region}/detail/{cd}/{id}/` | street address, all stations + walk, built year/month, structure, storeys, orientation, lease type, facilities. Floor is derived from the room number (`304号室` → 3F) and sanity-checked against building height. |
 | Coordinates | `/{…}/map/` → `mapInitialize(lat, lon, zoom)` | the listing's own pin. |
 | Geocode check | GSI 国土地理院 AddressSearch | house-number precision; if it disagrees with the pin by >150 m at house precision, GSI wins and the listing carries a warning. |
-| Roads, rails, POIs, landuse | OpenStreetMap via Overpass (`maps.mail.ru` mirror, others as fallback) | fetched as fixed 0.02°×0.025° tiles per *layer*; each layer is versioned separately so new layers (parks, libraries…) don't invalidate cached ones. |
+| Roads, rails, POIs, landuse | OpenStreetMap: regional extract (`kanto-latest.osm.pbf` from openstreetmap.fr, ~600 MB, downloaded once) → local tiles; Overpass as fallback | stored as fixed 0.02°×0.025° tiles per *layer*, identical format from both sources. Public Overpass instances turned out to be unreliable for bulk use (overpass-api.de unreachable from the test environment, the mail.ru mirror returning 504 under load), so the extract is the primary path and Overpass only fills tiles outside the extract. Each layer is versioned separately so new layers (parks, libraries…) don't invalidate cached ones. |
 | Station scale | MLIT 国土数値情報 S12 (駅別乗降客数) | daily riders per station; records grouped into transfer complexes (Shinjuku ≈ 3.9 M/day). Downloaded once (6 MB). |
 
 ## What is measured (per location)

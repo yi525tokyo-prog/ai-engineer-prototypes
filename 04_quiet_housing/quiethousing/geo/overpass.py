@@ -28,18 +28,31 @@ log = logging.getLogger(__name__)
 TILE_DLAT = 0.02
 TILE_DLON = 0.025
 
-ROAD_CLASSES = (
-    "motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link"
-    "|unclassified|residential|living_street|service"
+ROAD_HIGHWAYS = (
+    "motorway", "trunk", "primary", "secondary", "tertiary", "motorway_link", "trunk_link", "primary_link",
+    "secondary_link", "tertiary_link", "unclassified", "residential", "living_street", "service",
 )
-RAIL_KINDS = "rail|light_rail|subway|tram|monorail|narrow_gauge|funicular"
+RAIL_KINDS = ("rail", "light_rail", "subway", "tram", "monorail", "narrow_gauge", "funicular")
+POI_AMENITY = (
+    "restaurant", "cafe", "fast_food", "food_court", "ice_cream", "biergarten", "bar", "pub", "nightclub", "karaoke_box",
+    "stripclub", "love_hotel", "gambling", "casino", "hookah_lounge", "cinema", "theatre", "events_venue",
+)
+POI_LEISURE = ("adult_gaming_centre", "amusement_arcade")
+SHOP_EXCLUDE = ("vacant", "no")
+LANDUSE = ("commercial", "retail", "industrial", "residential")
 
+
+def _alt(values) -> str:
+    return "^(" + "|".join(values) + ")$"
+
+
+# The same feature selection is implemented for local PBF extracts in pbf.py; keep both in sync.
 LAYERS: dict[str, str] = {
     # roads/rails need node ids (intersection topology) + full geometry
     "transport": f"""
 (
-  way[highway~"^({ROAD_CLASSES})$"];
-  way[railway~"^({RAIL_KINDS})$"];
+  way[highway~"{_alt(ROAD_HIGHWAYS)}"];
+  way[railway~"{_alt(RAIL_KINDS)}"];
 );
 out body geom qt;
 (
@@ -49,16 +62,16 @@ out body geom qt;
 out body qt;
 """,
     # activity: POIs as points (ways/relations -> center), landuse polygons with geometry
-    "activity": """
+    "activity": f"""
 (
-  nwr[amenity~"^(restaurant|cafe|fast_food|food_court|ice_cream|biergarten|bar|pub|nightclub|karaoke_box|stripclub|love_hotel|gambling|casino|hookah_lounge|cinema|theatre|events_venue)$"];
-  nwr[leisure~"^(adult_gaming_centre|amusement_arcade)$"];
-  nwr[shop][shop!~"^(vacant|no)$"];
+  nwr[amenity~"{_alt(POI_AMENITY)}"];
+  nwr[leisure~"{_alt(POI_LEISURE)}"];
+  nwr[shop][shop!~"{_alt(SHOP_EXCLUDE)}"];
 );
 out tags center qt;
 (
-  way[landuse~"^(commercial|retail|industrial|residential)$"];
-  relation[landuse~"^(commercial|retail|industrial|residential)$"][type=multipolygon];
+  way[landuse~"{_alt(LANDUSE)}"];
+  relation[landuse~"{_alt(LANDUSE)}"][type=multipolygon];
 );
 out geom qt;
 """,

@@ -40,6 +40,12 @@ DEFAULTS: dict[str, Any] = {
             "https://overpass.kumi.systems/api/interpreter",
         ],
         "overpass_interval_s": 2.0,
+        # regional OSM extract used to build tiles locally (preferred over Overpass when present).
+        # path is relative to the data dir; downloaded from url when missing. null disables.
+        "osm_extract": {
+            "path": "osm/kanto-latest.osm.pbf",
+            "url": "https://download.openstreetmap.fr/extracts/asia/japan/kanto-latest.osm.pbf",
+        },
         "validate_coords_with_gsi": True,
     },
     "constraints": {
