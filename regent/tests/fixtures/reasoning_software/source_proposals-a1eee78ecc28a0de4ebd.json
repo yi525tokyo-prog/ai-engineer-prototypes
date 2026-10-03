@@ -1,0 +1,222 @@
+{
+ "task": "source_proposals",
+ "key": "a1eee78ecc28a0de4ebd",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.022179400000000002,
+ "instructions": "You advise an operational agent that must answer the principal's need with live data. Propose\n(1) public data APIs that need no key and return JSON relevant to the questions -- give exact GET URLs with every\nparameter filled in from the resolved subjects (coordinates, time zone, identifiers), and the JSON paths you expect\nin the answer; and (2) pages of existing services people already use that answer the question directly (give the\nexact page URL for this subject, plus the link texts a person would click from the site's home page to reach it,\nin case the URL has moved). Each proposal is fetched and checked; propose only what you are confident exists.\nEach source must answer the question at exactly the granularity asked (a city, not its metropolitan area or country;\nthe named thing, not a category). For facts about a named place, person, organisation or thing, Wikidata's public\nAPI (e.g. https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q...&props=claims&format=json, or the SPARQL\nendpoint) is usually a reliable keyless source. Prefer few, reliable sources. If nothing beyond what was already\nobserved is relevant, return empty lists.",
+ "payload": {
+  "need": {
+   "sentence": "Every morning, tell me whether it's a good day to dry laundry outside in Osaka.",
+   "questions": [
+    {
+     "id": "good_day_outdoor_laundry_drying",
+     "unit": "yes/no verdict with brief reasons",
+     "exclude": [
+      "yesterday's or past weather",
+      "forecasts for other days",
+      "other cities or prefectures",
+      "indoor drying conditions"
+     ],
+     "windows": [
+      "today daytime (08:00-18:00 local)"
+     ],
+     "priority": "core",
+     "quantity": "Verdict (yes/no) on whether today's daytime weather in Osaka favors outdoor line-drying: no rain or precipitation expected during drying hours, plus supportive conditions (low humidity, some wind/sun, comfortable temperature). Verdict is based on forecast for today's daylight drying hours.",
+     "question": "Is today a good day to dry laundry outside in Osaka?",
+     "population": "Today's forecast for Osaka city, during daytime drying hours (roughly 08:00-18:00 local)",
+     "answer_type": "yes_no",
+     "acceptable_forms": [
+      "estimate",
+      "exact"
+     ]
+    },
+    {
+     "id": "drying_conditions_detail",
+     "unit": "%, km/h or m/s, °C",
+     "exclude": [
+      "other days"
+     ],
+     "windows": [
+      "today daytime (08:00-18:00 local)"
+     ],
+     "priority": "supporting",
+     "quantity": "Today's forecast precipitation probability (%), relative humidity (%), wind speed, temperature (°C), and air-quality/pollen alerts for Osaka during drying hours",
+     "question": "What are the key conditions behind the verdict (rain chance, humidity, wind, temperature, and any pollen/PM2.5/yellow-dust warnings)?",
+     "population": "Osaka, today's drying hours",
+     "answer_type": "list",
+     "acceptable_forms": [
+      "estimate",
+      "range"
+     ]
+    }
+   ],
+   "deliverable": {
+    "why": "'Every morning, tell me' implies a recurring short daily message with a verdict. Time of day not specified, so a morning default is used.",
+    "form": "report",
+    "refresh": "daily",
+    "deliver_at_local": "07:00",
+    "max_seconds_to_read": 10
+   }
+  },
+  "principal": {
+   "country": null,
+   "language": "en"
+  },
+  "subjects": [
+   {
+    "kind": "place",
+    "name": "Osaka",
+    "place": {
+     "name": "Osaka",
+     "admin1": "Osaka",
+     "country": "Japan",
+     "latitude": 34.69379,
+     "timezone": "Asia/Tokyo",
+     "elevation": 4.0,
+     "longitude": 135.50107,
+     "population": 2753862,
+     "country_code": "JP"
+    },
+    "deployments": []
+   }
+  ]
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "apis",
+   "existing_services"
+  ],
+  "properties": {
+   "apis": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "url",
+      "why",
+      "expected_fields",
+      "question"
+     ],
+     "properties": {
+      "url": {
+       "type": "string",
+       "description": "full GET URL, parameters filled in"
+      },
+      "why": {
+       "type": "string"
+      },
+      "expected_fields": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "dotted JSON paths, list indexes as numbers"
+      },
+      "question": {
+       "type": "string"
+      },
+      "needs_key": {
+       "type": "boolean"
+      }
+     }
+    }
+   },
+   "existing_services": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "url",
+      "name",
+      "why",
+      "question",
+      "link_texts"
+     ],
+     "properties": {
+      "url": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "why": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "link_texts": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "visible link texts a person would click, from the site's home page to this page, in the site's language"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "apis": [
+   {
+    "url": "https://api.open-meteo.com/v1/forecast?latitude=34.69379&longitude=135.50107&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,wind_speed_10m,cloud_cover,shortwave_radiation&wind_speed_unit=ms&timezone=Asia%2FTokyo&forecast_days=1",
+    "why": "Hourly forecast for Osaka today covering rain chance, humidity, wind, temperature, sun for 08:00-18:00",
+    "expected_fields": [
+     "hourly.time",
+     "hourly.temperature_2m",
+     "hourly.relative_humidity_2m",
+     "hourly.precipitation_probability",
+     "hourly.precipitation",
+     "hourly.wind_speed_10m",
+     "hourly.cloud_cover",
+     "hourly.shortwave_radiation"
+    ],
+    "needs_key": false,
+    "question": "good_day_outdoor_laundry_drying"
+   },
+   {
+    "url": "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=34.69379&longitude=135.50107&hourly=pm2_5,pm10,dust,alder_pollen,birch_pollen,grass_pollen&timezone=Asia%2FTokyo&forecast_days=1",
+    "why": "Hourly PM2.5, dust and pollen for Osaka today (pollen data may be null in Japan)",
+    "expected_fields": [
+     "hourly.time",
+     "hourly.pm2_5",
+     "hourly.pm10",
+     "hourly.dust"
+    ],
+    "needs_key": false,
+    "question": "drying_conditions_detail"
+   }
+  ],
+  "existing_services": [
+   {
+    "url": "https://tenki.jp/forecast/6/30/6200/27100/3hours.html",
+    "name": "tenki.jp Osaka City 3-hourly forecast",
+    "why": "Japanese weather service giving Osaka city forecast with precipitation, humidity, wind, temperature",
+    "question": "drying_conditions_detail",
+    "link_texts": [
+     "天気予報",
+     "近畿地方",
+     "大阪府",
+     "大阪市"
+    ]
+   },
+   {
+    "url": "https://tenki.jp/indexes/laundry/6/30/6200/27100/",
+    "name": "tenki.jp Osaka laundry index",
+    "why": "Direct laundry-drying index (洗濯指数) for Osaka city",
+    "question": "good_day_outdoor_laundry_drying",
+    "link_texts": [
+     "天気予報",
+     "生活指数",
+     "洗濯指数",
+     "近畿地方",
+     "大阪府",
+     "大阪市"
+    ]
+   }
+  ]
+ },
+ "at": "2026-10-03T03:20:27Z"
+}

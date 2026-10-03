@@ -53,7 +53,11 @@ parameter filled in from the resolved subjects (coordinates, time zone, identifi
 in the answer; and (2) pages of existing services people already use that answer the question directly (give the
 exact page URL for this subject, plus the link texts a person would click from the site's home page to reach it,
 in case the URL has moved). Each proposal is fetched and checked; propose only what you are confident exists.
-Prefer few, reliable sources. If nothing beyond what was already observed is relevant, return empty lists."""
+Each source must answer the question at exactly the granularity asked (a city, not its metropolitan area or country;
+the named thing, not a category). For facts about a named place, person, organisation or thing, Wikidata's public
+API (e.g. https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q...&props=claims&format=json, or the SPARQL
+endpoint) is usually a reliable keyless source. Prefer few, reliable sources. If nothing beyond what was already
+observed is relevant, return empty lists."""
 
 READING_SCHEMA: dict[str, Any] = {
     "type": "object", "required": ["answers_question", "readings"],

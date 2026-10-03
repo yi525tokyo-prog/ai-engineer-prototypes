@@ -194,7 +194,10 @@ class Fetcher:
         cached = None if purpose in ("recheck", "verify") else self._cached(url)
         if cached is not None:
             return cached
-        if (src.blocked or 0) >= 3 and not src.ok and (src.last_status or "").startswith("blocked"):
+        # a rate limit says "later", not "never"; a refusal is remembered for a day, then tried again
+        if (src.blocked or 0) >= 3 and not src.ok and (src.last_status or "").startswith("blocked") \
+                and not (src.last_status or "").endswith("rate_limit") \
+                and src.last_fetch_at is not None and utcnow() - src.last_fetch_at < timedelta(hours=24):
             # this host has refused the crawler repeatedly and never answered: do not keep knocking
             known = self._record(url, url, host, purpose, 0, "", "static",
                                  blocked={"type": "known_blocked", "detail": f"host refused {src.blocked} times: "
@@ -225,6 +228,8 @@ class Fetcher:
         if doc.ok:
             src.ok += 1
             src.last_status = f"ok {doc.render}"
+        elif doc.blocked and doc.blocked.get("type") == "rate_limit":
+            src.last_status = "blocked: rate_limit"          # not counted toward giving up on the host
         elif doc.blocked:
             src.blocked += 1
             src.last_status = f"blocked: {doc.blocked.get('type')}"
@@ -253,6 +258,13 @@ class Fetcher:
         self._client.cookies.clear()
         try:
             r = self._client.get(url)
+            if r.status_code == 429:            # asked to slow down: wait as told (briefly) and ask once more
+                try:
+                    wait = min(float(r.headers.get("retry-after") or 3), 10.0)
+                except ValueError:
+                    wait = 3.0
+                time.sleep(wait)
+                r = self._client.get(url)
         except httpx.HTTPError as e:
             return self._record(url, url, host, purpose, 0, "", "static", error=f"{type(e).__name__}: {e}"[:300])
         final = str(r.url)
@@ -290,7 +302,7 @@ class Fetcher:
             return self._record(url, url, host, purpose, 0, "", "browser", error=f"browser: {str(e).splitlines()[0][:250]}")
         blocked = _page_blocker(html, final, status)
         if status in (401, 403, 405, 429, 451):
-            blocked = {"type": "access_denied", "detail": f"HTTP {status}"}
+            blocked = {"type": "rate_limit" if status == 429 else "access_denied", "detail": f"HTTP {status}"}
         return self._record(url, final, host, purpose, status, html, "browser", blocked=blocked)
 
     def _browser_page(self):

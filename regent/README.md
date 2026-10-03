@@ -1,9 +1,55 @@
 # Regent
 
-Regent is an **operational principal**. It is not a chatbot or a workflow builder. You give it a
-broad objective, your values and your permissions. From then on it keeps a model of your world,
-generates competing strategies, picks one, does the machine-executable work, asks you only for
-bounded real-world actions, verifies outcomes, and changes strategy when the evidence changes.
+Tell Regent what you want handled, in your own words. It works out what that needs, does the work
+in the background, asks you only when it truly needs you, and keeps what it builds or learns for
+next time.
+
+## Use it
+
+You need Python 3.11+ and [Claude Code](https://claude.com/claude-code) installed and signed in
+(the `claude` command). Regent uses it to understand requests and, when you approve, to build
+small apps for you.
+
+```bash
+git clone https://github.com/yi525tokyo-prog/ai-engineer-prototypes.git
+cd ai-engineer-prototypes/regent
+./start
+```
+
+The first run sets itself up (a minute or two). After that `./start` opens Regent in your browser
+in a few seconds at <http://127.0.0.1:7777>. It runs on your computer only. Your data lives in
+`~/.regent`. Stop it with Ctrl+C; anything in progress resumes the next time you start it.
+
+Then type what you want into the box. For example:
+
+- "Every evening, tell me if I'll need an umbrella in Tokyo tomorrow." You get a yes/no answer,
+  kept current, with a message each evening.
+- "Remind me to call my mother on Sunday." Regent reminds you itself, in the page and as a
+  browser notification.
+- "I want a simple private place to keep track of the books I'm reading." Regent asks once
+  whether to build a small app (about 5–10 minutes, about $1 of AI usage), tests it itself, and
+  gives you a link and a passphrase.
+- "Add Dune to my reading list — I'm halfway." Regent does it in the app it built for you.
+
+On the page:
+- **Needs you** holds the only things you have to do: plain questions with buttons.
+- **From Regent** holds its messages.
+- **Your requests** shows what Regent is doing now and what came out of it. Each request has
+  Stop, Try again / Redo from scratch, and Remove.
+
+If something goes wrong, Regent says so in plain words and offers to try again. If a request is
+something Regent can't take on yet, it says so instead of pretending.
+
+Options: `./start --port 7778` uses another port. `REGENT_HOME=/path ./start` keeps the data
+elsewhere.
+
+---
+
+## For developers
+
+Under the page, Regent is an **operational principal**. It keeps a model of your world, generates
+competing strategies, picks one, does the machine-executable work, asks for bounded real-world
+actions, verifies outcomes, and changes strategy when the evidence changes.
 
 ```
 OBSERVE → MODEL WORLD STATE → ACQUIRE (what don't I know?) → GENERATE ROUTES → EVALUATE ROUTES
@@ -11,9 +57,8 @@ OBSERVE → MODEL WORLD STATE → ACQUIRE (what don't I know?) → GENERATE ROUT
 ```
 
 The loop is plain, explicit code in [`regent/core/loop.py`](regent/core/loop.py). No agent
-framework sits in between.
-
-![Cockpit after replanning](docs/screens/cockpit-replanned.png)
+framework sits in between. The engineering cockpit (`apps/web`) and the seeded case study below
+are developer tools; the page above is the product.
 
 ## What runs today
 

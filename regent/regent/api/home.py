@@ -402,8 +402,12 @@ def retry(mid: str, bg: BackgroundTasks, db: Session = Depends(get_db)):
     if m.status not in ("completed",):
         m.status = "abandoned"
     text = m.objective or m.title
+    from regent.software.reasoner import FRESH
+
     new = MissionGraph(db).create(title=text, objective=text,
                                   attrs={"timezone": (m.attrs or {}).get("timezone")} if (m.attrs or {}).get("timezone") else None)
+    new.attrs = {**(new.attrs or {}), "fresh": True}
+    FRESH.add(new.id)
     db.commit()
     _kick(bg)
     return {"id": new.id}

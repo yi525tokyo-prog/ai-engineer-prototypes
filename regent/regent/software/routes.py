@@ -256,23 +256,26 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
                                       verification=VerificationSpec(method="human_confirmed"))]))
 
     best = max(readable, key=lambda p: coverage_estimate(need, inv, [p["id"]]), default=None)
-    routes.append(RouteProposal(
-        key="software-delegate", archetype="delegate",
-        title="Have a coding agent build a bespoke usage application on the same sources",
-        thesis=("Design an application on the same sources, have a coding agent build it, and accept it only after "
-                "Regent's own build, tests, browser scenarios and restart pass. Same data, so at best the same "
-                "coverage as composing, at the cost of an agent run, a process to keep alive and the principal's "
-                "authorization to let an agent write code Regent runs."),
-        tags=["software", "delegate", "coding_agent"],
-        estimates=RouteEstimates(expected_upside=scale * max(public_cov, 0.05), success_probability=0.6,
-                                 time_cost_hours=1.0, money_cost=0.0, reversibility=1.0, optionality=0.8, risk=0.25,
-                                 authority_cost=0.4, information_gain=0.3),
-        operations=[OperationSpec(key="sw.design", goal="Design the application", tool="software",
-                                  action="design_app", timeout_s=600,
-                                  verification=VerificationSpec(method="schema", required_keys=["designed"])),
-                    OperationSpec(key="sw.delegate", goal="Delegate the build, then accept it independently",
-                                  tool="software", action="build_app", retry=RetryPolicy(max_attempts=1), depends_on=["sw.design"], timeout_s=7200,
-                                  verification=_verify_passed())]))
+    # an app on the same sources can at best match composing them: with nothing readable it has nothing to offer
+    delegate = public_cov > 0.0 or best is not None
+    if delegate:
+        routes.append(RouteProposal(
+            key="software-delegate", archetype="delegate",
+            title="Have a coding agent build a bespoke usage application on the same sources",
+            thesis=("Design an application on the same sources, have a coding agent build it, and accept it only after "
+                    "Regent's own build, tests, browser scenarios and restart pass. Same data, so at best the same "
+                    "coverage as composing, at the cost of an agent run, a process to keep alive and the principal's "
+                    "authorization to let an agent write code Regent runs."),
+            tags=["software", "delegate", "coding_agent"],
+            estimates=RouteEstimates(expected_upside=scale * max(public_cov, 0.05), success_probability=0.6,
+                                     time_cost_hours=1.0, money_cost=0.0, reversibility=1.0, optionality=0.8, risk=0.25,
+                                     authority_cost=0.4, information_gain=0.3),
+            operations=[OperationSpec(key="sw.design", goal="Design the application", tool="software",
+                                      action="design_app", timeout_s=600,
+                                      verification=VerificationSpec(method="schema", required_keys=["designed"])),
+                        OperationSpec(key="sw.delegate", goal="Delegate the build, then accept it independently",
+                                      tool="software", action="build_app", retry=RetryPolicy(max_attempts=1), depends_on=["sw.design"], timeout_s=7200,
+                                      verification=_verify_passed())]))
 
     if best is not None:
         # by hand the principal sees what the platform shows -- the same audited forms, not at a glance

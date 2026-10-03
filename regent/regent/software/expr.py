@@ -120,7 +120,8 @@ def _flat(xs: tuple) -> list[Any]:
             out += s
         elif x is not None:
             n = _num(x)
-            out.append(n if n is not None else x)
+            if n is not None:            # "--", "" and words are not numbers: leave them out
+                out.append(n)
     return out
 
 

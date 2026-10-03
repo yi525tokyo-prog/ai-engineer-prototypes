@@ -1,9 +1,9 @@
 {
  "task": "source_proposals",
- "key": "4f28ba0be1439db52d4e",
+ "key": "4da507b540bd844c808c",
  "model": "claude-sonnet-5-5",
- "cost_usd": 0.013179399999999999,
- "instructions": "You advise an operational agent that must answer the principal's need with live data. Propose\n(1) public data APIs that need no key and return JSON relevant to the questions -- give exact GET URLs with every\nparameter filled in from the resolved subjects (coordinates, time zone, identifiers), and the JSON paths you expect\nin the answer; and (2) pages of existing services people already use that answer the question directly (give the\nexact page URL for this subject, plus the link texts a person would click from the site's home page to reach it,\nin case the URL has moved). Each proposal is fetched and checked; propose only what you are confident exists.\nPrefer few, reliable sources. If nothing beyond what was already observed is relevant, return empty lists.",
+ "cost_usd": 0.0137074,
+ "instructions": "You advise an operational agent that must answer the principal's need with live data. Propose\n(1) public data APIs that need no key and return JSON relevant to the questions -- give exact GET URLs with every\nparameter filled in from the resolved subjects (coordinates, time zone, identifiers), and the JSON paths you expect\nin the answer; and (2) pages of existing services people already use that answer the question directly (give the\nexact page URL for this subject, plus the link texts a person would click from the site's home page to reach it,\nin case the URL has moved). Each proposal is fetched and checked; propose only what you are confident exists.\nEach source must answer the question at exactly the granularity asked (a city, not its metropolitan area or country;\nthe named thing, not a category). For facts about a named place, person, organisation or thing, Wikidata's public\nAPI (e.g. https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q...&props=claims&format=json, or the SPARQL\nendpoint) is usually a reliable keyless source. Prefer few, reliable sources. If nothing beyond what was already\nobserved is relevant, return empty lists.",
  "payload": {
   "need": {
    "sentence": "I want to know, at a glance, how many real people are actually using LindyBooks.",
@@ -12,13 +12,12 @@
      "id": "active_real_users",
      "unit": "people",
      "exclude": [
-      "bots and crawlers",
-      "automated/scripted traffic",
-      "internal staff, developers and test accounts",
-      "spam, fake or duplicate accounts",
-      "registered-but-inactive accounts",
-      "anonymous one-off page views with no meaningful action",
-      "users who only signed up and never used it"
+      "bots, crawlers and automated traffic",
+      "internal staff, team and test accounts",
+      "duplicate accounts or devices of the same person where detectable",
+      "spam or fake sign-ups",
+      "registered but inactive accounts",
+      "one-touch bounce visits with no meaningful action"
      ],
      "windows": [
       "24h",
@@ -26,9 +25,9 @@
       "30d"
      ],
      "priority": "core",
-     "quantity": "Distinct human individuals (deduplicated across devices/sessions/accounts where identifiable) who performed at least one meaningful product action (not just account creation, page load, or login) in the window",
+     "quantity": "Distinct individual human users who performed at least one meaningful use action (beyond merely registering or loading a page) in LindyBooks during the window, deduplicated across devices/sessions/accounts where possible",
      "question": "How many distinct real human people actively used LindyBooks in the recent period?",
-     "population": "Real human users of LindyBooks who engaged in meaningful use during the window",
+     "population": "Distinct human users of LindyBooks who performed a meaningful engagement action in the window",
      "answer_type": "count",
      "acceptable_forms": [
       "exact",
@@ -38,30 +37,28 @@
      ]
     },
     {
-     "id": "total_registered_context",
-     "unit": "accounts",
+     "id": "trend_vs_prior",
+     "unit": "people and percent",
      "exclude": [
-      "bots",
-      "staff/test accounts",
-      "duplicates"
+      "same exclusions as active_real_users"
      ],
      "windows": [
-      "all_time"
+      "7d",
+      "30d"
      ],
      "priority": "supporting",
-     "quantity": "Distinct real, non-test registered accounts",
-     "question": "For context, how many real registered accounts exist versus those actively used?",
-     "population": "Registered LindyBooks accounts belonging to real people",
-     "answer_type": "count",
+     "quantity": "Change in active real users versus the prior equal-length window",
+     "question": "Is the active real-user count up or down compared to the previous equivalent period?",
+     "population": "Same as active_real_users",
+     "answer_type": "amount",
      "acceptable_forms": [
-      "exact",
       "estimate",
-      "lower_bound"
+      "exact"
      ]
     }
    ],
    "deliverable": {
-    "why": "'At a glance' means a view readable in seconds that stays current, headlining one number of real active people.",
+    "why": "'At a glance' means a view readable in seconds that stays current, headlined by one number of real active users.",
     "form": "glance_view",
     "refresh": "continuous",
     "deliver_at_local": null,
@@ -165,5 +162,5 @@
   "apis": [],
   "existing_services": []
  },
- "at": "2026-10-02T15:00:03Z"
+ "at": "2026-10-03T03:19:21Z"
 }

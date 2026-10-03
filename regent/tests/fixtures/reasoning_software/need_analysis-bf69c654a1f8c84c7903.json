@@ -2,7 +2,7 @@
  "task": "need_analysis",
  "key": "bf69c654a1f8c84c7903",
  "model": "claude-sonnet-5-5",
- "cost_usd": 0.019692599999999998,
+ "cost_usd": 0.0198326,
  "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide\nwhether they want to know something (information), to have an ability they will keep using (tool), or to have\nsomething done once (action). Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current). For tool and action needs list requirements: what must be\npossible, each with an observable acceptance check, tied to the words it comes from; questions may then be empty.",
  "payload": {
   "sentence": "I want to know, at a glance, how many real people are actually using LindyBooks."
@@ -257,17 +257,16 @@
     "id": "active_real_users",
     "question": "How many distinct real human people actively used LindyBooks in the recent period?",
     "answer_type": "count",
-    "quantity": "Distinct human individuals (deduplicated across devices/sessions/accounts where identifiable) who performed at least one meaningful product action (not just account creation, page load, or login) in the window",
+    "quantity": "Distinct individual human users who performed at least one meaningful use action (beyond merely registering or loading a page) in LindyBooks during the window, deduplicated across devices/sessions/accounts where possible",
     "unit": "people",
-    "population": "Real human users of LindyBooks who engaged in meaningful use during the window",
+    "population": "Distinct human users of LindyBooks who performed a meaningful engagement action in the window",
     "exclude": [
-     "bots and crawlers",
-     "automated/scripted traffic",
-     "internal staff, developers and test accounts",
-     "spam, fake or duplicate accounts",
-     "registered-but-inactive accounts",
-     "anonymous one-off page views with no meaningful action",
-     "users who only signed up and never used it"
+     "bots, crawlers and automated traffic",
+     "internal staff, team and test accounts",
+     "duplicate accounts or devices of the same person where detectable",
+     "spam or fake sign-ups",
+     "registered but inactive accounts",
+     "one-touch bounce visits with no meaningful action"
     ],
     "windows": [
      "24h",
@@ -283,25 +282,23 @@
     ]
    },
    {
-    "id": "total_registered_context",
-    "question": "For context, how many real registered accounts exist versus those actively used?",
-    "answer_type": "count",
-    "quantity": "Distinct real, non-test registered accounts",
-    "unit": "accounts",
-    "population": "Registered LindyBooks accounts belonging to real people",
+    "id": "trend_vs_prior",
+    "question": "Is the active real-user count up or down compared to the previous equivalent period?",
+    "answer_type": "amount",
+    "quantity": "Change in active real users versus the prior equal-length window",
+    "unit": "people and percent",
+    "population": "Same as active_real_users",
     "exclude": [
-     "bots",
-     "staff/test accounts",
-     "duplicates"
+     "same exclusions as active_real_users"
     ],
     "windows": [
-     "all_time"
+     "7d",
+     "30d"
     ],
     "priority": "supporting",
     "acceptable_forms": [
-     "exact",
      "estimate",
-     "lower_bound"
+     "exact"
     ]
    }
   ],
@@ -309,18 +306,19 @@
   "deliverable": {
    "form": "glance_view",
    "refresh": "continuous",
-   "why": "'At a glance' means a view readable in seconds that stays current, headlining one number of real active people.",
+   "why": "'At a glance' means a view readable in seconds that stays current, headlined by one number of real active users.",
    "deliver_at_local": null,
    "max_seconds_to_read": 5
   },
   "definitions_to_state": [
-   "What 'LindyBooks' refers to (the product/site; whether the principal owns it is unknown)",
-   "What counts as 'using' (meaningful action vs. mere visit or signup)",
-   "What counts as a 'real person' (human, deduplicated, excluding bots, staff, test and fake accounts)",
-   "The time window for 'using' (default headline: 30 days, with 24h and 7d shown)",
-   "Whether the count is exact or an estimate/lower bound, and how identity is deduplicated when users are anonymous or multi-device"
+   "What 'LindyBooks' refers to (product/site/app) and whether the principal owns it: unknown",
+   "'Real people': distinct humans, excluding bots, staff/test accounts, duplicates and fake accounts",
+   "'Actually using': defined as at least one meaningful action in the window, not just sign-up or a page view",
+   "Time window for 'using' (headline default e.g. 30 days, with 24h and 7d shown)",
+   "Deduplication method across devices/accounts, and whether the figure is exact, an estimate, a range or a lower bound",
+   "Whether anonymous (not logged-in) visitors count"
   ],
-  "success_looks_like": "A single always-current number of distinct real human people who actively used LindyBooks in the stated window (with 24h/7d/30d), bots, staff/test and inactive accounts excluded, labeled with its definition and whether it is exact or an estimate."
+  "success_looks_like": "A single current headline number of distinct real human active users of LindyBooks for a stated window, readable in seconds, with the definition of 'real' and 'active' and any uncertainty (estimate/range) clearly labeled."
  },
- "at": "2026-10-02T14:59:53Z"
+ "at": "2026-10-03T03:18:44Z"
 }

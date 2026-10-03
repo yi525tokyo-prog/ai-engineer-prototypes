@@ -2,7 +2,7 @@
  "task": "need_analysis",
  "key": "7119b5c6ba8cd23f0ca4",
  "model": "claude-sonnet-5-5",
- "cost_usd": 0.0192306,
+ "cost_usd": 0.0198486,
  "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide\nwhether they want to know something (information), to have an ability they will keep using (tool), or to have\nsomething done once (action). Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current). For tool and action needs list requirements: what must be\npossible, each with an observable acceptance check, tied to the words it comes from; questions may then be empty.",
  "payload": {
   "sentence": "Every morning, tell me whether it's a good day to dry laundry outside in Osaka."
@@ -248,42 +248,45 @@
    {
     "name": "Osaka",
     "kind": "place",
-    "as_written": "Osaka"
+    "as_written": "Osaka",
+    "owned_by_principal": null
    }
   ],
   "questions": [
    {
-    "id": "good_day_to_dry_laundry_outside",
+    "id": "good_day_outdoor_laundry_drying",
     "question": "Is today a good day to dry laundry outside in Osaka?",
     "answer_type": "yes_no",
-    "quantity": "Verdict on whether outdoor line-drying today in Osaka is suitable, based on forecast conditions over the daytime drying period: chance/amount of precipitation, humidity, wind, temperature/sunshine. Verdict plus the key reasons.",
+    "quantity": "Verdict (yes/no) on whether today's daytime weather in Osaka favors outdoor line-drying: no rain or precipitation expected during drying hours, plus supportive conditions (low humidity, some wind/sun, comfortable temperature). Verdict is based on forecast for today's daylight drying hours.",
     "unit": "yes/no verdict with brief reasons",
-    "population": "Osaka city, today's daytime hours (local time, roughly 08:00-18:00)",
+    "population": "Today's forecast for Osaka city, during daytime drying hours (roughly 08:00-18:00 local)",
     "exclude": [
-     "Overnight and evening hours outside the drying period",
-     "Forecasts for other days or other cities",
-     "Indoor drying conditions"
+     "yesterday's or past weather",
+     "forecasts for other days",
+     "other cities or prefectures",
+     "indoor drying conditions"
     ],
     "windows": [
-     "today daytime"
+     "today daytime (08:00-18:00 local)"
     ],
     "priority": "core",
     "acceptable_forms": [
-     "estimate"
+     "estimate",
+     "exact"
     ]
    },
    {
-    "id": "main_drying_factors",
-    "question": "What are the forecast values behind the verdict (rain probability, humidity, wind, temperature)?",
+    "id": "drying_conditions_detail",
+    "question": "What are the key conditions behind the verdict (rain chance, humidity, wind, temperature, and any pollen/PM2.5/yellow-dust warnings)?",
     "answer_type": "list",
-    "quantity": "Forecast precipitation probability, relative humidity, wind speed, temperature and sunshine for today daytime in Osaka",
-    "unit": "%, km/h, °C",
-    "population": "Osaka, today daytime",
+    "quantity": "Today's forecast precipitation probability (%), relative humidity (%), wind speed, temperature (°C), and air-quality/pollen alerts for Osaka during drying hours",
+    "unit": "%, km/h or m/s, °C",
+    "population": "Osaka, today's drying hours",
     "exclude": [
-     "Past observations from previous days"
+     "other days"
     ],
     "windows": [
-     "today daytime"
+     "today daytime (08:00-18:00 local)"
     ],
     "priority": "supporting",
     "acceptable_forms": [
@@ -294,20 +297,20 @@
   ],
   "requirements": [],
   "deliverable": {
-   "form": "alert",
+   "form": "report",
    "refresh": "daily",
+   "why": "'Every morning, tell me' implies a recurring short daily message with a verdict. Time of day not specified, so a morning default is used.",
    "deliver_at_local": "07:00",
-   "max_seconds_to_read": 10,
-   "why": "'Every morning, tell me' implies a recurring push message each morning with a short verdict. 07:00 is an assumed time since none was specified."
+   "max_seconds_to_read": 10
   },
   "definitions_to_state": [
+   "'Good day' criteria: no rain expected during drying hours (e.g. precipitation probability below a stated threshold), with humidity, wind, and temperature considered",
    "'Morning' delivery time (assumed 07:00 local, Japan Standard Time)",
-   "What 'good day' means: criteria and thresholds (e.g. rain probability low, humidity below ~70%, some wind/sun)",
-   "Which hours count as the drying window",
-   "'Osaka' = Osaka city (not whole prefecture)",
-   "Forecast uncertainty: verdict is a forecast, not a guarantee"
-  ],
-  "success_looks_like": "Each morning the principal receives a short message saying yes or no for drying laundry outside in Osaka today, with the main reasons (rain chance, humidity, wind)."
+   "'Today' drying window (assumed 08:00-18:00 local)",
+   "'Osaka' means Osaka city (not the whole prefecture)",
+   "Whether pollen, PM2.5, or yellow dust count against a good day",
+   "The forecast source and its limits: the verdict is a forecast, not certainty"
+  ]
  },
- "at": "2026-10-03T02:59:03Z"
+ "at": "2026-10-03T03:20:18Z"
 }

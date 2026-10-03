@@ -148,6 +148,10 @@ class SoftwareAdapter(DomainAdapter):
             log.append({"at": utcnow().isoformat(), "stage": stage, "message": message, **data})
 
         stats: dict[str, Any] = {}
+        if m is not None and (m.attrs or {}).get("fresh"):
+            from regent.software.reasoner import FRESH
+
+            FRESH.add(m.id)                 # a redo survives a restart of Regent too
         if action == "analyze":
             from regent.software.need import analyze
 

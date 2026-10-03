@@ -103,7 +103,7 @@ def metrics_for(field: dict[str, Any], sid: str, windows: list[str], unit: str =
     # cumulative totals and snapshots: the current value is the answer
     # say what was counted, not just "people": a figure for a neighbouring population must not pass for the answer
     label = {"lower_bound": "At least", "upper_bound": "At most", "estimate": "About", "measure": "Measured"}.get(form)
-    label = f"{label}: {_short(field['meaning'], 56)}" if label and (field.get("counts") == "people" or audit) else None
+    label = f"{label}: {_short(field['meaning'], 110)}" if label and (field.get("counts") == "people" or audit) else None
     if field.get("service") and form != "context":
         label = f"{_short(field['meaning'], 48)} ({field['service'].split()[0]})"
     return [{**base, "id": mid, "label": label or _short(field["meaning"]), "expr": f'latest("{ref}")',
@@ -111,7 +111,8 @@ def metrics_for(field: dict[str, Any], sid: str, windows: list[str], unit: str =
 
 
 def _short(s: str, n: int = 48) -> str:
-    s = re.split(r"[;(]", s or "")[0].strip()
+    # keep parentheses: they usually say which area, period or population the figure is for
+    s = re.split(r";", s or "")[0].strip()
     return s if len(s) <= n else s[: n - 1] + "…"
 
 

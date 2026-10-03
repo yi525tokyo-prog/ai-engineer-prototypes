@@ -1,8 +1,8 @@
 {
  "task": "reuse_match",
- "key": "ffc2b7ddd3622f606158",
+ "key": "f648c67b8f6865cad2ba",
  "model": "claude-sonnet-5-5",
- "cost_usd": 0.0137048,
+ "cost_usd": 0.014926799999999999,
  "instructions": "A principal stated a need. Regent already runs the capabilities listed: dashboards that answer\nquestions, and applications with an API (their endpoints are listed). For each, judge its relation to the new need:\n- same_need: it was built for the same need -- same subject and same quantity or verdict, whatever the wording;\n- can_do: the new request can be carried out through its existing endpoints, exactly as they are;\n- extend: it is the place this belongs (it holds the data the request is about) but it cannot do it yet;\n- unrelated.\nRegent improves or uses what it has rather than building a duplicate, so judge what the request is about, not\ntoday's coverage. List the new question/requirement ids it covers and, concretely, what it lacks.",
  "payload": {
   "new_need": {
@@ -10,31 +10,51 @@
    "questions": [
     {
      "id": "active_readers_recent",
-     "question": "How many distinct real people actually read LindyBooks in the recent period?",
+     "question": "How many distinct people actually read LindyBooks in the recent period?",
      "answer_type": "count",
-     "quantity": "Distinct human individuals who actually read content (engaged with the reading content, not merely landing on or loading a page) on LindyBooks within the window",
-     "unit": "people (distinct readers)",
-     "population": "Distinct human readers of LindyBooks content who engaged with it, deduplicated across devices/sessions where possible",
+     "quantity": "Distinct human readers who genuinely engaged with LindyBooks content (e.g. opened and read an article/book/issue beyond a minimal engagement threshold, not merely loaded a page or received an email) during the window",
+     "unit": "distinct people",
+     "population": "Real human readers of LindyBooks (website/publication/product), counted once per person across devices where identifiable",
      "exclude": [
       "bots and crawlers",
-      "the owner/team/internal users",
-      "one-page bounces or visitors who never engaged with reading content",
-      "duplicate counts of the same person across sessions/devices",
-      "subscribers who did not read",
-      "repeat counts of the same person across days within the window"
+      "internal/team/author visits",
+      "subscribers or list members who did not read",
+      "bounces and accidental opens (e.g. email auto-opens, prefetch)",
+      "duplicate counts of the same person across devices/sessions"
      ],
      "windows": [
       "30d",
       "7d",
       "90d"
      ],
+     "priority": "core",
      "acceptable_forms": [
       "exact",
       "estimate",
       "range",
       "lower_bound"
+     ]
+    },
+    {
+     "id": "reader_trend",
+     "question": "Is the number of actual readers rising or falling versus earlier periods?",
+     "answer_type": "text",
+     "quantity": "Change in distinct engaged readers for the latest 30d versus the prior 30d and 90d",
+     "unit": "percent change",
+     "population": "Same as active readers",
+     "exclude": [
+      "bots",
+      "internal visits"
      ],
-     "priority": "core"
+     "windows": [
+      "30d",
+      "90d"
+     ],
+     "priority": "supporting",
+     "acceptable_forms": [
+      "estimate",
+      "range"
+     ]
     }
    ],
    "requirements": []
@@ -45,13 +65,15 @@
     "kind": "dashboard",
     "built_for": "I want to know, at a glance, how many real people are actually using LindyBooks.",
     "questions": [
-     "How many distinct real human people have actually used LindyBooks recently?",
-     "How does the count of actively-using real people compare to total registered accounts?"
+     "How many distinct real human people actively used LindyBooks in the recent period?",
+     "Is the active real-user count up or down compared to the previous equivalent period?"
     ],
     "metrics": [
-     "How many distinct real human people have actually used LindyBooks rec…",
-     "Proxy: Number of paid payments",
-     "Proxy: Daily usage count against the prose translation… (last 24h)"
+     "How many distinct real human people actively used LindyBooks in the r…",
+     "Proxy: number of payments received, as shown i…",
+     "epoch ms timestamp of a recent payment event",
+     "daily usage counter against the prose cap, prob… (last 24h)",
+     "daily usage counter against the meta cap, proba… (last 24h)"
     ]
    }
   ]
@@ -111,16 +133,17 @@
     "capability": "lindybooks-active-real-users",
     "relation": "same_need",
     "covered": [
-     "active_readers_recent"
+     "active_readers_recent",
+     "reader_trend"
     ],
     "gaps": [
-     "Its metrics are proxies (paid payments, 24h translation usage), not distinct readers who engaged with reading content",
-     "Unclear if it excludes bots, internal users and one-page bounces, or deduplicates people across devices",
-     "Unknown whether it supports 7d/30d/90d windows; the proxy is 24h only",
-     "Counts 'using' rather than 'reading', so subscribers who did not read may be included"
+     "Measures 'active users' (with payment-count proxy), not necessarily readers engaged beyond a reading threshold",
+     "Unknown whether it supports 7d/30d/90d windows explicitly",
+     "Trend is vs previous equivalent period only; no explicit latest 30d vs prior 30d and 90d comparison",
+     "Unclear whether bots, internal visits, and non-reading subscribers are excluded or people deduped across devices"
     ]
    }
   ]
  },
- "at": "2026-10-02T12:30:02Z"
+ "at": "2026-10-03T03:20:08Z"
 }

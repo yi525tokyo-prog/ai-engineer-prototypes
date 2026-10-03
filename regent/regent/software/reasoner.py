@@ -108,7 +108,7 @@ class Reasoner:
         if self.backend == "off":
             raise ReasonerUnavailable("no reasoning worker configured (REGENT_REASONER=off or claude CLI absent)")
         cached = self.record_dir / f"{task}-{key}.json"
-        if cached.exists():
+        if cached.exists() and mission_id not in FRESH:
             rec = json.loads(cached.read_text())
             return Answer(output=rec["output"], task=task, provider="claude-code", model=rec.get("model", ""),
                           cached=True, key=key)
@@ -173,6 +173,7 @@ _REASONER: Reasoner | None = None
 
 
 LAST_FAILURE: dict[str, Any] = {}      # the most recent time the worker could not answer (shown to the person)
+FRESH: set[str] = set()                # missions the person asked to redo: think again, do not reuse past answers
 
 
 def get_reasoner() -> Reasoner:
