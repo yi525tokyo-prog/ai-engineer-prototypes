@@ -48,11 +48,14 @@ if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -z "${ANTHROPIC_API_KEY:-}" ]; the
     [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ] || { echo "No token given."; exit 1; }
     (umask 077; printf '%s' "$CLAUDE_CODE_OAUTH_TOKEN" > "$STATE/claude_token")
   else
-    echo "Set CLAUDE_CODE_OAUTH_TOKEN (run: claude setup-token) or ANTHROPIC_API_KEY, so Regent can think."; exit 1
+    echo "Note: no Claude credential yet. Regent will open, but it can't understand requests until you"
+    echo "      set CLAUDE_CODE_OAUTH_TOKEN (claude setup-token) or ANTHROPIC_API_KEY and run this again."
   fi
-  export CLAUDE_CODE_OAUTH_TOKEN
+  [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && export CLAUDE_CODE_OAUTH_TOKEN
 fi
 
+[ -s "$STATE/backup_secret" ] || (umask 077; python3 -c 'import secrets; print(secrets.token_urlsafe(32))' > "$STATE/backup_secret")
+BACKUP_SECRET="$(cat "$STATE/backup_secret")"
 if [ -z "${REGENT_ACCESS_KEY:-}" ]; then
   [ -s "$STATE/access_key" ] || (umask 077; python3 -c 'import secrets; print(secrets.token_urlsafe(24))' > "$STATE/access_key")
   REGENT_ACCESS_KEY="$(cat "$STATE/access_key")"
@@ -87,9 +90,9 @@ EOF
 OUT="$($W deploy -c .wrangler.deploy.json 2>&1)" || { echo "$OUT"; exit 1; }
 URL="$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' <<<"$OUT" | head -1)"
 APPS_OUT="$($W deploy -c wrangler.apps.jsonc 2>&1)" || { echo "$APPS_OUT"; exit 1; }   # where built apps open
-(umask 077; python3 - "$REGENT_ACCESS_KEY" > "$STATE/secrets.json") <<'EOF'
+(umask 077; python3 - "$REGENT_ACCESS_KEY" "$BACKUP_SECRET" "$URL" > "$STATE/secrets.json") <<'EOF'
 import json, os, sys
-s = {"REGENT_ACCESS_KEY": sys.argv[1]}
+s = {"REGENT_ACCESS_KEY": sys.argv[1], "BACKUP_SECRET": sys.argv[2], "PUBLIC_URL": sys.argv[3]}
 for k in ("CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"):
     if os.environ.get(k):
         s[k] = os.environ[k]

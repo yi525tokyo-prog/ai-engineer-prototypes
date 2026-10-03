@@ -7,6 +7,7 @@ when it truly needs you), what came out of it, and how sure it is. Machinery is 
 
 from __future__ import annotations
 
+import os
 import shutil
 import time
 from datetime import timezone
@@ -313,6 +314,10 @@ def home(db: Session = Depends(get_db)):
     if shutil.which("claude") is None:
         notice = ("Regent needs Claude Code (the `claude` command) to understand requests. Install it and sign in, "
                   "then restart Regent.")
+    elif os.environ.get("REGENT_BACKUP_URL") and not any(
+            os.environ.get(k) for k in ("CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL")):
+        notice = ("Regent is running, but it can't understand requests yet: it has no Claude key. Add one "
+                  "(ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN) and deploy again.")
     elif LAST_FAILURE and time.time() - LAST_FAILURE.get("at", 0) < 1800:
         notice = _plain_error(LAST_FAILURE.get("error")) or "Regent's reasoning service is not answering right now."
     from regent.api import app as appmod

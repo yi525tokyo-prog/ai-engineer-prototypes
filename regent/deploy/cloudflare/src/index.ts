@@ -1,8 +1,9 @@
 // Regent on Cloudflare: this Worker is the front door. Every request goes to the one Regent
-// container; the container's data is kept in R2 through a host only the container can reach.
+// container. The container keeps its data in R2 through /__regent/backup on this Worker,
+// which only answers with the container's own secret.
 import { Container, getContainer } from "@cloudflare/containers";
 
-export { ContainerProxy } from "@cloudflare/containers";
+export { ContainerProxy } from "@cloudflare/containers";   // required by the containers library
 
 interface Env {
   REGENT: DurableObjectNamespace<Regent>;
@@ -11,14 +12,26 @@ interface Env {
   CLAUDE_CODE_OAUTH_TOKEN?: string;
   ANTHROPIC_API_KEY?: string;
   SLEEP_AFTER?: string;
+  BACKUP_SECRET: string;
+  PUBLIC_URL: string;
   APPS_ORIGIN?: string;
 }
 
 const HOME = "regent-home.tar.gz";
 const PREVIOUS = "regent-home.previous.tar.gz";
 
-// The container saves and restores its home at http://backup.regent.internal/home.
 async function backup(req: Request, env: Env): Promise<Response> {
+  try {
+    const res = await backupInner(req, env);
+    console.log("backup", req.method, res.status);
+    return res;
+  } catch (e) {
+    console.log("backup failed", req.method, String(e));
+    return new Response(String(e), { status: 500 });
+  }
+}
+
+async function backupInner(req: Request, env: Env): Promise<Response> {
   if (req.method === "GET") {
     const obj = await env.BACKUPS.get(HOME);
     return obj ? new Response(obj.body) : new Response("none", { status: 404 });
@@ -37,16 +50,13 @@ export class Regent extends Container<Env> {
   sleepAfter = "720h";          // Regent keeps working while you are away; the cron below wakes it after restarts
   enableInternet = true;
 
-  static outboundByHost = {
-    "backup.regent.internal": (req: Request, env: Env) => backup(req, env),
-  };
-
   constructor(ctx: DurableObjectState<{}>, env: Env) {
     super(ctx, env);
     if (env.SLEEP_AFTER) this.sleepAfter = env.SLEEP_AFTER;
     const vars: Record<string, string> = {
       REGENT_ACCESS_KEY: env.REGENT_ACCESS_KEY,
-      REGENT_BACKUP_URL: "http://backup.regent.internal/home",
+      REGENT_BACKUP_URL: `${(env.PUBLIC_URL || "").replace(/\/$/, "")}/__regent/backup`,
+      REGENT_BACKUP_SECRET: env.BACKUP_SECRET,
     };
     if (env.CLAUDE_CODE_OAUTH_TOKEN) vars.CLAUDE_CODE_OAUTH_TOKEN = env.CLAUDE_CODE_OAUTH_TOKEN;
     if (env.ANTHROPIC_API_KEY) vars.ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY;
@@ -61,6 +71,11 @@ function regent(env: Env) {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     if (!env.REGENT_ACCESS_KEY) return new Response("Regent is not set up yet: its access key is missing.", { status: 503 });
+    if (new URL(req.url).pathname === "/__regent/backup") {
+      const given = req.headers.get("x-regent-backup") || "";
+      if (!env.BACKUP_SECRET || given !== env.BACKUP_SECRET) return new Response("forbidden", { status: 403 });
+      return backup(req, env);
+    }
     // Apps Regent built are served on their own address (the regent-apps Worker), never on this one.
     const url = new URL(req.url);
     const fwd = new Request(req);
