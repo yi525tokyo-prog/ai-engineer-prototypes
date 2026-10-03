@@ -1,0 +1,5 @@
+requests>=2.28
+shapely>=2.0
+numpy>=1.24
+pytest>=7
+osmium>=3.6   # optional: build tiles from a local OSM extract (recommended)

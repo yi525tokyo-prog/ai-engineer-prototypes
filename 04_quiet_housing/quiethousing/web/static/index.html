@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>quiethousing</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  body { font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace; margin: 0; color: #111; background: #fff; }
+  header { padding: 6px 10px; border-bottom: 1px solid #999; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  #wrap { display: grid; grid-template-columns: 260px 1fr 520px; height: calc(100vh - 34px); }
+  #side, #detail { overflow: auto; padding: 8px; border-right: 1px solid #ccc; }
+  #detail { border-left: 1px solid #ccc; border-right: 0; }
+  #list { overflow: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 2px 4px; border-bottom: 1px solid #eee; text-align: right; white-space: nowrap; }
+  th { position: sticky; top: 0; background: #f4f4f4; cursor: pointer; user-select: none; }
+  td.l, th.l { text-align: left; }
+  tr:hover { background: #f6f9ff; }
+  tr.sel { background: #e3edff; }
+  .KEEP { color: #06702a; font-weight: bold; }
+  .REJECT { color: #b00020; }
+  .UNKNOWN, .FILTERED { color: #888; }
+  .bar { display: inline-block; height: 8px; background: #c33; vertical-align: middle; }
+  label { display: block; margin: 3px 0; }
+  input[type=number], input[type=text] { width: 110px; font: inherit; }
+  textarea { width: 100%; height: 260px; font: 11px monospace; }
+  button { font: inherit; }
+  #map { height: 340px; border: 1px solid #ccc; margin: 6px 0; }
+  #log { white-space: pre-wrap; font-size: 11px; max-height: 160px; overflow: auto; background: #f7f7f7; padding: 4px; }
+  .kv td { text-align: left; border: 0; padding: 0 6px 0 0; }
+  h3 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; color: #555; }
+  ul { margin: 2px 0 6px 16px; padding: 0; }
+  .muted { color: #777; }
+</style>
+</head>
+<body>
+<header>
+  <b>quiethousing</b>
+  <span id="summary" class="muted"></span>
+  <label style="display:inline">decision
+    <select id="fdec"><option value="">all</option><option>KEEP</option><option>REJECT</option><option>UNKNOWN</option><option>FILTERED</option></select></label>
+  <label style="display:inline"><input type="checkbox" id="fall"> include constraint failures</label>
+  <input type="text" id="fq" placeholder="text filter" style="width:160px">
+</header>
+<div id="wrap">
+<div id="side">
+  <h3>Housing constraints</h3>
+  <div id="cons"></div>
+  <button id="save">save &amp; re-evaluate</button>
+  <h3>Run</h3>
+  <button id="run">crawl + enrich + evaluate</button>
+  <button id="runlocal">enrich + evaluate only</button>
+  <div id="log"></div>
+  <h3>Evaluation rules (JSON)</h3>
+  <textarea id="evaljson"></textarea>
+  <button id="saveeval">save rules</button>
+</div>
+<div id="list"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+<div id="detail"><span class="muted">select a property</span></div>
+</div>
+<script>
+const CONS = [
+  ["max_rent","number","max rent (円)"],["max_total_rent","number","max rent+fee (円)"],["min_floor_area_m2","number","min area (㎡)"],
+  ["max_walk_minutes","number","max walk (min)"],["min_floor","number","min floor"],["max_building_age_years","number","max building age (y)"],
+  ["prefectures","list","prefectures"],["cities","list","cities (any if empty)"],["exclude_cities","list","exclude cities"],
+  ["layouts","list","layouts (1R,1K,1DK,1LDK,...)"],["required_facilities","list","required facilities"],
+  ["unknown_floor_passes","bool","unknown floor passes"],["exclude_fixed_term_lease","bool","exclude 定期借家"],
+];
+const COLS = [
+  ["decision","dec","l"],["quality","Q"],["road_noise_score","road"],["railway_noise_score","rail"],["nightlife_score","night"],["commercial_activity_score","comm"],
+  ["rent","rent"],["total_rent","+fee"],["layout","plan","l"],["floor_area_m2","㎡"],["floor","fl"],["walk_minutes","walk"],
+  ["nearest_major_road_m","major rd"],["nearest_major_road_type","type","l"],["nearest_railway_m","rail m"],["nightlife_250","night250"],["commercial_250","comm250"],["zoning","zone","l"],["far_mean_250","FAR250"],
+  ["nearest_station","station","l"],["building","building","l"],["address","address","l"],
+];
+let cfg = null, rows = [], sortKey = "quality", sortDir = -1, selected = null, map = null, layers = null;
+const $ = s => document.querySelector(s);
+const fmt = v => v == null ? "–" : (typeof v === "number" ? (Math.abs(v) >= 1000 ? v.toLocaleString() : (Math.round(v*10)/10)) : v);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function loadConfig() {
+  cfg = await (await fetch("/api/config")).json();
+  $("#cons").innerHTML = CONS.map(([k,t,l]) => {
+    const v = cfg.constraints[k];
+    if (t === "bool") return `<label><input type="checkbox" data-k="${k}" data-t="${t}" ${v ? "checked" : ""}> ${l}</label>`;
+    const val = t === "list" ? (v || []).join(",") : (v ?? "");
+    return `<label>${l}<br><input type="${t === "number" ? "number" : "text"}" data-k="${k}" data-t="${t}" value="${esc(val)}"></label>`;
+  }).join("");
+  $("#evaljson").value = JSON.stringify(cfg.evaluation, null, 1);
+}
+async function saveConfig(includeEval) {
+  const c = {...cfg.constraints};
+  document.querySelectorAll("#cons [data-k]").forEach(el => {
+    const k = el.dataset.k, t = el.dataset.t;
+    if (t === "bool") c[k] = el.checked;
+    else if (t === "number") c[k] = el.value === "" ? null : Number(el.value);
+    else c[k] = el.value.split(",").map(s => s.trim()).filter(Boolean);
+  });
+  const body = {constraints: c};
+  if (includeEval) { try { body.evaluation = JSON.parse($("#evaljson").value); } catch (e) { alert("invalid JSON: " + e); return; } }
+  await fetch("/api/config", {method: "POST", body: JSON.stringify(body)});
+  await loadConfig(); await loadResults();
+}
+async function loadResults() {
+  const r = await (await fetch("/api/results" + ($("#fall").checked ? "?all=1" : ""))).json();
+  rows = r.rows;
+  const cnt = {}; rows.forEach(x => cnt[x.decision] = (cnt[x.decision] || 0) + 1);
+  const lr = r.last_run ? new Date(r.last_run.finished_at * 1000).toLocaleString() : "never";
+  $("#summary").textContent = Object.entries(cnt).map(([k,v]) => `${k} ${v}`).join("  ·  ") + `   (last run ${lr})`;
+  render();
+}
+function render() {
+  const dec = $("#fdec").value, q = $("#fq").value.toLowerCase();
+  let rs = rows.filter(x => (!dec || x.decision === dec) && (!q || JSON.stringify([x.building, x.address, x.nearest_station, x.title]).toLowerCase().includes(q)));
+  rs.sort((a, b) => { const x = a[sortKey], y = b[sortKey]; if (x == null) return 1; if (y == null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * sortDir; });
+  $("#tbl thead").innerHTML = "<tr>" + COLS.map(([k, l, c]) => `<th class="${c || ""}" data-k="${k}">${l}${sortKey === k ? (sortDir > 0 ? "▲" : "▼") : ""}</th>`).join("") + "<th></th></tr>";
+  $("#tbl tbody").innerHTML = rs.map(x => "<tr data-id='" + x.estate_id + "' class='" + (selected === x.estate_id ? "sel" : "") + "'>" + COLS.map(([k, l, c]) => {
+    let v = x[k];
+    if (k === "decision") return `<td class="l ${v}">${v}</td>`;
+    if (k.endsWith("_score")) return `<td>${fmt(v)} <span class="bar" style="width:${Math.round((v || 0) / 4)}px"></span></td>`;
+    if (k === "building" || k === "address") v = String(v ?? "").slice(0, 28);
+    if (k === "zoning" && v) v = String(v).replace("地域", "").replace("専用", "専").slice(0, 8);
+    return `<td class="${c || ""}">${esc(fmt(v))}</td>`;
+  }).join("") + `<td><a href="${x.url}" target="_blank">goodroom↗</a></td></tr>`).join("");
+}
+function kv(obj) {
+  if (!obj) return "–";
+  return "<table class='kv'>" + Object.entries(obj).filter(([k, v]) => typeof v !== "object" || v === null || Array.isArray(v)).map(([k, v]) => `<tr><td class="muted">${esc(k)}</td><td>${esc(Array.isArray(v) ? v.join(", ") : fmt(v))}</td></tr>`).join("") + "</table>";
+}
+async function showDetail(id) {
+  selected = id; render();
+  const x = rows.find(r => r.estate_id === id); if (!x) return;
+  const env = x.environment || {};
+  $("#detail").innerHTML = `
+    <div><span class="${x.decision}" style="font-size:16px">${x.decision}</span> &nbsp; quality <b>${fmt(x.quality)}</b>
+      &nbsp; <a href="${x.url}" target="_blank">open goodroom listing ↗</a></div>
+    <div><b>${esc(x.building)}</b> ${esc(x.title || "")}</div>
+    <div>${esc(x.address)} · ${fmt(x.rent)}円 + ${fmt(x.management_fee)} · ${esc(x.layout)} · ${fmt(x.floor_area_m2)}㎡ · floor ${fmt(x.floor)}/${fmt(x.total_floors)}${x.floor_source ? " (" + esc(x.floor_source) + ")" : ""} · built ${x.built_year ?? "?"} · coords ${esc(x.coord_source || "?")}</div>
+    <div class="muted">${(x.stations || []).map(s => `${esc(s.line || "")} ${esc(s.station)} ${s.walk_minutes ?? "?"}分`).join(" / ")}</div>
+    <h3>${x.decision === "KEEP" ? "Why kept" : "Why"}</h3><ul>${x.reasons_list.map(r => `<li>${esc(r)}</li>`).join("")}</ul>
+    ${x.warnings_list.length ? `<h3>Data warnings</h3><ul>${x.warnings_list.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
+    ${x.constraint_failures.length ? `<h3>Constraint failures</h3><ul>${x.constraint_failures.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
+    <div id="map"></div>
+    <div class="muted">red=motorway/trunk · orange=primary · yellow=secondary · grey=tertiary · black=surface rail (dotted = underground) · purple=nightlife · brown=food · blue=retail · ✕=major junction · circles 100/250/500m</div>
+    <h3>Scores (risk 0–100)</h3>${kv(Object.fromEntries(["road_noise_score","railway_noise_score","nightlife_score","commercial_activity_score","total_environment_score"].map(k => [k, x[k]])))}
+    <ul>${Object.entries(x.score_notes || {}).flatMap(([k, ns]) => ns.map(n => `<li>${k}: ${esc(n)}</li>`)).join("")}</ul>
+    ${["road","rail","station","intersection","poi","zoning","landuse","data"].map(s => `<h3>${s}</h3>${kv(env[s])}`).join("")}
+  `;
+  if (x.lat == null) return;
+  if (!window.L) { $("#map").innerHTML = `<div style="padding:8px">map library unavailable — <a target="_blank" href="https://www.openstreetmap.org/?mlat=${x.lat}&mlon=${x.lon}#map=17/${x.lat}/${x.lon}">open in OpenStreetMap ↗</a></div>`; return; }
+  map = L.map("map").setView([x.lat, x.lon], 16);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}).addTo(map);
+  [100, 250, 500].forEach(r => L.circle([x.lat, x.lon], {radius: r, color: "#333", weight: 1, fill: false, dashArray: "3"}).addTo(map));
+  L.circleMarker([x.lat, x.lon], {radius: 7, color: "#000", fillColor: "#0af", fillOpacity: 1}).addTo(map).bindPopup(esc(x.building));
+  const fc = await (await fetch(`/api/features?lat=${x.lat}&lon=${x.lon}`)).json();
+  const roadColor = {motorway: "#d00", trunk: "#d00", primary: "#f80", secondary: "#e6c200", tertiary: "#999"};
+  L.geoJSON(fc, {
+    style: f => f.properties.kind === "road" ? {color: roadColor[f.properties.cls], weight: f.properties.cls === "tertiary" ? 2 : 4, opacity: f.properties.surface ? 0.85 : 0.25, dashArray: f.properties.surface ? null : "4"}
+      : {color: "#000", weight: 3, opacity: f.properties.surface ? 0.9 : 0.3, dashArray: f.properties.surface ? null : "2 6"},
+    pointToLayer: (f, ll) => f.properties.kind === "junction" ? L.marker(ll, {icon: L.divIcon({html: "✕", className: "", iconSize: [10, 10]})})
+      : L.circleMarker(ll, {radius: 3, weight: 0, fillOpacity: 0.8, fillColor: {nightlife: "#80c", food: "#a52", retail: "#06c"}[f.properties.cat]}),
+    onEachFeature: (f, l) => l.bindTooltip(esc((f.properties.cls || f.properties.cat || f.properties.kind) + " " + (f.properties.name || "") + (f.properties.type ? " (" + f.properties.type + ")" : "")))
+  }).addTo(map);
+}
+async function poll() {
+  const s = await (await fetch("/api/status")).json();
+  $("#log").textContent = (s.running ? "RUNNING\n" : "") + s.log.slice(-25).join("\n");
+  $("#run").disabled = $("#runlocal").disabled = s.running;
+  if (s.running) setTimeout(poll, 3000); else if (s.finished) loadResults();
+}
+async function run(acquire) { await saveConfig(false); await fetch("/api/run", {method: "POST", body: JSON.stringify({acquire})}); setTimeout(poll, 500); }
+$("#tbl").addEventListener("click", e => {
+  const th = e.target.closest("th"); if (th && th.dataset.k) { sortDir = sortKey === th.dataset.k ? -sortDir : (th.dataset.k === "quality" ? -1 : 1); sortKey = th.dataset.k; render(); return; }
+  const tr = e.target.closest("tr[data-id]"); if (tr && e.target.tagName !== "A") showDetail(tr.dataset.id);
+});
+$("#fdec").onchange = render; $("#fq").oninput = render; $("#fall").onchange = loadResults;
+$("#save").onclick = () => saveConfig(false); $("#saveeval").onclick = () => saveConfig(true);
+$("#run").onclick = () => run(true); $("#runlocal").onclick = () => run(false);
+loadConfig().then(loadResults).then(poll);
+</script>
+</body>
+</html>
