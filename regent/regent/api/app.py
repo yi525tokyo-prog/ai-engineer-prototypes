@@ -125,6 +125,21 @@ async def access_key(request: Request, call_next):
 from regent.api import diag as _diag  # noqa: E402
 
 _diag.install()
+
+
+@app.exception_handler(Exception)
+async def _plain_failure(request: Request, exc: Exception):
+    """A failure the person sees in plain words (and that is kept for diagnostics), never a bare 500."""
+    import logging
+
+    from fastapi.responses import JSONResponse
+
+    busy = "database is locked" in str(exc)
+    logging.getLogger("regent.api").error("%s %s failed: %s", request.method, request.url.path,
+                                          f"{type(exc).__name__}: {exc}"[:2000], exc_info=not busy)
+    return JSONResponse({"error": "Regent is busy for a moment. Try again in a few seconds." if busy
+                         else "Something went wrong inside Regent; it has been noted."}, status_code=503 if busy
+                        else 500)
 from regent.api.acquisition import router as acquisition_router  # noqa: E402
 
 app.include_router(acquisition_router)

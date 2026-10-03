@@ -14,6 +14,7 @@ interrupt, or the mission's success criteria are met.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -80,7 +81,10 @@ class RegentLoop:
         if m.status in ("completed", "abandoned", "paused"):
             rep.status, rep.idle = m.status, True
             return rep
-        if (m.attrs or {}).get("route") == "pending" and not (m.attrs or {}).get("paused"):
+        created = m.created_at.replace(tzinfo=timezone.utc) if m.created_at and m.created_at.tzinfo is None \
+            else m.created_at
+        if ((m.attrs or {}).get("route") == "pending" and not (m.attrs or {}).get("paused") and created
+                and (utcnow() - created).total_seconds() < 120):
             rep.status, rep.idle = m.status, True   # the front door is deciding what this is: leave it be
             return rep
         attrs_at_start = dict(m.attrs or {})

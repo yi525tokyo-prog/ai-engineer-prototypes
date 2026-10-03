@@ -501,6 +501,33 @@ def _merge_mission_attrs(session: Session, flush_context: Any, instances: Any) -
             obj.attrs = merged
 
 
+@event.listens_for(Session, "after_flush")
+def _writes_began(session: Session, flush_context: Any) -> None:
+    """From the first write until commit, SQLite lets no one else write: note where that started."""
+    if "writing_since" not in session.info:
+        import time
+        import traceback
+
+        session.info["writing_since"] = time.time()
+        session.info["writing_from"] = "".join(traceback.format_stack(limit=14)[:-3])
+
+
+def _writes_ended(session: Session, *_: Any) -> None:
+    import time
+
+    since = session.info.pop("writing_since", None)
+    where = session.info.pop("writing_from", "")
+    if since is not None and time.time() - since > 5:
+        import logging
+
+        logging.getLogger("regent.db").warning("held the database for %.1fs; writing began at:\n%s",
+                                               time.time() - since, where)
+
+
+event.listen(Session, "after_commit", _writes_ended)
+event.listen(Session, "after_rollback", _writes_ended)
+
+
 _SessionLocal: sessionmaker | None = None
 _lock = threading.RLock()
 
