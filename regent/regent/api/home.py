@@ -242,6 +242,8 @@ def _item(db: Session, m: Mission, open_q: list[dict[str, Any]]) -> dict[str, An
     failed = [o for o in ops if o.status == "failed"]
     if attrs.get("unsupported"):
         state, now = "cannot", attrs["unsupported"]["why"]
+    elif attrs.get("route") == "pending" and not attrs.get("paused"):
+        state, now = "working", "Working out what to do with this"
     elif attrs.get("paused"):
         state, now = "paused", "Waiting to try again: " + attrs["paused"]["why"]
     elif mine:
@@ -409,7 +411,16 @@ def stop(mid: str, db: Session = Depends(get_db)):
     for hi in db.scalars(select(HumanInterrupt).where(HumanInterrupt.mission_id == mid,
                                                       HumanInterrupt.status == "open")):
         hi.status, hi.resolution = "cancelled", "stopped by the person"
+    _silence(db, mid)
     return {"ok": True}
+
+
+def _silence(db: Session, mid: str) -> None:
+    """A request the person stopped or removed never speaks up again: its reminders are cancelled."""
+    from regent import reminders as RM
+
+    for r in RM.for_mission(db, mid):
+        r.active = False
 
 
 @router.post("/api/items/{mid}/retry")
@@ -453,6 +464,7 @@ def remove(mid: str, db: Session = Depends(get_db)):
     m.attrs = {**(m.attrs or {}), "hidden": True}
     if m.status not in ("completed", "monitoring"):
         m.status = "abandoned"
+    _silence(db, mid)
     return {"ok": True}
 
 

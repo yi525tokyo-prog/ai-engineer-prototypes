@@ -226,6 +226,9 @@ def test_each_sentence_is_routed_by_what_it_should_make_happen(client, db, monke
     assert r.text == "今日は野田さんと面談です" and r.active
     item = next(i for i in client.get("/api/home").json()["items"] if i["id"] == m.id)
     assert item["state"] == "done" and item["result"]["kind"] == "remembered"
+    client.post(f"/api/items/{m.id}/remove")                             # removed: it never speaks up again
+    db.expire_all()
+    assert not RM.for_mission(db, m.id)[0].active
     # investigate / watch / act continue into the longer path, shaped by what should happen
     m, out = _routed(db, monkeypatch, "日本の失業率いま何%？", {"mode": "investigate", "language": "ja", "why": "look"})
     assert out == "continue" and m.attrs["mode"] == "investigate" and m.status != "completed"

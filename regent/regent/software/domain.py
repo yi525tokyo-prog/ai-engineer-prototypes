@@ -19,7 +19,7 @@ need analysis says it is about software (the analysis runs once, for untagged mi
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from typing import Any
 
@@ -85,6 +85,12 @@ class SoftwareAdapter(DomainAdapter):
             paused = (mission.attrs or {}).get("paused")
             if mission.status == "completed":           # answered or remembered at the front door
                 return []
+            created = mission.created_at
+            if created is not None and created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            if ((mission.attrs or {}).get("route") == "pending" and not paused and created is not None
+                    and (utcnow() - created).total_seconds() < 90):
+                return []                               # the front door is deciding right now; don't race it
             last = _done(s, mission.id, "analyze") if s is not None else None
             if last is not None and (last.plan or {}).get("routed") in ("busy", "continue"):
                 last = None                         # that pass only routed the sentence: analyse it now
