@@ -9,3 +9,5 @@ apps/web/out/
 .env
 tsconfig.tsbuildinfo
 .venv/
+deploy/cloudflare/.wrangler/
+deploy/cloudflare/.wrangler.deploy.json

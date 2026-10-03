@@ -182,9 +182,10 @@ function result(r) {
         a.version ? ` · version ${a.version}` : "", a.running ? "" : " · not running right now"));
       const acts = el("div", { class: "actions" });
       acts.append(el("button", { class: "primary", text: "Open the app", onclick: async () => {
+        const w = window.open("about:blank", "_blank");     // opened now, so phones do not block it
         let url = a.url;
         try { url = (await api(`/api/apps/${a.capability}/start`, {})).url; } catch (e) {}
-        window.open(url, "_blank");
+        if (w) w.location.href = url; else window.location.href = url;
       } }));
       if (a.passphrase) acts.append(el("button", { text: "Show passphrase", onclick: async () => {
         const p = await api(`/api/apps/${a.capability}/passphrase`);

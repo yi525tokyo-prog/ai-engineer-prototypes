@@ -100,18 +100,26 @@ async def access_key(request: Request, call_next):
     import hmac
     import os
 
-    from fastapi.responses import PlainTextResponse
+    from fastapi.responses import PlainTextResponse, RedirectResponse
 
+    from regent.api import appgate
+
+    if request.headers.get("x-regent-surface") == "apps":        # the apps' own address (hosted Regent)
+        return await appgate.serve(request)
+    appgate.APPS_ORIGIN.set(request.headers.get("x-regent-apps-origin"))
     key = os.environ.get("REGENT_ACCESS_KEY", "")
-    if not key:
+    if not key or request.url.path == "/healthz":
         return await call_next(request)
     given = request.query_params.get("key") or request.cookies.get("regent_key") or ""
     if not hmac.compare_digest(given, key):
         return PlainTextResponse("This Regent is private. Open it with the link that includes its key.", 401)
-    resp = await call_next(request)
+    if request.query_params.get("key") and request.url.path == "/":
+        resp = RedirectResponse("/", 303)        # keep the key out of the address bar and history
+    else:
+        resp = await call_next(request)
     if request.query_params.get("key"):
-        resp.set_cookie("regent_key", key, httponly=True, samesite="lax", secure=request.url.scheme == "https",
-                        max_age=60 * 60 * 24 * 30)
+        https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+        resp.set_cookie("regent_key", key, httponly=True, samesite="lax", secure=https, max_age=60 * 60 * 24 * 365)
     return resp
 
 from regent.api.acquisition import router as acquisition_router  # noqa: E402
@@ -136,6 +144,11 @@ def index() -> HTMLResponse:
 
 
 # ------------------------------------------------------------------ system
+
+
+@app.get("/healthz", include_in_schema=False)
+def healthz() -> dict[str, bool]:
+    return {"ok": True}
 
 
 @app.get("/api/system")

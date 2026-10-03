@@ -1,0 +1,12 @@
+.venv
+**/__pycache__
+**/*.pyc
+var
+tests
+docs
+apps
+packages
+infra
+scripts
+deploy
+*.egg-info

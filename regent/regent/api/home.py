@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from regent.db import Decision, Event, HumanInterrupt, Mission, Operation, Route
+from regent.db import Event, HumanInterrupt, Mission, Operation, Route
 
 router = APIRouter()
 
@@ -215,7 +215,10 @@ def _app(c) -> dict[str, Any]:
 
     app = (c.spec or {}).get("app") or {}
     svc = S.get(app_slug(c), "live")
-    return {"name": c.title, "url": (svc.url if svc else None) or app.get("url"), "version": app.get("version"),
+    from regent.api.appgate import open_url
+
+    return {"name": c.title, "url": open_url(app_slug(c), (svc.url if svc else None) or app.get("url")),
+            "version": app.get("version"),
             "running": bool(svc and svc.healthy()), "can": [r.get("capability") for r in (c.spec or {}).get(
                 "requirements", [])][:8], "passphrase": bool(app.get("credential")), "capability": c.id}
 
@@ -426,8 +429,7 @@ def remove(mid: str, db: Session = Depends(get_db)):
 
 @router.get("/api/apps/{cap_id}/passphrase")
 def passphrase(cap_id: str, db: Session = Depends(get_db)):
-    """The sign-in passphrase of an app Regent built for you (this page is only reachable from your
-    own computer)."""
+    """The sign-in passphrase of an app Regent built for you (only for someone already let into Regent)."""
     from regent.software import secrets
     from regent.software.tables import SwCapability
 
@@ -446,5 +448,7 @@ def start_app(cap_id: str, db: Session = Depends(get_db)):
     c = db.get(SwCapability, cap_id)
     if c is None:
         raise HTTPException(404)
+    from regent.api.appgate import open_url
+
     svc = appcap.live(c)
-    return {"url": svc.url}
+    return {"url": open_url(appcap.app_slug(c), svc.url)}

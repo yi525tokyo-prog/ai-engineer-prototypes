@@ -33,11 +33,9 @@ from pathlib import Path
 from typing import Any
 
 from regent.config import settings
+from regent.software.claude_env import claude_env
 
 DEFAULT_MODEL = os.environ.get("REGENT_REASONER_MODEL", "claude-sonnet-5-5")
-_ENV_KEEP = ("ANTHROPIC_BASE_URL", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "https_proxy", "http_proxy", "no_proxy",
-             "NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE", "LANG")
-
 
 class ReasonerUnavailable(RuntimeError):
     pass
@@ -147,13 +145,10 @@ class Reasoner:
                 + json.dumps(payload, ensure_ascii=False, indent=1, default=str)[:60000] + "\n</input>")
 
     def _claude(self, prompt: str, schema: dict[str, Any], budget_usd: float) -> tuple[dict[str, Any], dict]:
-        env = {k: os.environ[k] for k in _ENV_KEEP if k in os.environ}
-        env["PATH"] = os.pathsep.join(p for p in (str(Path(shutil.which("claude") or "claude").parent),
-                                                  "/usr/local/bin", "/usr/bin", "/bin") if p)
         with tempfile.TemporaryDirectory(prefix="regent-reason-") as tmp:
-            env["HOME"] = tmp
+            env, isolate = claude_env(Path(tmp))
             cmd = ["claude", "-p", prompt, "--output-format", "json", "--json-schema", json.dumps(schema),
-                   "--max-budget-usd", f"{budget_usd:.2f}", "--model", self.model, "--tools", ""]
+                   "--max-budget-usd", f"{budget_usd:.2f}", "--model", self.model, "--tools", "", *isolate]
             try:
                 proc = subprocess.run(cmd, cwd=tmp, env=env, capture_output=True, text=True, timeout=600)
             except subprocess.TimeoutExpired as e:

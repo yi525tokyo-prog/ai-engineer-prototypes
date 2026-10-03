@@ -1,0 +1,7 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "regent-apps",
+  "main": "src/apps.ts",
+  "compatibility_date": "2026-09-01",
+  "durable_objects": { "bindings": [{ "name": "REGENT", "class_name": "Regent", "script_name": "regent" }] }
+}

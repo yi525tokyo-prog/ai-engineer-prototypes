@@ -90,7 +90,69 @@ def test_a_remote_regent_needs_its_key(client, monkeypatch):
     monkeypatch.setenv("REGENT_ACCESS_KEY", "k" * 32)
     assert client.get("/api/home").status_code == 401
     assert client.get("/").status_code == 401
-    ok = client.get("/?key=" + "k" * 32)
-    assert ok.status_code == 200 and "regent_key" in ok.headers.get("set-cookie", "")
+    ok = client.get("/?key=" + "k" * 32, follow_redirects=False)
+    assert ok.status_code == 303 and ok.headers["location"] == "/"       # the key does not stay in the address bar
+    assert "regent_key" in ok.headers.get("set-cookie", "")
+    assert client.get("/").status_code == 200
     assert client.get("/api/home").status_code == 200                    # the cookie carries it from then on
+    assert TestClient(client.app).get("/healthz").status_code == 200     # the host's health check needs no key
     monkeypatch.delenv("REGENT_ACCESS_KEY")
+
+
+def test_apps_open_on_their_own_address_when_hosted(client, monkeypatch):
+    from regent.api import appgate
+
+    monkeypatch.setenv("REGENT_ACCESS_KEY", "k" * 32)
+    apps = {"x-regent-surface": "apps"}
+    other = TestClient(client.app)
+    assert other.get("/", headers=apps).status_code == 401              # no key, no app
+    r = other.get("/__open/reading-log?key=" + "k" * 32, headers=apps, follow_redirects=False)
+    assert r.status_code == 303 and "regent_app=reading-log" in r.headers.get("set-cookie", "")
+    monkeypatch.setattr(appgate, "_port", lambda slug, fresh=False: None)
+    assert other.get("/", headers=apps).status_code == 404               # an app Regent does not have
+    token = appgate.APPS_ORIGIN.set("https://regent-apps.example.workers.dev")
+    try:
+        assert appgate.open_url("reading-log", "http://127.0.0.1:5000") == \
+            "https://regent-apps.example.workers.dev/__open/reading-log?key=" + "k" * 32
+    finally:
+        appgate.APPS_ORIGIN.reset(token)
+    assert appgate.open_url("reading-log", "http://127.0.0.1:5000") == "http://127.0.0.1:5000"   # on this computer
+    monkeypatch.delenv("REGENT_ACCESS_KEY")
+
+
+def test_workers_sign_in_as_the_person_without_their_setup(monkeypatch, tmp_path):
+    from regent.software.claude_env import claude_env
+
+    for k in ("ANTHROPIC_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN",
+              "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX"):
+        monkeypatch.delenv(k, raising=False)
+    env, extra = claude_env(tmp_path)            # their own login, where it lives; their settings switched off
+    assert env["HOME"] != str(tmp_path) and "--strict-mcp-config" in extra
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "t")
+    env, extra = claude_env(tmp_path)            # a token: a home of its own
+    assert env["HOME"] == str(tmp_path) and env["CLAUDE_CODE_OAUTH_TOKEN"] == "t" and extra == []
+
+
+def test_hosted_regent_keeps_its_data_across_containers(tmp_path):
+    import sqlite3
+
+    from regent import cloud
+
+    home = tmp_path / "home"
+    (home / "workspace" / "apps" / "a").mkdir(parents=True)
+    (home / "workspace" / "apps" / "a" / "app.py").write_text("print('hi')")
+    (home / "workspace" / "apps" / "a" / ".home").mkdir()
+    (home / "workspace" / "apps" / "a" / ".home" / "junk").write_text("x")
+    con = sqlite3.connect(home / "regent.db")
+    con.execute("pragma journal_mode=wal")
+    con.execute("create table t (x)")
+    con.execute("insert into t values (42)")
+    con.commit()                                  # still open: the copy must come from SQLite, not the raw file
+    data = cloud.pack(home)
+    con.close()
+    fresh = tmp_path / "fresh"
+    cloud.unpack(data, fresh)
+    assert (fresh / "workspace" / "apps" / "a" / "app.py").read_text() == "print('hi')"
+    assert not (fresh / "workspace" / "apps" / "a" / ".home").exists()
+    assert sqlite3.connect(fresh / "regent.db").execute("select x from t").fetchone() == (42,)
+    assert cloud.fingerprint(home) != () and cloud.fingerprint(fresh) != ()

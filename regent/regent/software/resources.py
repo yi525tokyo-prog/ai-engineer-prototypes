@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from regent.software.claude_env import claude_env
 from regent.software import secrets
 from regent.software.reasoner import get_reasoner
 
@@ -57,11 +58,8 @@ class CodingAgent:
         workspace.mkdir(parents=True, exist_ok=True)
         if brief is not None:
             (workspace / "BRIEF.md").write_text(brief)
-        env = {k: os.environ[k] for k in ("ANTHROPIC_BASE_URL", "HTTPS_PROXY", "NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE")
-               if k in os.environ}
-        env["PATH"] = os.pathsep.join(["/opt/node22/bin", "/usr/local/bin", "/usr/bin", "/bin"])
-        env["HOME"] = str(workspace / ".home")
         (workspace / ".home").mkdir(exist_ok=True)
+        env, isolate = claude_env(workspace / ".home")
         t0 = time.time()
         before = {p.relative_to(workspace).as_posix(): p.stat().st_mtime for p in workspace.rglob("*")
                   if p.is_file() and ".home" not in p.parts}
@@ -69,7 +67,7 @@ class CodingAgent:
             proc = subprocess.run(
                 ["claude", "-p", prompt, "--output-format", "json", "--permission-mode", "acceptEdits",
                  "--tools", "Read,Write,Edit,Glob,Grep", "--max-budget-usd", f"{budget_usd or self.budget_usd:.2f}",
-                 "--model", self.model],
+                 "--model", self.model, *isolate],
                 cwd=workspace, env=env, capture_output=True, text=True, timeout=3600)
             out = proc.stdout
         except subprocess.TimeoutExpired:

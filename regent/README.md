@@ -43,6 +43,27 @@ something Regent can't take on yet, it says so instead of pretending.
 Options: `./start --port 7778` uses another port. `REGENT_HOME=/path ./start` keeps the data
 elsewhere.
 
+### From your phone, or with your computer off: Regent on Cloudflare
+
+`deploy/cloudflare/deploy.sh` puts the same Regent on your Cloudflare account and prints one link
+to open on each device. The link carries a private key; after the first visit, the device
+remembers it. Regent keeps running there, so reminders and things it watches go on while your
+computer is off. Apps it builds open on a separate address of their own, so an app's code can
+never act on your Regent page.
+
+It needs:
+- Docker and Node 20+ on the computer you deploy from;
+- the Workers Paid plan (container hosting);
+- three settings:
+  - `CLOUDFLARE_API_TOKEN`, with the "Edit Cloudflare Workers" template plus Containers: Edit and
+    Workers R2 Storage: Edit;
+  - `CLOUDFLARE_ACCOUNT_ID`;
+  - `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, which uses your Claude plan) or
+    `ANTHROPIC_API_KEY`.
+
+Your data is saved to R2 within a minute of any change and restored whenever the container is
+replaced. Running the script again updates Regent in place.
+
 ---
 
 ## For developers
