@@ -71,7 +71,7 @@ const CONS = [
 const COLS = [
   ["decision","dec","l"],["quality","Q"],["road_noise_score","road"],["railway_noise_score","rail"],["nightlife_score","night"],["commercial_activity_score","comm"],
   ["rent","rent"],["total_rent","+fee"],["layout","plan","l"],["floor_area_m2","㎡"],["floor","fl"],["walk_minutes","walk"],
-  ["nearest_major_road_m","major rd"],["nearest_major_road_type","type","l"],["nearest_railway_m","rail m"],["nightlife_250","night250"],["commercial_250","comm250"],
+  ["nearest_major_road_m","major rd"],["nearest_major_road_type","type","l"],["nearest_railway_m","rail m"],["nightlife_250","night250"],["commercial_250","comm250"],["zoning","zone","l"],["far_mean_250","FAR250"],
   ["nearest_station","station","l"],["building","building","l"],["address","address","l"],
 ];
 let cfg = null, rows = [], sortKey = "quality", sortDir = -1, selected = null, map = null, layers = null;
@@ -120,6 +120,7 @@ function render() {
     if (k === "decision") return `<td class="l ${v}">${v}</td>`;
     if (k.endsWith("_score")) return `<td>${fmt(v)} <span class="bar" style="width:${Math.round((v || 0) / 4)}px"></span></td>`;
     if (k === "building" || k === "address") v = String(v ?? "").slice(0, 28);
+    if (k === "zoning" && v) v = String(v).replace("地域", "").replace("専用", "専").slice(0, 8);
     return `<td class="${c || ""}">${esc(fmt(v))}</td>`;
   }).join("") + `<td><a href="${x.url}" target="_blank">goodroom↗</a></td></tr>`).join("");
 }
@@ -135,7 +136,7 @@ async function showDetail(id) {
     <div><span class="${x.decision}" style="font-size:16px">${x.decision}</span> &nbsp; quality <b>${fmt(x.quality)}</b>
       &nbsp; <a href="${x.url}" target="_blank">open goodroom listing ↗</a></div>
     <div><b>${esc(x.building)}</b> ${esc(x.title || "")}</div>
-    <div>${esc(x.address)} · ${fmt(x.rent)}円 + ${fmt(x.management_fee)} · ${esc(x.layout)} · ${fmt(x.floor_area_m2)}㎡ · floor ${fmt(x.floor)}/${fmt(x.total_floors)} (${esc(x.floor_source || "")}) · built ${fmt(x.built_year)}</div>
+    <div>${esc(x.address)} · ${fmt(x.rent)}円 + ${fmt(x.management_fee)} · ${esc(x.layout)} · ${fmt(x.floor_area_m2)}㎡ · floor ${fmt(x.floor)}/${fmt(x.total_floors)}${x.floor_source ? " (" + esc(x.floor_source) + ")" : ""} · built ${x.built_year ?? "?"} · coords ${esc(x.coord_source || "?")}</div>
     <div class="muted">${(x.stations || []).map(s => `${esc(s.line || "")} ${esc(s.station)} ${s.walk_minutes ?? "?"}分`).join(" / ")}</div>
     <h3>${x.decision === "KEEP" ? "Why kept" : "Why"}</h3><ul>${x.reasons_list.map(r => `<li>${esc(r)}</li>`).join("")}</ul>
     ${x.warnings_list.length ? `<h3>Data warnings</h3><ul>${x.warnings_list.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
@@ -144,9 +145,10 @@ async function showDetail(id) {
     <div class="muted">red=motorway/trunk · orange=primary · yellow=secondary · grey=tertiary · black=surface rail (dotted = underground) · purple=nightlife · brown=food · blue=retail · ✕=major junction · circles 100/250/500m</div>
     <h3>Scores (risk 0–100)</h3>${kv(Object.fromEntries(["road_noise_score","railway_noise_score","nightlife_score","commercial_activity_score","total_environment_score"].map(k => [k, x[k]])))}
     <ul>${Object.entries(x.score_notes || {}).flatMap(([k, ns]) => ns.map(n => `<li>${k}: ${esc(n)}</li>`)).join("")}</ul>
-    ${["road","rail","station","intersection","poi","landuse","data"].map(s => `<h3>${s}</h3>${kv(env[s])}`).join("")}
+    ${["road","rail","station","intersection","poi","zoning","landuse","data"].map(s => `<h3>${s}</h3>${kv(env[s])}`).join("")}
   `;
   if (x.lat == null) return;
+  if (!window.L) { $("#map").innerHTML = `<div style="padding:8px">map library unavailable — <a target="_blank" href="https://www.openstreetmap.org/?mlat=${x.lat}&mlon=${x.lon}#map=17/${x.lat}/${x.lon}">open in OpenStreetMap ↗</a></div>`; return; }
   map = L.map("map").setView([x.lat, x.lon], 16);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}).addTo(map);
   [100, 250, 500].forEach(r => L.circle([x.lat, x.lon], {radius: r, color: "#333", weight: 1, fill: false, dashArray: "3"}).addTo(map));

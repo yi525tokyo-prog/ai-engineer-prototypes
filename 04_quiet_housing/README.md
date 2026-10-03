@@ -47,15 +47,17 @@ are recomputed from stored data (UI: *save & re-evaluate*).
 | Geocode check | GSI 国土地理院 AddressSearch | house-number precision; if it disagrees with the pin by >150 m at house precision, GSI wins and the listing carries a warning. |
 | Roads, rails, POIs, landuse | OpenStreetMap: regional extract (`kanto-latest.osm.pbf` from openstreetmap.fr, ~600 MB, downloaded once) → local tiles; Overpass as fallback | stored as fixed 0.02°×0.025° tiles per *layer*, identical format from both sources. Public Overpass instances turned out to be unreliable for bulk use (overpass-api.de unreachable from the test environment, the mail.ru mirror returning 504 under load), so the extract is the primary path and Overpass only fills tiles outside the extract. Each layer is versioned separately so new layers (parks, libraries…) don't invalidate cached ones. |
 | Station scale | MLIT 国土数値情報 S12 (駅別乗降客数) | daily riders per station; records grouped into transfer complexes (Shinjuku ≈ 3.9 M/day). Downloaded once (6 MB). |
+| Zoning / density | MLIT 国土数値情報 A29 (用途地域, 2019) | zone class + floor-area ratio (容積率) polygons, per prefecture, downloaded on demand. Added after the first real run showed OSM POIs/landuse under-represent commercial areas (Tsukishima's monja street had 12 mapped restaurants within 250 m; OSM landuse covered <1 % of the median 500 m disc). |
 
 ## What is measured (per location)
 
-* **road** — nearest *surface* distance per class (motorway, trunk, primary, secondary, tertiary, unclassified, residential, living_street, service); `_link` ramps count as their parent; tunnels / covered / layer<0 are excluded (Tokyo's Yamate tunnel, underground ramps); elevated expressways flagged; metres of trunk/primary/motorway inside 100/250 m.
-* **rail** — nearest surface railway (subways in tunnels excluded and reported separately; sidings/yards reported separately), number of parallel tracks at the nearest point (perpendicular probe), track length within 250/500 m, distinct lines within 500 m, elevated flag.
+* **road** — nearest *surface* distance per class, plus nearest road with ≥4 lanes below primary (`wide_road_m`),  (motorway, trunk, primary, secondary, tertiary, unclassified, residential, living_street, service); `_link` ramps count as their parent; tunnels / covered / layer<0 are excluded (Tokyo's Yamate tunnel, underground ramps); elevated expressways flagged; metres of trunk/primary/motorway inside 100/250 m.
+* **rail** — nearest surface railway, split into heavy rail and tram/light rail/AGT (`heavy_surface_m`, `light_surface_m`, `highspeed_m` for Shinkansen); subways in tunnels excluded and reported separately; sidings/yards reported separately; number of parallel tracks at the nearest point (perpendicular probe), track length within 250/500 m, distinct lines within 500 m, elevated flag.
 * **station** — nearest station and its ridership; largest complex within 300/500/800 m.
 * **intersection** — nearest junction of the trunk/primary/secondary network involving ≥2 distinct roads and at least one trunk/primary; count within 250 m; traffic signals within 100/250 m.
 * **poi** — counts within 100/250/500/1000 m for commercial, food, restaurant, bar, nightlife (bars, pubs, izakaya, clubs, karaoke, pachinko, love hotels…), karaoke, nightclub, convenience, retail, entertainment.
-* **landuse** — share of the 250/500 m disc mapped as commercial, retail, industrial, residential.
+* **zoning** — zone at the building (e.g. 第一種低層住居専用地域), share of the 250/500 m disc per zone group (low-rise residential … commercial, industrial), area-weighted floor-area ratio.
+* **landuse** — share of the 250/500 m disc mapped (in OSM) as commercial, retail, industrial, residential.
 * **data** — coverage indicators (roads in range, POIs in 1 km) so under-mapped areas raise a warning instead of looking quiet.
 
 ## Evaluation (all in `config.json → evaluation`)
@@ -65,7 +67,28 @@ are recomputed from stored data (UI: *save & re-evaluate*).
 * `quality = 100 − (max_blend·max(sub-risks) + (1−max_blend)·weighted mean)`; below `min_quality` ⇒ REJECT.
 * Output per property: `road_noise_score`, `railway_noise_score`, `nightlife_score`, `commercial_activity_score`, `total_environment_score`, `decision`, `reasons`, `warnings`, plus the raw profile.
 
-No LLM is used: every question here is answerable from geometry and counts.
+No LLM is used: every question here is answerable from geometry, counts and official datasets.
+
+## What the real-data review changed
+
+The first full run (Kanto, 9,382 listings crawled; 1,166 pass the example
+constraints) was inspected listing by listing against the raw OSM ways:
+
+| Observation | Change |
+|---|---|
+| Overpass mirrors unusable for bulk (connection resets, instant 504s) | local Kanto extract → same tile cache; Overpass only as fallback, dead mirrors skipped, heavy tiles split |
+| 10 % of listings within 30 m of a "motorway" — verified real (Shuto viaducts over 中山道/246/甲州街道, Kinshichō & Eifuku ramps) but ramps were unnamed in reasons | unnamed ramp segments borrow the nearest named motorway's name |
+| Tsukishima monja street / Shinjuku 1-chome kept: OSM POIs under-mapped | MLIT zoning shares + floor-area ratio added to the commercial score; ≥50 % commercial zoning within 250 m is a hard reject |
+| Point-in-commercial-zone as a hard rule overrode measurements (東陽1丁目, 4 POIs ≤250 m) | made opt-in; point zone now only nudges the soft score |
+| Buildings fronting 2-lane metropolitan roads (白山小台線 at 10 m) ranked like quiet streets | secondary curve strengthened, frontage called out in reasons, ≥4-lane secondary/tertiary treated like primary |
+| 都電荒川線 / 世田谷線 / 日暮里・舎人ライナー treated like JR main lines | heavy vs light rail split (light × 0.5), Shinkansen × 1.2, hard rule only for heavy rail |
+| Agent typos in addresses (`馬絹-6-13-27`) broke geocoding | address normalisation |
+| goodroom pin vs GSI: median 14 m, p90 33 m; 7 pins >150 m off | GSI house-level result wins beyond 150 m, listing carries a warning |
+
+Known limits: OSM POI completeness varies by area (flagged per listing when
+<5 POIs within 1 km); zoning is a 2019 snapshot; noise exposure by floor /
+façade orientation is not modelled; Overpass-only areas outside Kanto are
+slower to enrich.
 
 ## UI
 
