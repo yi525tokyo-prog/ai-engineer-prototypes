@@ -37,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("--host", default="127.0.0.1")
     sv.add_argument("--port", type=int, default=8765)
     sub.add_parser("init-config")
+    eh = sub.add_parser("export-html", help="write a static viewer (no server needed) to <data>/site")
+    eh.add_argument("--out", default=None)
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -49,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {ctx.config_path}")
         return 0
 
-    ctx = Context.open(args.data, args.config, offline=args.cmd in ("report",))
+    ctx = Context.open(args.data, args.config, offline=args.cmd in ("report", "export-html"))
     ctx.progress = lambda m: print(m, flush=True)
     if args.cmd == "run":
         stats = run_all(ctx, skip_acquire=args.no_acquire)
@@ -76,6 +78,10 @@ def main(argv: list[str] | None = None) -> int:
                 parse_elements(d["elements"], fs, seen)
         prof = FeatureIndex(fs, ctx.station_index(), ctx.zoning_index(set(args.prefecture))).measure(args.lat, args.lon)
         print(json.dumps({"profile": prof, "evaluation": evaluate(prof, ctx.cfg["evaluation"])}, ensure_ascii=False, indent=1))
+    elif args.cmd == "export-html":
+        from .web.export_static import export_site
+
+        print(f"wrote {export_site(ctx, args.out)}")
     elif args.cmd == "serve":
         from .web.server import serve
 

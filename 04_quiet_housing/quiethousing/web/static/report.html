@@ -1,0 +1,233 @@
+<title>静かな部屋さがし</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: instrument panel — filter strip, ranked table, inspector pane (stacks on phones) */
+:root {
+  --bg: #f3f5f4; --panel: #ffffff; --fg: #17201d; --muted: #5d6b66; --line: #d9dfdc; --accent: #1f6f78;
+  --keep: #1d7a3e; --keep-bg: #e3f2e8; --reject: #b3261e; --reject-bg: #fbe9e7; --unk: #7a6a1d; --unk-bg: #f6f0d8;
+  --road-major: #c62828; --road-primary: #e67700; --road-secondary: #c9a400; --road-minor: #9aa5a1;
+  --rail: #222b28; --poi-n: #8e24aa; --poi-f: #a0522d; --poi-r: #1565c0; --map-bg: #fbfcfb;
+  --sans: "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121715; --panel: #1a211e; --fg: #e3e9e6; --muted: #93a29c; --line: #2c3632; --accent: #5fb7c0;
+  --keep: #6fcf8f; --keep-bg: #1d3326; --reject: #f2877f; --reject-bg: #3a1f1c; --unk: #d9c46a; --unk-bg: #33301d;
+  --road-major: #ff6b6b; --road-primary: #ffa94d; --road-secondary: #e6c84a; --road-minor: #5f6b67;
+  --rail: #d6dedb; --poi-n: #d17ce0; --poi-f: #d9925d; --poi-r: #64a8ee; --map-bg: #161c1a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121715; --panel: #1a211e; --fg: #e3e9e6; --muted: #93a29c; --line: #2c3632; --accent: #5fb7c0;
+  --keep: #6fcf8f; --keep-bg: #1d3326; --reject: #f2877f; --reject-bg: #3a1f1c; --unk: #d9c46a; --unk-bg: #33301d;
+  --road-major: #ff6b6b; --road-primary: #ffa94d; --road-secondary: #e6c84a; --road-minor: #5f6b67;
+  --rail: #d6dedb; --poi-n: #d17ce0; --poi-f: #d9925d; --poi-r: #64a8ee; --map-bg: #161c1a; color-scheme: dark }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 13px/1.5 var(--sans); padding-inline: 16px; padding-block: 12px 24px; }
+h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .02em; }
+.num, td.n, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+header { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: baseline; margin-bottom: 10px; }
+.sub { color: var(--muted); font-size: 12px; }
+.counts { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: end; background: var(--panel); border: 1px solid var(--line); padding: 8px 10px; margin-bottom: 10px; }
+.filters label { display: grid; gap: 2px; font-size: 11px; color: var(--muted); letter-spacing: .03em; }
+.filters input { font: 12px var(--mono); width: 92px; padding: 3px 5px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+.filters input#f-q { width: 150px; font-family: var(--sans); }
+button:focus-visible, input:focus-visible, tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 470px); gap: 12px; align-items: start; }
+@media (max-width: 1000px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.tablewrap { overflow: auto; max-height: calc(100vh - 170px); background: var(--panel); border: 1px solid var(--line); min-width: 0; }
+@media (max-width: 1000px) { .tablewrap { max-height: 60vh; } }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 3px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; text-align: right; }
+th { position: sticky; top: 0; background: var(--panel); font-weight: 500; font-size: 11px; color: var(--muted); cursor: pointer; user-select: none; z-index: 1; }
+th.l, td.l { text-align: left; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+tbody tr.sel { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.dec { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 3px; letter-spacing: .04em; }
+.KEEP { color: var(--keep); background: var(--keep-bg); }
+.REJECT { color: var(--reject); background: var(--reject-bg); }
+.UNKNOWN { color: var(--unk); background: var(--unk-bg); }
+.bar { display: inline-block; height: 6px; vertical-align: middle; margin-left: 4px; background: var(--reject); opacity: .75; }
+.q { font-weight: 500; }
+aside { background: var(--panel); border: 1px solid var(--line); padding: 12px; min-width: 0; position: sticky; top: env(safe-area-inset-top, 0px); max-height: calc(100vh - 24px); overflow: auto; }
+aside h2 { font-size: 15px; margin: 6px 0 2px; text-wrap: balance; }
+aside h3 { font-size: 11px; letter-spacing: .08em; color: var(--muted); margin: 14px 0 4px; font-weight: 500; }
+aside ul { margin: 0; padding-left: 18px; }
+aside li { margin: 2px 0; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 1px 12px; font-size: 12px; }
+.kv dt { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.kv dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+.scores { display: grid; grid-template-columns: max-content 1fr max-content; gap: 3px 8px; align-items: center; font-size: 12px; }
+.track { height: 8px; background: var(--line); }
+.track > i { display: block; height: 100%; background: var(--reject); }
+svg.map { width: 100%; height: auto; aspect-ratio: 1; background: var(--map-bg); border: 1px solid var(--line); display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+.legend b { display: inline-block; width: 7px; height: 7px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
+a { color: var(--accent); }
+.empty { color: var(--muted); padding: 24px 4px; }
+details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 12px; }
+.warn { color: var(--unk); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header>
+  <h1>静かな部屋さがし</h1>
+  <span class="sub" id="meta">読み込み中…</span>
+  <div class="counts" id="counts"></div>
+</header>
+
+<form class="filters" id="filters" onsubmit="return false">
+  <label for="f-rent">家賃+管理費 上限 (円)<input id="f-rent" type="number" step="5000" inputmode="numeric"></label>
+  <label for="f-area">広さ 下限 (㎡)<input id="f-area" type="number" step="1" inputmode="decimal"></label>
+  <label for="f-walk">駅徒歩 上限 (分)<input id="f-walk" type="number" step="1" inputmode="numeric"></label>
+  <label for="f-floor">階数 下限<input id="f-floor" type="number" step="1" inputmode="numeric"></label>
+  <label for="f-qmin">環境スコア 下限<input id="f-qmin" type="number" step="5" inputmode="numeric"></label>
+  <label for="f-q">区・駅・建物名<input id="f-q" type="text" placeholder="例: 杉並 / 荻窪"></label>
+  <button type="button" class="chip" id="f-reset">条件をリセット</button>
+</form>
+
+<div class="main">
+  <div class="tablewrap"><table id="tbl"><thead></thead><tbody></tbody></table><div class="empty" id="empty" hidden>条件に合う物件がありません。上限・下限をゆるめてください。</div></div>
+  <aside id="detail"><p class="empty">一覧の行を選ぶと、判定理由・計測値・周辺地図を表示します。</p></aside>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const yen = v => v == null ? "–" : v.toLocaleString("ja-JP");
+const m = v => v == null ? "1.2km超" : v >= 1000 ? (v / 1000).toFixed(1) + "km" : v + "m";
+const n1 = v => v == null ? "–" : (Math.round(v * 10) / 10).toString();
+const DEC_JA = {KEEP: "残す", REJECT: "除外", UNKNOWN: "未判定"};
+const TYPE_JA = {motorway: "高速", trunk: "国道級", primary: "主要道", secondary: "都道級", tertiary: "生活幹線"};
+const COLS = [
+  ["decision", "判定", "l"], ["quality", "環境"], ["road_noise_score", "道路"], ["railway_noise_score", "鉄道"],
+  ["nightlife_score", "夜間"], ["commercial_activity_score", "商業"], ["total_rent", "家賃+管理費"], ["layout", "間取", "l"],
+  ["floor_area_m2", "㎡"], ["floor", "階"], ["walk_minutes", "徒歩"], ["nearest_major_road_m", "幹線道路"],
+  ["nearest_major_road_type", "種別", "l"], ["nearest_railway_m", "線路"], ["nightlife_250", "夜店250m"],
+  ["commercial_250", "店舗250m"], ["zoning", "用途地域", "l"], ["nearest_station", "最寄駅", "l"], ["building", "建物", "l"],
+];
+let D = null, rows = [], sortKey = "quality", sortDir = -1, decFilter = new Set(["KEEP"]), selected = null;
+const featCache = {};
+
+function readNum(id) { const v = $(id).value; return v === "" ? null : Number(v); }
+function filtered() {
+  const rent = readNum("#f-rent"), area = readNum("#f-area"), walk = readNum("#f-walk"), fl = readNum("#f-floor"), qmin = readNum("#f-qmin");
+  const q = $("#f-q").value.trim().toLowerCase();
+  return rows.filter(r => decFilter.has(r.decision)
+    && (rent == null || (r.total_rent ?? Infinity) <= rent)
+    && (area == null || (r.floor_area_m2 ?? 0) >= area)
+    && (walk == null || (r.walk_minutes ?? Infinity) <= walk)
+    && (fl == null || r.floor == null || r.floor >= fl)
+    && (qmin == null || (r.quality ?? -1) >= qmin)
+    && (!q || [r.building, r.address, r.nearest_station, r.title, r.city].join(" ").toLowerCase().includes(q)));
+}
+function renderCounts() {
+  const c = {KEEP: 0, REJECT: 0, UNKNOWN: 0}; rows.forEach(r => c[r.decision] = (c[r.decision] || 0) + 1);
+  $("#counts").innerHTML = ["KEEP", "REJECT", "UNKNOWN"].map(k =>
+    `<button type="button" class="chip" data-dec="${k}" aria-pressed="${decFilter.has(k)}">${DEC_JA[k]} <span class="mono">${c[k] || 0}</span></button>`).join("");
+}
+function cell(r, k, cls) {
+  const v = r[k];
+  if (k === "decision") return `<td class="l"><span class="dec ${v}">${DEC_JA[v] || v}</span></td>`;
+  if (k === "quality") return `<td class="n q">${n1(v)}</td>`;
+  if (k.endsWith("_score")) return `<td class="n">${v == null ? "–" : Math.round(v)}<span class="bar" style="width:${Math.round((v || 0) / 3)}px"></span></td>`;
+  if (k === "total_rent") return `<td class="n">${yen(v)}</td>`;
+  if (k.endsWith("_m")) return `<td class="n">${v == null ? "–" : v}</td>`;
+  if (k === "nearest_major_road_type") return `<td class="l">${esc(TYPE_JA[v] || v || "–")}</td>`;
+  if (k === "zoning") return `<td class="l">${esc((v || "–").replace("地域", "").replace("専用", "専"))}</td>`;
+  if (k === "building") return `<td class="l">${esc(String(v || "").slice(0, 22))}</td>`;
+  if (typeof v === "number") return `<td class="n">${n1(v)}</td>`;
+  return `<td class="${cls || ""}">${esc(v ?? "–")}</td>`;
+}
+function render() {
+  const rs = filtered().sort((a, b) => { const x = a[sortKey], y = b[sortKey];
+    if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+    return (x > y ? 1 : x < y ? -1 : 0) * sortDir; });
+  $("#tbl thead").innerHTML = "<tr>" + COLS.map(([k, l, c]) => `<th class="${c || ""}" data-k="${k}" aria-sort="${sortKey === k ? (sortDir > 0 ? "ascending" : "descending") : "none"}">${l}${sortKey === k ? (sortDir > 0 ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr>";
+  $("#tbl tbody").innerHTML = rs.map(r => `<tr tabindex="0" data-id="${r.id}" class="${r.id === selected ? "sel" : ""}">${COLS.map(([k, l, c]) => cell(r, k, c)).join("")}</tr>`).join("");
+  $("#empty").hidden = rs.length > 0;
+}
+function scoreRow(label, v) { return `<span>${label}</span><span class="track"><i style="width:${Math.min(100, v || 0)}%"></i></span><span class="mono">${v == null ? "–" : Math.round(v)}</span>`; }
+function kv(obj) {
+  if (!obj) return "<p class='sub'>なし</p>";
+  return "<dl class='kv'>" + Object.entries(obj).filter(([k, v]) => v !== null && typeof v !== "object" || Array.isArray(v))
+    .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(Array.isArray(v) ? v.join(", ") : typeof v === "number" ? (Number.isInteger(v) ? v.toLocaleString() : n1(v)) : v)}</dd>`).join("") + "</dl>";
+}
+async function features(r) {
+  if (!r.fg) return null;
+  if (!featCache[r.fg]) featCache[r.fg] = fetch(`features/${r.fg}.json`).then(x => x.json()).catch(() => ({}));
+  return (await featCache[r.fg])[r.fk] || null;
+}
+function drawMap(r, f) {
+  const R = 450, kx = 111320 * Math.cos(r.lat * Math.PI / 180), ky = 110574;
+  const P = ([lon, lat]) => [((lon - r.lon) * kx).toFixed(1), (-(lat - r.lat) * ky).toFixed(1)];
+  const path = g => "M" + g.map(P).map(p => p.join(" ")).join("L");
+  const col = {motorway: "var(--road-major)", trunk: "var(--road-major)", primary: "var(--road-primary)", secondary: "var(--road-secondary)", tertiary: "var(--road-minor)"};
+  const wid = {motorway: 7, trunk: 6, primary: 5, secondary: 4, tertiary: 2.5};
+  let s = `<svg class="map" viewBox="${-R} ${-R} ${2 * R} ${2 * R}" role="img" aria-label="周辺450mの道路・線路・店舗">`;
+  [100, 250].forEach(rad => s += `<circle cx="0" cy="0" r="${rad}" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="6 6"/><text x="${rad * 0.71 + 4}" y="${-rad * 0.71}" font-size="16" fill="var(--muted)" font-family="var(--mono)">${rad}m</text>`);
+  if (f) {
+    const order = ["tertiary", "secondary", "primary", "trunk", "motorway"];
+    [...f.roads].sort((a, b) => order.indexOf(a.c) - order.indexOf(b.c)).forEach(x =>
+      s += `<path d="${path(x.g)}" fill="none" stroke="${col[x.c]}" stroke-width="${wid[x.c]}" stroke-linecap="round" opacity="${x.s ? 0.9 : 0.25}" ${x.s ? "" : 'stroke-dasharray="8 8"'}><title>${esc((x.n || x.c) + (x.s ? "" : "（地下）") + (x.e ? "（高架）" : ""))}</title></path>`);
+    f.rails.forEach(x => s += `<path d="${path(x.g)}" fill="none" stroke="var(--rail)" stroke-width="${x.l ? 2 : 3}" opacity="${x.s ? 0.95 : 0.25}" stroke-dasharray="${x.s ? (x.l ? "4 4" : "14 5") : "2 8"}"><title>${esc((x.n || "鉄道") + (x.s ? "" : "（地下）"))}</title></path>`);
+    f.pois.forEach(([lon, lat, c, name]) => { const [x, y] = P([lon, lat]);
+      s += `<circle cx="${x}" cy="${y}" r="${c === "n" ? 5 : 3.5}" fill="${c === "n" ? "var(--poi-n)" : c === "f" ? "var(--poi-f)" : "var(--poi-r)"}" opacity=".85"><title>${esc(name)}</title></circle>`; });
+    (f.junctions || []).forEach(([lon, lat, name]) => { const [x, y] = P([lon, lat]);
+      s += `<g transform="translate(${x} ${y})"><path d="M-7 -7L7 7M-7 7L7 -7" stroke="var(--fg)" stroke-width="2.5"/><title>${esc(name)}</title></g>`; });
+  } else s += `<text x="0" y="40" text-anchor="middle" font-size="18" fill="var(--muted)">地図データなし</text>`;
+  s += `<circle cx="0" cy="0" r="9" fill="var(--accent)" stroke="var(--panel)" stroke-width="3"/></svg>`;
+  return s + `<div class="legend"><span><i style="background:var(--road-major)"></i>高速・国道級</span><span><i style="background:var(--road-primary)"></i>主要道</span><span><i style="background:var(--road-secondary)"></i>都道級</span><span><i style="background:var(--rail)"></i>線路</span><span><b style="background:var(--poi-n)"></b>飲み屋・夜間</span><span><b style="background:var(--poi-f)"></b>飲食</span><span><b style="background:var(--poi-r)"></b>物販</span><span>✕ 主要交差点 · 薄い線＝地下</span></div>`;
+}
+async function show(id) {
+  selected = id; render();
+  const r = rows.find(x => x.id === id); if (!r) return;
+  const env = r.env || {};
+  const st = (r.stations || []).map(s => `${esc(s.line || "")} ${esc(s.station)} 徒歩${s.walk_minutes ?? "?"}分`).join(" / ");
+  const notes = Object.entries(r.score_notes || {}).flatMap(([k, ns]) => ns.map(x => `<li><span class="sub">${k}</span> ${esc(x)}</li>`)).join("");
+  const osm = `https://www.openstreetmap.org/?mlat=${r.lat}&mlon=${r.lon}#map=17/${r.lat}/${r.lon}`;
+  $("#detail").innerHTML = `
+    <div><span class="dec ${r.decision}">${DEC_JA[r.decision]}</span> <span class="sub">環境スコア</span> <b class="mono">${n1(r.quality)}</b></div>
+    <h2>${esc(r.building || "建物名なし")}</h2>
+    <div class="sub">${esc(r.title || "")}</div>
+    <div class="mono" style="margin-top:4px">${yen(r.rent)}円 + ${yen(r.management_fee)} · ${esc(r.layout || "")} · ${n1(r.floor_area_m2)}㎡ · ${r.floor ?? "?"}階/${r.total_floors ?? "?"}階建 · 築${r.built_year ?? "?"}</div>
+    <div>${esc(r.address || "")}</div>
+    <div class="sub">${st}</div>
+    <p><a href="${esc(r.url)}" target="_blank" rel="noopener">goodroomで物件を見る ↗</a> · ${r.lat != null ? `<a href="${osm}" target="_blank" rel="noopener">OpenStreetMapで開く ↗</a>` : ""}</p>
+    <h3>${r.decision === "KEEP" ? "残した理由" : r.decision === "REJECT" ? "除外した理由" : "未判定の理由"}</h3>
+    <ul>${r.reasons_list.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    ${r.warnings_list.length ? `<h3>データの注意</h3><ul class="warn">${r.warnings_list.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    <h3>周辺 450m</h3><div id="mapbox"><p class="sub">地図を読み込み中…</p></div>
+    <h3>リスク内訳（0=静か, 100=騒がしい）</h3>
+    <div class="scores">${scoreRow("道路", r.road_noise_score)}${scoreRow("鉄道", r.railway_noise_score)}${scoreRow("夜間営業", r.nightlife_score)}${scoreRow("商業活動", r.commercial_activity_score)}</div>
+    <ul style="margin-top:6px">${notes}</ul>
+    <details><summary>計測値をすべて表示</summary>${["road", "rail", "station", "intersection", "poi", "zoning", "data"].map(k => `<h3>${k}</h3>${kv(env[k])}`).join("")}</details>`;
+  if (r.lat != null) { const f = await features(r); if (selected === id) $("#mapbox").innerHTML = drawMap(r, f); }
+  else $("#mapbox").innerHTML = `<p class="sub">座標が未取得です。</p>`;
+}
+function setFiltersFromConstraints(c) {
+  $("#f-rent").value = c.max_total_rent ?? ""; $("#f-area").value = c.min_floor_area_m2 ?? "";
+  $("#f-walk").value = c.max_walk_minutes ?? ""; $("#f-floor").value = c.min_floor ?? ""; $("#f-qmin").value = ""; $("#f-q").value = "";
+}
+document.addEventListener("click", e => {
+  const chip = e.target.closest("[data-dec]");
+  if (chip) { const k = chip.dataset.dec; decFilter.has(k) ? decFilter.delete(k) : decFilter.add(k); renderCounts(); render(); return; }
+  const th = e.target.closest("th[data-k]");
+  if (th) { const k = th.dataset.k; sortDir = sortKey === k ? -sortDir : (["quality", "nearest_major_road_m", "nearest_railway_m"].includes(k) ? -1 : 1); sortKey = k; render(); return; }
+  const tr = e.target.closest("tbody tr[data-id]"); if (tr) show(tr.dataset.id);
+});
+document.addEventListener("keydown", e => { const tr = e.target.closest && e.target.closest("tbody tr[data-id]"); if (tr && e.key === "Enter") show(tr.dataset.id); });
+$("#filters").addEventListener("input", render);
+$("#f-reset").addEventListener("click", () => { setFiltersFromConstraints(D.constraints); render(); });
+fetch("data.json").then(x => x.json()).then(d => {
+  D = d; rows = d.rows;
+  const lr = d.last_run ? new Date(d.last_run.finished_at * 1000).toLocaleString("ja-JP") : "–";
+  $("#meta").textContent = `goodroom 関東 · 条件通過 ${rows.length.toLocaleString()} 件 · 最終更新 ${lr} · 判定の閾値: 環境スコア ${d.min_quality} 未満または除外ルール該当で除外`;
+  setFiltersFromConstraints(d.constraints); renderCounts(); render();
+  const first = filtered().sort((a, b) => (b.quality ?? -1) - (a.quality ?? -1))[0]; if (first) show(first.id);
+}).catch(e => { $("#meta").textContent = "データを読み込めませんでした: " + e; });
+</script>
