@@ -1,0 +1,153 @@
+{
+  "acquisition": {
+    "regions": [
+      "tokyo"
+    ],
+    "small_area_codes": [],
+    "max_list_pages": 200,
+    "list_page_size": 100,
+    "request_interval_s": 1.2,
+    "list_ttl_hours": 12,
+    "detail_ttl_hours": 168,
+    "detail_only_for_constraint_pass": true,
+    "max_details_per_run": 400,
+    "overpass_endpoints": [
+      "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter"
+    ],
+    "overpass_interval_s": 2.0,
+    "validate_coords_with_gsi": true
+  },
+  "constraints": {
+    "max_rent": null,
+    "max_total_rent": 150000,
+    "min_floor_area_m2": 25,
+    "prefectures": [
+      "東京都"
+    ],
+    "cities": [],
+    "exclude_cities": [],
+    "max_walk_minutes": 12,
+    "min_floor": 2,
+    "unknown_floor_passes": true,
+    "max_building_age_years": null,
+    "layouts": [],
+    "exclude_fixed_term_lease": false,
+    "required_facilities": []
+  },
+  "evaluation": {
+    "min_quality": 50,
+    "hard_rules": [
+      {
+        "metric": "road.motorway_m",
+        "op": "<",
+        "value": 120,
+        "label": "expressway (surface/elevated) {v}m away"
+      },
+      {
+        "metric": "road.trunk_m",
+        "op": "<",
+        "value": 50,
+        "label": "trunk road {v}m away"
+      },
+      {
+        "metric": "road.primary_m",
+        "op": "<",
+        "value": 40,
+        "label": "primary road {v}m away"
+      },
+      {
+        "metric": "rail.surface_m",
+        "op": "<",
+        "value": 60,
+        "label": "surface railway {v}m away"
+      },
+      {
+        "metric": "poi.nightlife_250",
+        "op": ">=",
+        "value": 12,
+        "label": "{v} nightlife POIs within 250m"
+      },
+      {
+        "metric": "poi.commercial_250",
+        "op": ">=",
+        "value": 80,
+        "label": "{v} commercial POIs within 250m"
+      },
+      {
+        "metric": "intersection.major_m",
+        "op": "<",
+        "value": 50,
+        "label": "major intersection {v}m away"
+      },
+      {
+        "metric": "station.max_passengers_300",
+        "op": ">=",
+        "value": 200000,
+        "label": "hub station ({v} riders/day) within 300m"
+      }
+    ],
+    "road_curves": {
+      "motorway": {
+        "near": 60,
+        "far": 500,
+        "weight": 100
+      },
+      "trunk": {
+        "near": 30,
+        "far": 300,
+        "weight": 85
+      },
+      "primary": {
+        "near": 25,
+        "far": 250,
+        "weight": 75
+      },
+      "secondary": {
+        "near": 15,
+        "far": 150,
+        "weight": 50
+      },
+      "tertiary": {
+        "near": 8,
+        "far": 70,
+        "weight": 25
+      }
+    },
+    "rail_curve": {
+      "near": 30,
+      "far": 400,
+      "weight": 90
+    },
+    "rail_elevated_factor": 1.15,
+    "rail_track_bonus_per_track": 0.08,
+    "station_curve": {
+      "passengers_full": 300000,
+      "near": 150,
+      "far": 800,
+      "weight": 60
+    },
+    "intersection_curve": {
+      "near": 30,
+      "far": 200,
+      "weight": 40
+    },
+    "nightlife_saturation": {
+      "nightlife_250": 15,
+      "nightlife_500": 45
+    },
+    "commercial_saturation": {
+      "commercial_250": 90,
+      "commercial_500": 280,
+      "landuse_commercial_250": 0.5
+    },
+    "weights": {
+      "road": 0.35,
+      "rail": 0.25,
+      "nightlife": 0.2,
+      "commercial": 0.2
+    },
+    "max_blend": 0.5
+  }
+}
