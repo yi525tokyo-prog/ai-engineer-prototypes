@@ -80,6 +80,10 @@ class RegentLoop:
         if m.status in ("completed", "abandoned", "paused"):
             rep.status, rep.idle = m.status, True
             return rep
+        if (m.attrs or {}).get("route") == "pending" and not (m.attrs or {}).get("paused"):
+            rep.status, rep.idle = m.status, True   # the front door is deciding what this is: leave it be
+            return rep
+        attrs_at_start = dict(m.attrs or {})
 
         # 1. OBSERVE ---------------------------------------------------------
         new_events = self.events.since(m.last_event_seq_seen, mission_id=m.id)
@@ -220,6 +224,21 @@ class RegentLoop:
                     self.replanner.planner.materialize(m, new_sel)
 
         # status ------------------------------------------------------------
+        # others (the front door, tools in their own sessions) may have written this mission while the
+        # tick ran: keep what they wrote, apply only what this tick changed
+        with self.db.no_autoflush:          # read what is stored now, before this tick's own changes go out
+            fresh = self.db.execute(select(Mission.attrs, Mission.status).where(Mission.id == m.id)).one()
+        mine = {k: v for k, v in (m.attrs or {}).items() if attrs_at_start.get(k) != v}
+        gone = [k for k in attrs_at_start if k not in (m.attrs or {})]
+        merged = {**(fresh.attrs or {}), **mine}
+        for k in gone:
+            merged.pop(k, None)
+        m.attrs = merged
+        if fresh.status in ("completed", "abandoned"):   # finished elsewhere (answered, stopped): not ours to reopen
+            rep.status, rep.idle = fresh.status, True
+            m.status = fresh.status
+            self.db.commit()
+            return rep
         world = WorldView.load(self.db)
         status = self._status(m, world)
         self.graph.set_status(m, status, reason="tick")

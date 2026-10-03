@@ -272,3 +272,31 @@ def test_a_request_never_stays_silently_stuck_at_the_front_door(client, db, monk
     [item] = [i for i in client.get("/api/home").json()["items"] if i["id"] == m.id]
     assert item["state"] == "paused" and "try again" in item["now"]
     assert any("routing" in r["text"] for r in client.get("/api/diagnostics").json()["recent"])
+
+
+def test_the_loop_never_overwrites_what_the_front_door_wrote_meanwhile(db, monkeypatch):
+    from regent import db as dbm
+    from regent.core.goals.missions import MissionGraph
+    from regent.core.loop import RegentLoop
+    from regent.db import Mission
+
+    m = MissionGraph(db).create(title="x", objective="子どもにお小遣いをどう教える？", tags=["manual"],
+                                attrs={"route": "done", "timezone": "Asia/Tokyo"})
+    db.commit()
+    loop = RegentLoop(db)
+    since = loop.events.since
+
+    def meanwhile(*a, **k):                     # the front door finishes while this tick is running
+        with dbm.session() as other:
+            o = other.get(Mission, m.id)
+            o.attrs = {**(o.attrs or {}), "reply": {"text": "答えです。"}}
+            o.status = "completed"
+            other.commit()
+        return since(*a, **k)
+
+    monkeypatch.setattr(loop.events, "since", meanwhile)
+    loop.tick(m.id, force=True)
+    db.commit()
+    db.expire_all()
+    fresh = db.get(Mission, m.id)
+    assert fresh.status == "completed" and fresh.attrs["reply"]["text"] == "答えです。"

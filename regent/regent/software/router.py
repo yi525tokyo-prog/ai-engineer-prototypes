@@ -193,7 +193,14 @@ def _speak(mission_id: str, sentence: str, r: Reasoner) -> str:
     def show(text: str) -> None:
         WRITING[mission_id] = text
 
-    return r.stream_text(SPEAK, sentence, show)
+    import logging
+    import time
+
+    t0 = time.time()
+    text = r.stream_text(SPEAK, sentence, show, effort="medium")
+    logging.getLogger("regent.front_door").info("answer for %s written in %.1fs (%d chars)", mission_id,
+                                                time.time() - t0, len(text))
+    return text
 
 
 def shape_need(need: dict[str, Any], mode: str | None) -> dict[str, Any]:

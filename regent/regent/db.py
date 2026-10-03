@@ -476,6 +476,31 @@ Index("ix_ops_mission_status", Operation.mission_id, Operation.status)
 # ------------------------------------------------------------ engine / session
 
 _engine: Engine | None = None
+@event.listens_for(Session, "before_flush")
+def _merge_mission_attrs(session: Session, flush_context: Any, instances: Any) -> None:
+    """A request's attrs are written by several hands at once (the front door, the loop, tools in
+    their own sessions). Writing a whole stale copy would erase what another wrote meanwhile, so a
+    write applies only the keys this session changed, on top of what is stored now."""
+    from sqlalchemy import inspect as sa_inspect
+    from sqlalchemy import select
+
+    for obj in list(session.dirty):
+        if not isinstance(obj, Mission):
+            continue
+        hist = sa_inspect(obj).attrs.attrs.history
+        if not hist.has_changes() or not hist.deleted:
+            continue                            # new object, or nothing known about what was there before
+        before = hist.deleted[0] or {}
+        after = obj.attrs or {}
+        stored = session.connection().execute(select(Mission.attrs).where(Mission.id == obj.id)).scalar() or {}
+        merged = {**stored, **{k: v for k, v in after.items() if before.get(k) != v}}
+        for k in before:
+            if k not in after:
+                merged.pop(k, None)
+        if merged != after:
+            obj.attrs = merged
+
+
 _SessionLocal: sessionmaker | None = None
 _lock = threading.RLock()
 
