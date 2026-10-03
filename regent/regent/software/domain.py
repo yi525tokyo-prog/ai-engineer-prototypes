@@ -256,6 +256,7 @@ class SoftwareAdapter(DomainAdapter):
                                                          "text": told, "view": f"/software/{cap.slug}"},
                                   source=f"capability:{cap.slug}", mission_id=mission_id)
                     note("deliver", f"{cap.slug} changed -> principal: {told[:200]}")
+                s.commit()                      # one capability at a time: don't hold the database across the next
             stats = {"capabilities_observed": n}
         else:
             raise ValueError(f"unknown software action {action}")

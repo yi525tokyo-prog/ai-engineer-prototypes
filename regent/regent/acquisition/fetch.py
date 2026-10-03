@@ -235,7 +235,9 @@ class Fetcher:
             src.last_status = f"blocked: {doc.blocked.get('type')}"
         else:
             src.last_status = f"error {doc.status} {doc.error or ''}"[:80]
-        self.db.flush()
+        # commit, not just flush: what was fetched is durable, and the database is not held while the next
+        # page loads (SQLite has one writer; the person's own taps must never wait on a crawl)
+        self.db.commit()
         return doc
 
     def _cached(self, url: str) -> FetchedDocument | None:
