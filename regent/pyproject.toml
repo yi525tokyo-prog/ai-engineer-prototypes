@@ -22,6 +22,8 @@ dependencies = [
 [project.optional-dependencies]
 providers = ["anthropic>=0.30", "openai>=1.30"]
 browser = ["playwright>=1.44"]
+# hosted Regent with an API key calls Claude directly (faster than starting the CLI for every call)
+cloud = ["anthropic>=1.9"]
 dev = ["pytest>=8"]
 
 [tool.setuptools.packages.find]

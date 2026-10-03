@@ -244,6 +244,8 @@ def _item(db: Session, m: Mission, open_q: list[dict[str, Any]]) -> dict[str, An
         state, now = "cannot", attrs["unsupported"]["why"]
     elif attrs.get("route") == "pending" and not attrs.get("paused"):
         state, now = "working", "Working out what to do with this"
+    elif (attrs.get("reply") or {}).get("partial"):
+        state, now = "working", "Answering…"
     elif attrs.get("paused"):
         state, now = "paused", "Waiting to try again: " + attrs["paused"]["why"]
     elif mine:
@@ -365,7 +367,7 @@ def _route_now(mission_id: str) -> None:
     with dbm.session() as s:
         m = s.get(Mission, mission_id)
         if m is not None:
-            route_mission(s, m)
+            route_mission(s, m, stream=True)
             s.commit()
 
 

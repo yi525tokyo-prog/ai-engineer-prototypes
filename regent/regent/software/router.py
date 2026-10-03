@@ -76,18 +76,29 @@ _busy: set[str] = set()
 _lock = threading.Lock()
 
 
+LATER = """
+When the mode is answer, leave 'reply' null: the answer is written separately, right after you decide."""
+
+SPEAK = """The person asked you something to think through. Answer it the way a thoughtful, knowledgeable
+friend would: directly and concretely, in the SAME LANGUAGE they wrote in. Lead with the answer, then the few
+points that support it; where views genuinely differ, say so briefly and fairly; never invent figures, quotes or
+sources, and say so where something depends on facts that may have changed. Plain text for a phone screen: short
+paragraphs and '- ' bullets, no markdown symbols. Under about 300 words."""
+
+
 def route(sentence: str, *, now_local: str, timezone: str | None, mission_id: str | None = None,
-          reasoner: Reasoner | None = None) -> dict[str, Any]:
+          reasoner: Reasoner | None = None, answer_later: bool = False) -> dict[str, Any]:
     r = reasoner or get_reasoner()
-    ans = r.ask("route", INSTRUCTIONS, {"sentence": sentence, "now_local": now_local, "timezone": timezone},
-                ROUTE_SCHEMA, budget_usd=0.5, mission_id=mission_id)
+    ans = r.ask("route", INSTRUCTIONS + (LATER if answer_later else ""),
+                {"sentence": sentence, "now_local": now_local, "timezone": timezone},
+                ROUTE_SCHEMA, budget_usd=0.5, mission_id=mission_id, effort="low" if answer_later else None)
     out = dict(ans.output)
     if out.get("mode") not in MODES:
         out["mode"] = "act"
     return out
 
 
-def route_mission(s, m) -> str:
+def route_mission(s, m, *, stream: bool = False) -> str:
     """Route one waiting request and do what can be done at once. Returns 'handled' (answered or
     remembered: finished), 'continue' (investigate/watch/act: the longer path takes it from here),
     'paused' (could not think right now) or 'busy' (already being routed)."""
@@ -100,6 +111,8 @@ def route_mission(s, m) -> str:
         _busy.add(m.id)
     try:
         attrs = dict(m.attrs or {})
+        if attrs.get("route") == "answering":
+            return "busy"
         if attrs.get("route") != "pending":
             return "continue"
         tz = attrs.get("timezone")
@@ -109,8 +122,13 @@ def route_mission(s, m) -> str:
             zone = None
         now_local = datetime.now(zone).strftime("%Y-%m-%dT%H:%M (%A)") if zone else utcnow().strftime(
             "%Y-%m-%dT%H:%M UTC (%A)")
+        r = get_reasoner()
+        live = stream and r.backend == "api"        # decide fast, then write the answer where it can be read
         try:
-            out = route(m.objective or m.title, now_local=now_local, timezone=tz, mission_id=m.id)
+            out = route(m.objective or m.title, now_local=now_local, timezone=tz, mission_id=m.id, reasoner=r,
+                        answer_later=live)
+            if live and out["mode"] == "answer":
+                out["reply"] = _speak(s, m, attrs, r, out.get("language"))
         except ReasonerUnavailable as e:
             m.attrs = {**attrs, "paused": {"why": "Regent's reasoning service did not answer: " + str(e)[:200],
                                            "since": utcnow().isoformat()}}
@@ -145,6 +163,23 @@ def route_mission(s, m) -> str:
     finally:
         with _lock:
             _busy.discard(m.id)
+
+
+def _speak(s, m, attrs: dict[str, Any], r: Reasoner, language: str | None) -> str:
+    """Stream the answer into the request as it is written, so the page shows it within seconds."""
+    import time
+
+    last = [0.0]
+    base = {**attrs, "route": "answering", "mode": "answer", "language": language}
+
+    def show(text: str) -> None:
+        if time.time() - last[0] < 0.7:
+            return
+        last[0] = time.time()
+        m.attrs = {**base, "reply": {"text": text, "partial": True, "unsure": []}}
+        s.commit()
+
+    return r.stream_text(SPEAK, m.objective or m.title, show)
 
 
 def shape_need(need: dict[str, Any], mode: str | None) -> dict[str, Any]:

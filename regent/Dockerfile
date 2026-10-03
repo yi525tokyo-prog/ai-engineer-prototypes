@@ -24,7 +24,7 @@ RUN --mount=type=secret,id=build_ca,required=false,mode=0444 \
     ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm; \
     ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx; \
     npm install -g @anthropic-ai/claude-code; npm cache clean --force; \
-    mkdir -p regent && touch regent/__init__.py && pip install --no-cache-dir ".[browser]" && rm -rf regent build; \
+    mkdir -p regent && touch regent/__init__.py && pip install --no-cache-dir ".[browser,cloud]" && rm -rf regent build; \
     python -m playwright install --with-deps chromium; \
     rm -f /etc/apt/apt.conf.d/99build; \
     sed -i 's|https://deb.debian.org|http://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources; \

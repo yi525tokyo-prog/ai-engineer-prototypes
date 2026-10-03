@@ -274,7 +274,7 @@ async function refresh() {
   $("items").replaceChildren(el("h2", { text: "Your requests" }),
     ...(d.items.length ? d.items.map(item) : [el("div", { class: "empty", text: "Nothing yet. Tell Regent something you want handled." })]));
   $("examples").replaceChildren(...(d.items.length ? [] : EXAMPLES.map((x) => el("button", { text: x, onclick: () => { $("intent").value = x; $("intent").focus(); } }))));
-  timer = setTimeout(refresh, d.busy || d.questions.length ? 2000 : 8000);
+  timer = setTimeout(refresh, d.items.some((i) => i.now === "Answering…") ? 800 : d.busy || d.questions.length ? 2000 : 8000);
 }
 refresh();
 </script>

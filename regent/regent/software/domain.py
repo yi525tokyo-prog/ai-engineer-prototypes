@@ -88,8 +88,9 @@ class SoftwareAdapter(DomainAdapter):
             created = mission.created_at
             if created is not None and created.tzinfo is None:
                 created = created.replace(tzinfo=timezone.utc)
-            if ((mission.attrs or {}).get("route") == "pending" and not paused and created is not None
-                    and (utcnow() - created).total_seconds() < 90):
+            route = (mission.attrs or {}).get("route")
+            if (route in ("pending", "answering") and not paused and created is not None
+                    and (utcnow() - created).total_seconds() < (90 if route == "pending" else 600)):
                 return []                               # the front door is deciding right now; don't race it
             last = _done(s, mission.id, "analyze") if s is not None else None
             if last is not None and (last.plan or {}).get("routed") in ("busy", "continue"):
