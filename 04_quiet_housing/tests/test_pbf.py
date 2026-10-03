@@ -62,3 +62,13 @@ def test_import_small_extract(tmp_path):
     prof = FeatureIndex(fs).measure(LAT, LON)
     assert prof["road"]["primary_m"] == pytest.approx(100, abs=2)
     assert prof["landuse"]["commercial_250"] > 0
+
+
+def test_poly_coverage_excludes_edge_tiles():
+    from quiethousing.geo.pbf import parse_poly, tiles_inside
+
+    poly = parse_poly("kanto\n1\n 139.0 35.0\n 140.0 35.0\n 140.0 35.99\n 139.0 35.99\nEND\n!hole\n 139.5 35.5\n 139.6 35.5\n 139.6 35.6\n 139.5 35.6\nEND\nEND\n")
+    inside = tile_of(35.3, 139.3)
+    edge = tile_of(35.985, 139.3)  # tile straddles the boundary
+    in_hole = tile_of(35.55, 139.55)
+    assert tiles_inside([inside, edge, in_hole], poly) == {inside}

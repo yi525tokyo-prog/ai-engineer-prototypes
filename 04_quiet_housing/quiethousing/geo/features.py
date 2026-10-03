@@ -80,6 +80,9 @@ class Road:
     lanes: int | None = None
 
 
+LIGHT_RAIL_KINDS = {"tram", "light_rail", "monorail", "funicular"}
+
+
 @dataclass
 class Rail:
     osm_id: int
@@ -89,10 +92,16 @@ class Rail:
     surface: bool
     elevated: bool
     geom: LineString
+    highspeed: bool = False
 
     @property
     def minor(self) -> bool:
         return self.service in ("yard", "siding", "spur", "crossover")
+
+    @property
+    def light(self) -> bool:
+        """Trams, light rail (世田谷線), AGT/monorails: slow or rubber-tyred, much quieter than heavy rail."""
+        return self.kind in LIGHT_RAIL_KINDS
 
 
 @dataclass
@@ -212,8 +221,9 @@ def parse_elements(elements: Iterable[dict[str, Any]], fs: FeatureSet | None = N
         if t == "way" and "railway" in tags:
             line = _line(el)
             if line is not None:
+                hs = tags.get("highspeed") == "yes" or "新幹線" in (tags.get("name") or "")
                 fs.rails.append(Rail(el["id"], tags["railway"], tags.get("name"), tags.get("service"),
-                                     not is_underground(tags), is_elevated(tags), line))
+                                     not is_underground(tags), is_elevated(tags), line, hs))
             continue
         if t == "node" and tags.get("railway") in ("station", "halt"):
             fs.osm_stations.append((tags.get("name"), el["lat"], el["lon"]))

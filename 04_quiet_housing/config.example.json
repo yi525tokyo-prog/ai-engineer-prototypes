@@ -17,6 +17,11 @@
       "https://overpass.kumi.systems/api/interpreter"
     ],
     "overpass_interval_s": 2.0,
+    "osm_extract": {
+      "path": "osm/kanto-latest.osm.pbf",
+      "url": "https://download.openstreetmap.fr/extracts/asia/japan/kanto-latest.osm.pbf",
+      "poly_url": "https://download.openstreetmap.fr/polygons/asia/japan/kanto.poly"
+    },
     "validate_coords_with_gsi": true
   },
   "constraints": {
@@ -58,10 +63,16 @@
         "label": "primary road {v}m away"
       },
       {
-        "metric": "rail.surface_m",
+        "metric": "rail.heavy_surface_m",
         "op": "<",
         "value": 60,
         "label": "surface railway {v}m away"
+      },
+      {
+        "metric": "rail.highspeed_m",
+        "op": "<",
+        "value": 150,
+        "label": "Shinkansen line {v}m away"
       },
       {
         "metric": "poi.nightlife_250",
@@ -86,6 +97,27 @@
         "op": ">=",
         "value": 200000,
         "label": "hub station ({v} riders/day) within 300m"
+      },
+      {
+        "metric": "road.wide_road_m",
+        "op": "<",
+        "value": 30,
+        "label": "4+ lane road {v}m away"
+      },
+      {
+        "metric": "zoning.point_name",
+        "op": "in",
+        "value": [
+          "商業地域"
+        ],
+        "label": "building is in a commercial zone ({v})",
+        "enabled": false
+      },
+      {
+        "metric": "zoning.commercial_250",
+        "op": ">=",
+        "value": 0.5,
+        "label": "{v} of the 250m disc is zoned commercial (商業地域)"
       }
     ],
     "road_curves": {
@@ -105,14 +137,19 @@
         "weight": 75
       },
       "secondary": {
-        "near": 15,
+        "near": 20,
         "far": 150,
-        "weight": 50
+        "weight": 60
       },
       "tertiary": {
         "near": 8,
         "far": 70,
         "weight": 25
+      },
+      "wide_road": {
+        "near": 25,
+        "far": 200,
+        "weight": 70
       }
     },
     "rail_curve": {
@@ -120,6 +157,8 @@
       "far": 400,
       "weight": 90
     },
+    "rail_light_factor": 0.5,
+    "rail_highspeed_factor": 1.2,
     "rail_elevated_factor": 1.15,
     "rail_track_bonus_per_track": 0.08,
     "station_curve": {
@@ -140,7 +179,13 @@
     "commercial_saturation": {
       "commercial_250": 90,
       "commercial_500": 280,
-      "landuse_commercial_250": 0.5
+      "landuse_commercial_250": 0.5,
+      "zoned_commercial_250": 0.5,
+      "zoned_neighborhood_commercial_250": 0.8,
+      "far_low": 200,
+      "far_high": 600,
+      "industrial_250": 0.4,
+      "light_industrial_weight": 0.25
     },
     "weights": {
       "road": 0.35,

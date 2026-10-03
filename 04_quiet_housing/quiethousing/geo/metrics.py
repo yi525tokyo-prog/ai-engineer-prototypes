@@ -32,7 +32,7 @@ from shapely.strtree import STRtree
 from .features import INTERSECTION_ROAD_CLASSES, MAJOR_ROAD_CLASSES, ROAD_CLASS_ORDER, FeatureSet
 from .stations import StationIndex
 
-METRICS_VERSION = "m4"
+METRICS_VERSION = "m6"
 RADII = (100, 250, 500, 1000)
 SEARCH_M = 1200.0
 POI_CATEGORIES = ("commercial", "food", "restaurant", "bar", "nightlife", "karaoke", "nightclub", "convenience", "retail", "entertainment")
@@ -90,9 +90,10 @@ def major_junctions(roads) -> list[dict[str, Any]]:
 
 
 class FeatureIndex:
-    def __init__(self, fs: FeatureSet, stations: StationIndex | None = None):
+    def __init__(self, fs: FeatureSet, stations: StationIndex | None = None, zoning=None):
         self.fs = fs
         self.stations = stations
+        self.zoning = zoning
         self.road_geoms = np.array([r.geom for r in fs.roads], dtype=object)
         self.road_tree = STRtree(self.road_geoms) if len(self.road_geoms) else None
         self.rail_geoms = np.array([r.geom for r in fs.rails], dtype=object)
@@ -135,6 +136,7 @@ class FeatureIndex:
         prof["intersection"] = self._intersections(lat, lon)
         prof["poi"] = self._pois(lat, lon)
         prof["landuse"] = self._landuse(lat, lon, disc)
+        prof["zoning"] = self.zoning.measure(lat, lon, project, disc) if self.zoning is not None else {}
         prof["data"] = {
             "roads_within_search": int(len(self._query(self.road_tree, lat, lon, SEARCH_M))),
             "poi_total_1000": prof["poi"].get("commercial_1000", 0),
@@ -161,9 +163,24 @@ class FeatureIndex:
             out[f"{c}_m"] = _r(dist)
             if c in ("motorway", "trunk", "primary", "secondary"):
                 rr = self.fs.roads[i]
-                out[f"{c}_name"] = rr.name or rr.ref
+                name = rr.name or rr.ref
+                if not name:  # unnamed ramp/segment: borrow the nearest named way of the same class
+                    named = [(d[k], j) for k, j in enumerate(idx) if self.fs.roads[j].cls == c and self.fs.roads[j].surface
+                             and (self.fs.roads[j].name or self.fs.roads[j].ref) and d[k] <= dist + 60]
+                    if named:
+                        rj = self.fs.roads[min(named)[1]]
+                        name = rj.name or rj.ref
+                out[f"{c}_name"] = name
                 if c == "motorway":
                     out["motorway_elevated"] = rr.elevated
+        # wide (>= 4 lanes) roads below primary carry primary-like traffic; OSM class alone undersells them
+        wide = [(d[k], i) for k, i in enumerate(idx) if self.fs.roads[i].surface and (self.fs.roads[i].lanes or 0) >= 4
+                and self.fs.roads[i].cls in ("secondary", "tertiary", "unclassified", "residential") and d[k] <= SEARCH_M]
+        if wide:
+            dw, iw = min(wide)
+            out["wide_road_m"], out["wide_road_name"] = _r(dw), self.fs.roads[iw].name or self.fs.roads[iw].ref
+        else:
+            out["wide_road_m"] = None
         major = [(best[c][0], c) for c in ("motorway", "trunk", "primary") if c in best]
         if major:
             dm, cm = min(major)
@@ -183,7 +200,8 @@ class FeatureIndex:
 
     def _rails(self, lat, lon, origin, disc) -> dict[str, Any]:
         out: dict[str, Any] = {"surface_m": None, "nearest_name": None, "nearest_kind": None, "nearest_elevated": None,
-                               "tracks_at_nearest": 0, "underground_m": None, "minor_track_m": None}
+                               "tracks_at_nearest": 0, "underground_m": None, "minor_track_m": None,
+                               "heavy_surface_m": None, "light_surface_m": None, "highspeed_m": None, "heavy_elevated": None}
         idx = self._query(self.rail_tree, lat, lon, SEARCH_M)
         for r in (250, 500):
             out[f"track_len_{r}"] = 0
@@ -201,6 +219,21 @@ class FeatureIndex:
             out["minor_track_m"] = _r(min(d[k] for k in minor))
         if not main:
             return out
+        heavy = [k for k in main if not self.fs.rails[idx[k]].light]
+        light = [k for k in main if self.fs.rails[idx[k]].light]
+        if heavy:
+            kh = min(heavy, key=lambda k: d[k])
+            out["heavy_surface_m"] = _r(d[kh])
+            out["heavy_elevated"] = self.fs.rails[idx[kh]].elevated
+            out["heavy_name"] = self.fs.rails[idx[kh]].name
+            out["heavy_tracks"] = count_parallel_tracks(geoms[heavy], geoms[kh], origin)
+        if light:
+            kl = min(light, key=lambda k: d[k])
+            out["light_surface_m"] = _r(d[kl])
+            out["light_name"] = self.fs.rails[idx[kl]].name
+        hs = [k for k in main if self.fs.rails[idx[k]].highspeed]
+        if hs:
+            out["highspeed_m"] = _r(min(d[k] for k in hs))
         kbest = min(main, key=lambda k: d[k])
         rb = self.fs.rails[idx[kbest]]
         out.update({"surface_m": _r(d[kbest]), "nearest_name": rb.name, "nearest_kind": rb.kind, "nearest_elevated": rb.elevated})

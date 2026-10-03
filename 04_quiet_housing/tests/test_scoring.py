@@ -11,7 +11,8 @@ def quiet_profile():
     return {
         "road": {"motorway_m": None, "trunk_m": 1100, "primary_m": 620, "secondary_m": 300, "tertiary_m": 150, "residential_m": 10,
                  "nearest_major_m": 620, "nearest_major_type": "primary", "major_len_250": 0},
-        "rail": {"surface_m": 1200, "tracks_at_nearest": 2, "nearest_elevated": False, "underground_m": None},
+        "rail": {"surface_m": 1200, "heavy_surface_m": 1200, "heavy_tracks": 2, "tracks_at_nearest": 2, "nearest_elevated": False,
+                 "underground_m": None, "light_surface_m": None, "highspeed_m": None},
         "station": {"nearest_m": 700, "nearest_name": "X", "nearest_passengers": 20000, "max_passengers_300": 0, "max_passengers_800": 20000,
                     "biggest_800_name": "X", "biggest_800_m": 700},
         "intersection": {"major_m": 600},
@@ -49,14 +50,14 @@ def test_quiet_place_is_kept_with_reasons():
 def test_hard_rules_reject_with_measured_values():
     p = quiet_profile()
     p["road"]["primary_m"] = 38
-    p["rail"]["surface_m"] = 55
+    p["rail"]["surface_m"] = p["rail"]["heavy_surface_m"] = 55
     p["poi"]["nightlife_250"] = 20
     ev = evaluate(p, EV)
     assert ev["decision"] == "REJECT"
     assert "primary road 38m away" in ev["reasons"]
     assert "surface railway 55m away" in ev["reasons"]
     assert "20 nightlife POIs within 250m" in ev["reasons"]
-    assert {h["metric"] for h in ev["rule_hits"]} == {"road.primary_m", "rail.surface_m", "poi.nightlife_250"}
+    assert {h["metric"] for h in ev["rule_hits"]} == {"road.primary_m", "rail.heavy_surface_m", "poi.nightlife_250"}
 
 
 def test_none_distance_never_triggers_rule():
@@ -69,8 +70,8 @@ def test_soft_threshold_rejects_when_quality_low():
     # no single rule fires, but everything is moderately busy
     p["road"]["primary_m"] = 60
     p["road"]["major_len_250"] = 900
-    p["rail"]["surface_m"] = 90
-    p["rail"]["tracks_at_nearest"] = 4
+    p["rail"]["surface_m"] = p["rail"]["heavy_surface_m"] = 90
+    p["rail"]["tracks_at_nearest"] = p["rail"]["heavy_tracks"] = 4
     p["poi"].update({"nightlife_250": 10, "nightlife_500": 40, "commercial_250": 70, "commercial_500": 250})
     ev = evaluate(p, EV)
     assert not ev["rule_hits"]
@@ -111,3 +112,39 @@ def test_data_warnings():
     ev = evaluate(p, EV, {"coord_source": "gsi_town", "coord_check": None})
     assert any("under-mapped" in w for w in ev["warnings"])
     assert any("approximate coordinates" in w for w in ev["warnings"])
+
+
+def test_in_operator_and_percentage_label():
+    p = quiet_profile()
+    p["zoning"] = {"point_name": "商業地域", "commercial_250": 0.62}
+    ev2 = copy.deepcopy(EV)
+    for r in ev2["hard_rules"]:
+        if r["metric"] == "zoning.point_name":
+            r["enabled"] = True  # opt-in rule
+    ev = evaluate(p, ev2)
+    assert ev["decision"] == "REJECT"
+    assert "building is in a commercial zone (商業地域)" in ev["reasons"]
+    assert "62% of the 250m disc is zoned commercial (商業地域)" in ev["reasons"]
+
+
+def test_zoning_raises_commercial_risk_when_pois_undermapped():
+    p = quiet_profile()
+    base = evaluate(p, EV)["scores"]["commercial_activity_score"]
+    p["zoning"] = {"point_name": "近隣商業地域", "commercial_250": 0.3, "neighborhood_commercial_250": 0.5, "far_mean_250": 500}
+    assert evaluate(p, EV)["scores"]["commercial_activity_score"] > base + 30
+
+
+def test_tram_counts_less_than_heavy_rail_and_shinkansen_more():
+    def rail_score(**kw):
+        p = quiet_profile()
+        p["rail"].update(kw)
+        return evaluate(p, EV)["scores"]["railway_noise_score"]
+
+    tram = rail_score(surface_m=40, heavy_surface_m=None, light_surface_m=40)
+    heavy = rail_score(surface_m=40, heavy_surface_m=40, heavy_tracks=2)
+    shinkansen = rail_score(surface_m=40, heavy_surface_m=40, heavy_tracks=2, highspeed_m=40)
+    assert tram < 0.6 * heavy
+    assert shinkansen > heavy
+    p = quiet_profile()
+    p["rail"].update(surface_m=40, heavy_surface_m=None, light_surface_m=40)
+    assert not any(h["metric"].startswith("rail.") for h in evaluate(p, EV)["rule_hits"])  # tram at 40m is not a hard reject

@@ -32,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     pr = sub.add_parser("probe")
     pr.add_argument("lat", type=float)
     pr.add_argument("lon", type=float)
+    pr.add_argument("--prefecture", nargs="*", default=["東京都"], help="zoning data to load")
     sv = sub.add_parser("serve")
     sv.add_argument("--host", default="127.0.0.1")
     sv.add_argument("--port", type=int, default=8765)
@@ -73,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         for layer in LAYERS:
             for d in ctx.tiles.get_many(layer, tiles_for(args.lat, args.lon, SEARCH_M + 50)):
                 parse_elements(d["elements"], fs, seen)
-        prof = FeatureIndex(fs, ctx.station_index()).measure(args.lat, args.lon)
+        prof = FeatureIndex(fs, ctx.station_index(), ctx.zoning_index(set(args.prefecture))).measure(args.lat, args.lon)
         print(json.dumps({"profile": prof, "evaluation": evaluate(prof, ctx.cfg["evaluation"])}, ensure_ascii=False, indent=1))
     elif args.cmd == "serve":
         from .web.server import serve

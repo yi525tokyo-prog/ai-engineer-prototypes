@@ -227,3 +227,47 @@ def test_tiles_cover_search_disc():
     assert min(s) <= 35.6999 - 1250 / 110574 and max(n) >= 35.6999 + 1250 / 110574
     assert tile_of(35.6999, 139.7249) in ts
     assert len(ts) == len(set(ts))
+
+
+# --- lanes / zoning -------------------------------------------------------
+def test_wide_secondary_road_detected():
+    fi = build([hline(40, {"highway": "secondary", "lanes": "4", "name": "Wide"}), hline(-20, {"highway": "secondary", "lanes": "2"})])
+    r = fi.measure(LAT0, LON0)["road"]
+    assert r["secondary_m"] == pytest.approx(20, abs=1)
+    assert r["wide_road_m"] == pytest.approx(40, abs=1) and r["wide_road_name"] == "Wide"
+
+
+def test_unnamed_ramp_borrows_motorway_name():
+    fi = build([hline(30, {"highway": "motorway_link"}), hline(70, {"highway": "motorway", "name": "首都高速4号新宿線", "bridge": "yes"})])
+    r = fi.measure(LAT0, LON0)["road"]
+    assert r["motorway_m"] == pytest.approx(30, abs=1) and r["motorway_name"] == "首都高速4号新宿線"
+
+
+def test_zoning_point_shares_and_far():
+    from quiethousing.geo.zoning import ZoningIndex
+
+    def sq(x0, y0, x1, y1):
+        return {"type": "Polygon", "coordinates": [[[ll(x, y)["lon"], ll(x, y)["lat"]] for x, y in ((x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0))]]}
+
+    z = ZoningIndex([
+        {"code": 1, "far": 100, "geometry": sq(-1000, -1000, 1000, 0)},  # south half: low-rise exclusive residential
+        {"code": 9, "far": 600, "geometry": sq(-1000, 0, 1000, 1000)},  # north half: commercial
+    ])
+    fi = FeatureIndex(parse_elements([]), None, z)
+    zn = fi.measure(LAT0 - 50 / KY, LON0)["zoning"]  # 50 m south of the boundary
+    assert zn["point_name"] == "第一種低層住居専用地域" and zn["point_group"] == "low_residential" and zn["point_far"] == 100
+    # 250 m disc centred 50 m south: commercial share = circular segment beyond 50 m
+    seg = (250**2 * math.acos(50 / 250) - 50 * math.sqrt(250**2 - 50**2)) / (math.pi * 250**2)
+    assert zn["commercial_250"] == pytest.approx(seg, abs=0.01)
+    assert zn["far_mean_250"] == pytest.approx(100 * (1 - seg) + 600 * seg, abs=5)
+    assert zn["covered_250"] == pytest.approx(1.0, abs=0.01)
+
+
+def test_heavy_vs_light_rail_split():
+    fi = build([vline(40, {"railway": "tram", "name": "都電荒川線"}), vline(150, {"railway": "rail", "name": "Main"}),
+                vline(400, {"railway": "rail", "name": "東海道新幹線", "highspeed": "yes"})])
+    r = fi.measure(LAT0, LON0)["rail"]
+    assert r["surface_m"] == pytest.approx(40, abs=1)
+    assert r["light_surface_m"] == pytest.approx(40, abs=1) and r["light_name"] == "都電荒川線"
+    assert r["heavy_surface_m"] == pytest.approx(150, abs=1) and r["heavy_name"] == "Main"
+    assert r["highspeed_m"] == pytest.approx(400, abs=1)

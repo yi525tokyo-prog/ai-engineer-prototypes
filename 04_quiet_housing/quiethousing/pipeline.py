@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 
 
 def environment_version() -> str:
-    return f"{METRICS_VERSION}|" + "|".join(f"{l}:{layer_version(l)}" for l in sorted(LAYERS)) + "|s12-24"
+    return f"{METRICS_VERSION}|" + "|".join(f"{l}:{layer_version(l)}" for l in sorted(LAYERS)) + "|s12-24|a29-19"
 
 
 @dataclass
@@ -48,6 +48,7 @@ class Context:
     fetcher: Fetcher | None = None
     tiles: OverpassTileCache | None = None
     stations: StationIndex | None = None
+    zoning: Any = None
     progress: Callable[[str], None] = lambda msg: log.info(msg)
 
     @classmethod
@@ -66,6 +67,13 @@ class Context:
 
     def reload_config(self) -> None:
         self.cfg = load_config(self.config_path)
+
+    def zoning_index(self, prefectures: set[str]):
+        from .geo.zoning import ZoningIndex
+
+        if self.zoning is None or not prefectures <= self.zoning.loaded_prefs:
+            self.zoning = ZoningIndex.load(self.data_dir / "cache", self.fetcher, prefectures | (self.zoning.loaded_prefs if self.zoning else set()))
+        return self.zoning
 
     def station_index(self) -> StationIndex:
         if self.stations is None:
@@ -182,18 +190,23 @@ def enrich(ctx: Context, only_constraint_pass: bool = True, allow_fetch: bool = 
     version = environment_version()
     cons = ctx.cfg["constraints"]
     pending: dict[str, tuple[float, float]] = {}
+    prefs: set[str] = set()
     for lst in ctx.store.listings():
         if lst["lat"] is None:
             continue
-        if only_constraint_pass and not check_constraints(build_property(lst), cons)["passed"]:
+        prop = build_property(lst)
+        if only_constraint_pass and not check_constraints(prop, cons)["passed"]:
             continue
         pending[loc_key(lst["lat"], lst["lon"])] = (lst["lat"], lst["lon"])
+        if prop.get("prefecture"):
+            prefs.add(prop["prefecture"])
     have = ctx.store.environments(pending.keys(), version)
     todo = {k: v for k, v in pending.items() if k not in have}
     stats = {"locations": len(pending), "cached": len(have), "computed": 0, "failed": 0, "overpass_queries_before": ctx.tiles.network_queries}
     if not todo:
         return stats
     stations = ctx.station_index()
+    zoning = ctx.zoning_index(prefs)
     groups: dict[tuple[int, int], list[tuple[float, float]]] = defaultdict(list)
     for lat, lon in todo.values():
         groups[tile_of(lat, lon)].append((lat, lon))
@@ -213,7 +226,7 @@ def enrich(ctx: Context, only_constraint_pass: bool = True, allow_fetch: bool = 
             ctx.progress(f"enrich: tile group {anchor} failed: {e}")
             stats["failed"] += len(pts)
             continue
-        fi = FeatureIndex(fs, stations)
+        fi = FeatureIndex(fs, stations, zoning)
         for lat, lon in pts:
             prof = fi.measure(lat, lon)
             prof["tiles"] = [list(t) for t in tiles]
@@ -248,8 +261,19 @@ def import_missing_from_extract(ctx: Context, missing: set[tuple[int, int]]) -> 
     except ImportError:  # pyosmium not installed -> Overpass only
         ctx.progress("pyosmium not installed; using Overpass for missing tiles")
         return None
-    ctx.progress(f"building {len(missing)} tiles from {path.name} ...")
-    st = import_pbf(path, ctx.tiles, set(missing))
+    coverage = None
+    if ext.get("poly_url"):
+        ppath = path.with_suffix(".poly")
+        if not ppath.exists() and ctx.fetcher is not None:
+            resp = ctx.fetcher.request("GET", ext["poly_url"], interval_s=0)
+            if resp.status_code == 200:
+                ppath.write_text(resp.text, encoding="utf-8")
+        if ppath.exists():
+            from .geo.pbf import parse_poly
+
+            coverage = parse_poly(ppath.read_text(encoding="utf-8"))
+    ctx.progress(f"building up to {len(missing)} tiles from {path.name} ...")
+    st = import_pbf(path, ctx.tiles, set(missing), coverage)
     ctx.progress(f"extract import: {st}")
     return st
 
@@ -295,6 +319,8 @@ def flat_row(r: dict[str, Any]) -> dict[str, Any]:
         "major_intersection_m": g("intersection", "major_m"),
         "nightlife_250": g("poi", "nightlife_250"), "nightlife_500": g("poi", "nightlife_500"),
         "commercial_250": g("poi", "commercial_250"), "commercial_500": g("poi", "commercial_500"),
+        "zoning": g("zoning", "point_name"), "zoning_far": g("zoning", "point_far"), "far_mean_250": g("zoning", "far_mean_250"),
+        "zoned_commercial_250": g("zoning", "commercial_250"), "wide_road_m": g("road", "wide_road_m"),
         "landuse_commercial_250": g("landuse", "commercial_retail_250"), "landuse_residential_250": g("landuse", "residential_250"),
         "reasons": " | ".join(ev.get("reasons") or []), "warnings": " | ".join(ev.get("warnings") or []),
     }

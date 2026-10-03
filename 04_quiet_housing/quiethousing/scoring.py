@@ -17,7 +17,8 @@ from __future__ import annotations
 import operator
 from typing import Any
 
-OPS = {"<": operator.lt, "<=": operator.le, ">": operator.gt, ">=": operator.ge, "==": operator.eq}
+OPS = {"<": operator.lt, "<=": operator.le, ">": operator.gt, ">=": operator.ge, "==": operator.eq,
+       "in": lambda v, allowed: v in allowed, "not in": lambda v, allowed: v not in allowed}
 
 
 def get_metric(profile: dict[str, Any], path: str) -> Any:
@@ -63,7 +64,12 @@ def evaluate_rules(profile: dict[str, Any], rules: list[dict[str, Any]]) -> list
         op = OPS[rule["op"]]
         if op(v, rule["value"]):
             label = rule.get("label") or f"{rule['metric']} {rule['op']} {rule['value']}"
-            vs = f"{v:,}" if isinstance(v, int) and v >= 10000 else str(v)
+            if isinstance(v, int) and v >= 10000:
+                vs = f"{v:,}"
+            elif isinstance(v, float) and 0 < v < 1 and rule["metric"].split(".")[-1].endswith(("_250", "_500")):
+                vs = f"{v * 100:.0f}%"
+            else:
+                vs = str(v)
             hits.append({"metric": rule["metric"], "value": v, "threshold": rule["value"], "op": rule["op"], "reason": label.replace("{v}", vs)})
     return hits
 
@@ -82,7 +88,7 @@ def road_risk(p: dict[str, Any], ev: dict[str, Any]) -> tuple[float, list[str]]:
     extra = min(15.0, (road.get("major_len_250") or 0) / 1000 * 10)
     score = min(100.0, score + extra)
     top = sorted([c for c in contrib if c[0] > 0], reverse=True)[:2]
-    notes = [f"{cls} road {fmt_m(d)} (risk {r:.0f})" for r, cls, d in top]
+    notes = [f"{cls.replace('_', ' ')} road {fmt_m(d)} (risk {r:.0f})" for r, cls, d in top]
     return score, notes
 
 
@@ -90,22 +96,30 @@ def rail_risk(p: dict[str, Any], ev: dict[str, Any]) -> tuple[float, list[str]]:
     rail = p.get("rail") or {}
     st = p.get("station") or {}
     c = ev["rail_curve"]
-    d = rail.get("surface_m")
-    r = c["weight"] * decay(d, c["near"], c["far"])
+    # profiles from before heavy/light separation only have surface_m
+    d_heavy = rail.get("heavy_surface_m", rail.get("surface_m"))
+    tracks = rail.get("heavy_tracks", rail.get("tracks_at_nearest")) or 1
+    r = c["weight"] * decay(d_heavy, c["near"], c["far"])
     if r > 0:
-        tracks = max(1, rail.get("tracks_at_nearest") or 1)
-        r *= 1 + ev.get("rail_track_bonus_per_track", 0.08) * (min(tracks, 8) - 1)
-        if rail.get("nearest_elevated"):
+        r *= 1 + ev.get("rail_track_bonus_per_track", 0.08) * (min(max(1, tracks), 8) - 1)
+        if rail.get("heavy_elevated", rail.get("nearest_elevated")):
             r *= ev.get("rail_elevated_factor", 1.15)
+        if rail.get("highspeed_m") is not None and rail["highspeed_m"] <= (d_heavy or 0) + 30:
+            r *= ev.get("rail_highspeed_factor", 1.2)
+    r_light = c["weight"] * ev.get("rail_light_factor", 0.5) * decay(rail.get("light_surface_m"), c["near"], c["far"])
+    r_rail = max(r, r_light)
     sc = ev["station_curve"]
     # big stations nearby: crowd/announcement/commercial spill-over
     s_dist = st.get("biggest_800_m")
     s_pass = st.get("max_passengers_800") or 0
     s_r = sc["weight"] * _sat(s_pass, sc["passengers_full"]) * decay(s_dist, sc["near"], sc["far"])
-    score = min(100.0, max(r, s_r) + 0.25 * min(r, s_r))
+    score = min(100.0, max(r_rail, s_r) + 0.25 * min(r_rail, s_r))
     notes = []
-    if d is not None and r > 0:
-        notes.append(f"surface railway {fmt_m(d)} ({rail.get('nearest_name') or rail.get('nearest_kind')}, {rail.get('tracks_at_nearest')} tracks{', elevated' if rail.get('nearest_elevated') else ''})")
+    if d_heavy is not None and r > 0:
+        notes.append(f"surface railway {fmt_m(d_heavy)} ({rail.get('heavy_name') or rail.get('nearest_name') or 'unnamed'}, {tracks} tracks"
+                     f"{', elevated' if rail.get('heavy_elevated', rail.get('nearest_elevated')) else ''})")
+    if r_light > 0:
+        notes.append(f"tram/light rail {fmt_m(rail.get('light_surface_m'))} ({rail.get('light_name') or ''})")
     if s_r > 5:
         notes.append(f"{st.get('biggest_800_name')} station ({s_pass:,}/day) {fmt_m(s_dist)}")
     return score, notes
@@ -128,14 +142,32 @@ def commercial_risk(p: dict[str, Any], ev: dict[str, Any]) -> tuple[float, list[
     sat = ev["commercial_saturation"]
     s_poi = max(_sat(poi.get("commercial_250"), sat["commercial_250"]), 0.85 * _sat(poi.get("commercial_500"), sat["commercial_500"]))
     s_lu = _sat(lu.get("commercial_retail_250"), sat["landuse_commercial_250"])
+    zn = p.get("zoning") or {}
+    s_zone = max(_sat(zn.get("commercial_250"), sat.get("zoned_commercial_250", 0.5)),
+                 0.6 * _sat(zn.get("neighborhood_commercial_250"), sat.get("zoned_neighborhood_commercial_250", 0.8)))
+    far = zn.get("far_mean_250")
+    lo, hi = sat.get("far_low", 200), sat.get("far_high", 600)
+    s_far = min(1.0, max(0.0, (far - lo) / (hi - lo))) if far else 0.0
+    point_bonus = {"commercial": 0.35, "neighborhood_commercial": 0.2}.get(zn.get("point_group"), 0.0)
+    s_zone = min(1.0, s_zone + point_bonus * (1 - s_zone))
+    s_ind = min(1.0, ((zn.get("industrial_250") or 0) + sat.get("light_industrial_weight", 0.25) * (zn.get("light_industrial_250") or 0))
+                / sat.get("industrial_250", 0.4))
     ic = ev["intersection_curve"]
     s_int = ic["weight"] / 100 * decay(it.get("major_m"), ic["near"], ic["far"])
-    s = 100 * min(1.0, max(s_poi, 0.7 * s_lu, s_int) + 0.15 * min(s_poi, s_lu))
+    s_zone = max(s_zone, 0.8 * s_ind)
+    # POIs measure what OSM mapped; zoning/FAR measure what the city permits and built - use the stronger signal
+    s = 100 * min(1.0, max(s_poi, 0.7 * s_lu, 0.9 * s_zone, 0.7 * s_far, s_int) + 0.15 * min(s_poi, max(s_zone, s_far)))
     notes = []
     if s_poi > 0:
         notes.append(f"{poi.get('commercial_250', 0)} shops/restaurants ≤250m, {poi.get('commercial_500', 0)} ≤500m")
     if s_lu > 0.1:
         notes.append(f"commercial/retail landuse {lu.get('commercial_retail_250', 0) * 100:.0f}% of 250m disc")
+    if s_ind > 0.2:
+        notes.append(f"industrial zoning {zn.get('industrial_250', 0) * 100:.0f}% (+ light-industrial {zn.get('light_industrial_250', 0) * 100:.0f}%) of 250m disc")
+    if s_zone > 0.1:
+        notes.append(f"zoned commercial {zn.get('commercial_250', 0) * 100:.0f}% / neighbourhood-commercial {zn.get('neighborhood_commercial_250', 0) * 100:.0f}% of 250m disc")
+    if s_far > 0.1:
+        notes.append(f"mean floor-area ratio {far}% within 250m (dense)")
     if s_int > 0.1:
         notes.append(f"major intersection {fmt_m(it.get('major_m'))}")
     return s, notes
@@ -151,13 +183,23 @@ def positive_notes(p: dict[str, Any]) -> list[str]:
         notes.append(f"nearest {c} road {fmt_m(d)}")
     else:
         notes.append("no motorway/trunk/primary road within 1.2km")
-    if road.get("secondary_m") is not None:
+    if road.get("secondary_m") is not None and road["secondary_m"] > 20:
         notes.append(f"nearest secondary road {fmt_m(road.get('secondary_m'))}")
-    notes.append(f"surface railway {fmt_m(rail.get('surface_m'))}" + (f" (underground line {fmt_m(rail.get('underground_m'))})" if rail.get("underground_m") is not None and (rail.get("surface_m") is None or rail["underground_m"] < rail["surface_m"]) else ""))
+    dh = rail.get("heavy_surface_m", rail.get("surface_m"))
+    notes.append(f"surface railway {fmt_m(dh)}" + (f" (underground line {fmt_m(rail.get('underground_m'))})" if rail.get("underground_m") is not None and (dh is None or rail["underground_m"] < dh) else ""))
+    if rail.get("light_surface_m") is not None and (dh is None or rail["light_surface_m"] < dh):
+        notes.append(f"tram/light rail {fmt_m(rail['light_surface_m'])} ({rail.get('light_name') or ''})")
     c250 = poi.get("commercial_250", 0)
     notes.append(f"{'low' if c250 < 25 else 'moderate' if c250 < 60 else 'high'} commercial activity ({c250} POIs ≤250m, {poi.get('nightlife_250', 0)} nightlife)")
-    if (lu.get("residential_250") or 0) >= 0.5:
+    zn = p.get("zoning") or {}
+    if zn.get("point_name"):
+        res = sum(zn.get(f"{g}_250") or 0 for g in ("low_residential", "mid_residential", "residential"))
+        notes.append(f"zoned {zn['point_name']} (FAR {zn.get('point_far')}%); residential zones {res * 100:.0f}% of 250m disc")
+    elif (lu.get("residential_250") or 0) >= 0.5:
         notes.append(f"predominantly residential landuse ({lu['residential_250'] * 100:.0f}% of 250m disc)")
+    sec = road.get("secondary_m")
+    if sec is not None and sec <= 20:
+        notes.append(f"note: fronts a secondary road ({road.get('secondary_name') or 'unnamed'}, {fmt_m(sec)})")
     if st.get("nearest_m") is not None:
         notes.append(f"nearest station {st.get('nearest_name')} {fmt_m(st['nearest_m'])}" + (f" ({st['nearest_passengers']:,}/day)" if st.get("nearest_passengers") else ""))
     return notes

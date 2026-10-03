@@ -106,12 +106,55 @@ class TileSink:
         return n
 
 
-def import_pbf(pbf_path: str | Path, cache: OverpassTileCache, wanted: set[tuple[int, int]] | None) -> dict[str, Any]:
-    """Populate tile cache for `wanted` tiles (None = every tile touched by the extract)."""
+def parse_poly(text: str):
+    """Osmosis .poly boundary file -> shapely (Multi)Polygon. Sections starting with '!' are holes."""
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+
+    lines = [ln.strip() for ln in text.splitlines()]
+    outers, holes, i = [], [], 1
+    while i < len(lines):
+        name = lines[i]
+        if name == "END" or not name:
+            i += 1
+            continue
+        pts, i = [], i + 1
+        while i < len(lines) and lines[i] != "END":
+            x, y = lines[i].split()[:2]
+            pts.append((float(x), float(y)))
+            i += 1
+        i += 1
+        if len(pts) >= 3:
+            (holes if name.startswith("!") else outers).append(Polygon(pts).buffer(0))
+    shape = unary_union(outers)
+    return shape.difference(unary_union(holes)) if holes else shape
+
+
+def tiles_inside(tiles: Iterable[tuple[int, int]], coverage) -> set[tuple[int, int]]:
+    from shapely.geometry import box
+
+    from .overpass import tile_bbox
+
+    out = set()
+    for t in tiles:
+        s, w, n, e = tile_bbox(t)
+        if coverage.contains(box(w, s, e, n)):
+            out.add(t)
+    return out
+
+
+def import_pbf(pbf_path: str | Path, cache: OverpassTileCache, wanted: set[tuple[int, int]] | None, coverage=None) -> dict[str, Any]:
+    """Populate tile cache for `wanted` tiles (None = every tile touched by the extract).
+
+    `coverage` (shapely geometry, lon/lat) is the extract boundary: wanted tiles not
+    fully inside it are skipped (they would be silently incomplete) and left to Overpass.
+    """
     import osmium
 
     t0 = time.time()
     pbf_path = str(pbf_path)
+    if coverage is not None and wanted is not None:
+        wanted = tiles_inside(wanted, coverage)
     cov = coverage_tiles(pbf_path)
     if cov is not None:
         wanted = (wanted & cov) if wanted is not None else None
