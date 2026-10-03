@@ -158,6 +158,9 @@ def _failed_build(db: Session, mission_id: str) -> str | None:
 
 
 def _result(db: Session, m: Mission) -> dict[str, Any] | None:
+    said = (m.attrs or {}).get("reply")
+    if said and said.get("text"):
+        return {"kind": "reply", "text": said["text"][:8000], "unsure": said.get("unsure") or []}
     from regent.software import capability as K
     from regent.software.tables import SwCapability
 

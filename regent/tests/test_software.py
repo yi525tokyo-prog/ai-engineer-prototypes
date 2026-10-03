@@ -8,7 +8,6 @@ worker -- or in what it observed -- shows up here instead of being papered over.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 

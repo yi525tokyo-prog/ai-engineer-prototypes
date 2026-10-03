@@ -1,11 +1,11 @@
 {
  "task": "need_analysis",
- "key": "7119b5c6ba8cd23f0ca4",
+ "key": "e43210bc11807c42927c",
  "model": "claude-sonnet-5-5",
- "cost_usd": 0.0198486,
- "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide\nwhether they want to know something (information), to have an ability they will keep using (tool), or to have\nsomething done once (action). Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current). For tool and action needs list requirements: what must be\npossible, each with an observable acceptance check, tied to the words it comes from; questions may then be empty.",
+ "cost_usd": 0.0187386,
+ "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. First\ndecide how it is handled: a request to explain, advise, brainstorm or plan something (e.g. 'how could we...',\n'what should I...', 'tell me ways to...') is a conversation, answered by replying, even when it mentions the world.\nOtherwise decide\nwhether they want to know something (information), to have an ability they will keep using (tool), or to have\nsomething done once (action). Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current). For tool and action needs list requirements: what must be\npossible, each with an observable acceptance check, tied to the words it comes from; questions may then be empty.",
  "payload": {
-  "sentence": "Every morning, tell me whether it's a good day to dry laundry outside in Osaka."
+  "sentence": "How many people actually read LindyBooks these days?"
  },
  "schema": {
   "type": "object",
@@ -22,11 +22,12 @@
    "handled_as": {
     "type": "string",
     "enum": [
+     "conversation",
      "software_capability",
      "housing",
      "other"
     ],
-    "description": "software_capability: anything answered, kept track of, reminded, built or done with software -- including a plain question about the world (a fact, a figure, a status), answered from sources Regent can read; housing: finding a place to live; other: only what no software can do (a physical task)"
+    "description": "conversation: a request to explain, advise, brainstorm, plan, compare ideas or give a how-to or an opinion -- answered by thinking it through and replying once, not by reading a live figure or keeping track of anything; software_capability: anything answered from a current fact, figure or status Regent can read, kept track of, reminded, built or done with software; housing: finding a place to live; other: only what no software can do (a physical task)"
    },
    "subjects": {
     "type": "array",
@@ -246,47 +247,54 @@
   "need_type": "information",
   "subjects": [
    {
-    "name": "Osaka",
-    "kind": "place",
-    "as_written": "Osaka",
+    "name": "LindyBooks",
+    "kind": "other",
+    "as_written": "LindyBooks",
     "owned_by_principal": null
    }
   ],
   "questions": [
    {
-    "id": "good_day_outdoor_laundry_drying",
-    "question": "Is today a good day to dry laundry outside in Osaka?",
-    "answer_type": "yes_no",
-    "quantity": "Verdict (yes/no) on whether today's daytime weather in Osaka favors outdoor line-drying: no rain or precipitation expected during drying hours, plus supportive conditions (low humidity, some wind/sun, comfortable temperature). Verdict is based on forecast for today's daylight drying hours.",
-    "unit": "yes/no verdict with brief reasons",
-    "population": "Today's forecast for Osaka city, during daytime drying hours (roughly 08:00-18:00 local)",
+    "id": "active_readers_recent",
+    "question": "How many distinct people actually read LindyBooks in the recent period?",
+    "answer_type": "count",
+    "quantity": "Distinct human readers who genuinely engaged with LindyBooks content (e.g. opened and read an article/book/issue beyond a minimal engagement threshold, not merely loaded a page or received an email) during the window",
+    "unit": "distinct people",
+    "population": "Real human readers of LindyBooks (website/publication/product), counted once per person across devices where identifiable",
     "exclude": [
-     "yesterday's or past weather",
-     "forecasts for other days",
-     "other cities or prefectures",
-     "indoor drying conditions"
+     "bots and crawlers",
+     "internal/team/author visits",
+     "subscribers or list members who did not read",
+     "bounces and accidental opens (e.g. email auto-opens, prefetch)",
+     "duplicate counts of the same person across devices/sessions"
     ],
     "windows": [
-     "today daytime (08:00-18:00 local)"
+     "30d",
+     "7d",
+     "90d"
     ],
     "priority": "core",
     "acceptable_forms": [
+     "exact",
      "estimate",
-     "exact"
+     "range",
+     "lower_bound"
     ]
    },
    {
-    "id": "drying_conditions_detail",
-    "question": "What are the key conditions behind the verdict (rain chance, humidity, wind, temperature, and any pollen/PM2.5/yellow-dust warnings)?",
-    "answer_type": "list",
-    "quantity": "Today's forecast precipitation probability (%), relative humidity (%), wind speed, temperature (°C), and air-quality/pollen alerts for Osaka during drying hours",
-    "unit": "%, km/h or m/s, °C",
-    "population": "Osaka, today's drying hours",
+    "id": "reader_trend",
+    "question": "Is the number of actual readers rising or falling versus earlier periods?",
+    "answer_type": "text",
+    "quantity": "Change in distinct engaged readers for the latest 30d versus the prior 30d and 90d",
+    "unit": "percent change",
+    "population": "Same as active readers",
     "exclude": [
-     "other days"
+     "bots",
+     "internal visits"
     ],
     "windows": [
-     "today daytime (08:00-18:00 local)"
+     "30d",
+     "90d"
     ],
     "priority": "supporting",
     "acceptable_forms": [
@@ -297,20 +305,24 @@
   ],
   "requirements": [],
   "deliverable": {
-   "form": "report",
-   "refresh": "daily",
-   "why": "'Every morning, tell me' implies a recurring short daily message with a verdict. Time of day not specified, so a morning default is used.",
-   "deliver_at_local": "07:00",
-   "max_seconds_to_read": 10
+   "form": "answer_once",
+   "refresh": "once",
+   "why": "A one-off question about a current figure ('these days'); a single number with window and caveats suffices.",
+   "max_seconds_to_read": 15,
+   "deliver_at_local": null
   },
   "definitions_to_state": [
-   "'Good day' criteria: no rain expected during drying hours (e.g. precipitation probability below a stated threshold), with humidity, wind, and temperature considered",
-   "'Morning' delivery time (assumed 07:00 local, Japan Standard Time)",
-   "'Today' drying window (assumed 08:00-18:00 local)",
-   "'Osaka' means Osaka city (not the whole prefecture)",
-   "Whether pollen, PM2.5, or yellow dust count against a good day",
-   "The forecast source and its limits: the verdict is a forecast, not certainty"
+   "What 'LindyBooks' refers to (website, newsletter, app, publication, or book catalog); unknown which",
+   "What counts as 'actually read' (engagement threshold such as time on page, scroll depth, completion) versus visited/subscribed",
+   "'These days' interpreted as the last 30 days (with 7d and 90d for context)",
+   "Person vs. visit/device: unique people, deduplicated where possible",
+   "Whether bots, internal staff and non-reading subscribers are excluded",
+   "If exact count is impossible, report an estimate or range and state the method's limits"
   ]
  },
- "at": "2026-10-03T03:20:18Z"
+ "at": "2026-10-03T03:20:05Z",
+ "rekeyed": {
+  "from": "6292d6883fa0f4685446",
+  "why": "need-analysis prompt gained the 'conversation' category; a live run with the new prompt classified this sentence the same way (software_capability)"
+ }
 }

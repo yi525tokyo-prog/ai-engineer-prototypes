@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text
+from sqlalchemy import Boolean, Float, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from regent.db import Base, JSONType, AwareDateTime

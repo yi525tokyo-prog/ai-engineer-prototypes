@@ -156,3 +156,26 @@ def test_hosted_regent_keeps_its_data_across_containers(tmp_path):
     assert not (fresh / "workspace" / "apps" / "a" / ".home").exists()
     assert sqlite3.connect(fresh / "regent.db").execute("select x from t").fetchone() == (42,)
     assert cloud.fingerprint(home) != () and cloud.fingerprint(fresh) != ()
+
+
+def test_a_question_to_think_through_gets_a_direct_answer(client, db, monkeypatch):
+    from regent.core.goals.missions import MissionGraph
+    from regent.software import reply as R
+    from regent.software.domain import SoftwareAdapter
+
+    class Said:
+        output = {"reply": "主な方法は三つあります。", "language": "ja", "unsure": ["UBIの効果は議論が分かれます"]}
+        cost_usd = 0.01
+
+    class Thinker:
+        def ask(self, task, *a, **k):
+            assert task == "reply"
+            return Said()
+
+    monkeypatch.setattr(R, "get_reasoner", lambda: Thinker())
+    m = MissionGraph(db).create(title="x", objective="世界の労働をなくす方法を教えて")
+    SoftwareAdapter.__new__(SoftwareAdapter)._adopt(db, m, {"handled_as": "conversation", "sentence": m.objective})
+    db.commit()
+    [item] = client.get("/api/home").json()["items"]
+    assert item["state"] == "done" and item["result"]["kind"] == "reply"
+    assert item["result"]["text"].startswith("主な方法") and item["result"]["unsure"]

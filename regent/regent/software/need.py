@@ -25,11 +25,14 @@ NEED_SCHEMA: dict[str, Any] = {
     "required": ["handled_as", "need_type", "subjects", "questions", "requirements", "deliverable",
                  "definitions_to_state"],
     "properties": {
-        "handled_as": {"type": "string", "enum": ["software_capability", "housing", "other"],
-                       "description": "software_capability: anything answered, kept track of, reminded, built or "
-                                      "done with software -- including a plain question about the world (a fact, a "
-                                      "figure, a status), answered from sources Regent can read; housing: finding a "
-                                      "place to live; other: only what no software can do (a physical task)"},
+        "handled_as": {"type": "string", "enum": ["conversation", "software_capability", "housing", "other"],
+                       "description": "conversation: a request to explain, advise, brainstorm, plan, compare ideas "
+                                      "or give a how-to or an opinion -- answered by thinking it through and "
+                                      "replying once, not by reading a live figure or keeping track of anything; "
+                                      "software_capability: anything answered from a current fact, figure or status "
+                                      "Regent can read, kept track of, reminded, built or done with software; "
+                                      "housing: finding a place to live; other: only what no software can do (a "
+                                      "physical task)"},
         "subjects": {"type": "array", "items": {"type": "object", "required": ["name", "kind", "as_written"],
                      "properties": {"name": {"type": "string"},
                                     "kind": {"type": "string", "enum": ["product", "website", "organization",
@@ -81,7 +84,10 @@ NEED_SCHEMA: dict[str, Any] = {
     },
 }
 
-INSTRUCTIONS = """You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide
+INSTRUCTIONS = """You are the need-analysis step of an operational agent. The principal wrote one sentence. First
+decide how it is handled: a request to explain, advise, brainstorm or plan something (e.g. 'how could we...',
+'what should I...', 'tell me ways to...') is a conversation, answered by replying, even when it mentions the world.
+Otherwise decide
 whether they want to know something (information), to have an ability they will keep using (tool), or to have
 something done once (action). Decide
 what information (or ability) they actually need, without choosing any implementation, provider, tool,

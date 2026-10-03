@@ -205,6 +205,10 @@ function result(r) {
     box.append(el("div", { class: "why", text: "Regent shows it here at that time" +
       ("Notification" in window && Notification.permission === "granted" ? " and as a notification." : ".") +
       " Keep Regent running (it can stay in the background)." }));
+  } else if (r.kind === "reply") {
+    box.append(el("div", { class: "body", text: r.text }));
+    if (r.unsure && r.unsure.length) box.append(el("details", {}, el("summary", { text: "Worth double-checking" }),
+      el("ul", { class: "plain" }, ...r.unsure.map((u) => el("li", { text: u })))));
   } else if (r.kind === "brief") {
     box.append(el("pre", { class: "small", text: r.text }));
   } else if (r.kind === "problem") {

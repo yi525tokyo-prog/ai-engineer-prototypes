@@ -1,11 +1,11 @@
 {
  "task": "need_analysis",
- "key": "6292d6883fa0f4685446",
+ "key": "e71a1e87a1a9d362ac7c",
  "model": "claude-sonnet-5-5",
- "cost_usd": 0.0187386,
- "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide\nwhether they want to know something (information), to have an ability they will keep using (tool), or to have\nsomething done once (action). Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current). For tool and action needs list requirements: what must be\npossible, each with an observable acceptance check, tied to the words it comes from; questions may then be empty.",
+ "cost_usd": 0.0198326,
+ "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. First\ndecide how it is handled: a request to explain, advise, brainstorm or plan something (e.g. 'how could we...',\n'what should I...', 'tell me ways to...') is a conversation, answered by replying, even when it mentions the world.\nOtherwise decide\nwhether they want to know something (information), to have an ability they will keep using (tool), or to have\nsomething done once (action). Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current). For tool and action needs list requirements: what must be\npossible, each with an observable acceptance check, tied to the words it comes from; questions may then be empty.",
  "payload": {
-  "sentence": "How many people actually read LindyBooks these days?"
+  "sentence": "I want to know, at a glance, how many real people are actually using LindyBooks."
  },
  "schema": {
   "type": "object",
@@ -22,11 +22,12 @@
    "handled_as": {
     "type": "string",
     "enum": [
+     "conversation",
      "software_capability",
      "housing",
      "other"
     ],
-    "description": "software_capability: anything answered, kept track of, reminded, built or done with software -- including a plain question about the world (a fact, a figure, a status), answered from sources Regent can read; housing: finding a place to live; other: only what no software can do (a physical task)"
+    "description": "conversation: a request to explain, advise, brainstorm, plan, compare ideas or give a how-to or an opinion -- answered by thinking it through and replying once, not by reading a live figure or keeping track of anything; software_capability: anything answered from a current fact, figure or status Regent can read, kept track of, reminded, built or done with software; housing: finding a place to live; other: only what no software can do (a physical task)"
    },
    "subjects": {
     "type": "array",
@@ -247,30 +248,31 @@
   "subjects": [
    {
     "name": "LindyBooks",
-    "kind": "other",
+    "kind": "product",
     "as_written": "LindyBooks",
     "owned_by_principal": null
    }
   ],
   "questions": [
    {
-    "id": "active_readers_recent",
-    "question": "How many distinct people actually read LindyBooks in the recent period?",
+    "id": "active_real_users",
+    "question": "How many distinct real human people actively used LindyBooks in the recent period?",
     "answer_type": "count",
-    "quantity": "Distinct human readers who genuinely engaged with LindyBooks content (e.g. opened and read an article/book/issue beyond a minimal engagement threshold, not merely loaded a page or received an email) during the window",
-    "unit": "distinct people",
-    "population": "Real human readers of LindyBooks (website/publication/product), counted once per person across devices where identifiable",
+    "quantity": "Distinct individual human users who performed at least one meaningful use action (beyond merely registering or loading a page) in LindyBooks during the window, deduplicated across devices/sessions/accounts where possible",
+    "unit": "people",
+    "population": "Distinct human users of LindyBooks who performed a meaningful engagement action in the window",
     "exclude": [
-     "bots and crawlers",
-     "internal/team/author visits",
-     "subscribers or list members who did not read",
-     "bounces and accidental opens (e.g. email auto-opens, prefetch)",
-     "duplicate counts of the same person across devices/sessions"
+     "bots, crawlers and automated traffic",
+     "internal staff, team and test accounts",
+     "duplicate accounts or devices of the same person where detectable",
+     "spam or fake sign-ups",
+     "registered but inactive accounts",
+     "one-touch bounce visits with no meaningful action"
     ],
     "windows": [
-     "30d",
+     "24h",
      "7d",
-     "90d"
+     "30d"
     ],
     "priority": "core",
     "acceptable_forms": [
@@ -281,43 +283,47 @@
     ]
    },
    {
-    "id": "reader_trend",
-    "question": "Is the number of actual readers rising or falling versus earlier periods?",
-    "answer_type": "text",
-    "quantity": "Change in distinct engaged readers for the latest 30d versus the prior 30d and 90d",
-    "unit": "percent change",
-    "population": "Same as active readers",
+    "id": "trend_vs_prior",
+    "question": "Is the active real-user count up or down compared to the previous equivalent period?",
+    "answer_type": "amount",
+    "quantity": "Change in active real users versus the prior equal-length window",
+    "unit": "people and percent",
+    "population": "Same as active_real_users",
     "exclude": [
-     "bots",
-     "internal visits"
+     "same exclusions as active_real_users"
     ],
     "windows": [
-     "30d",
-     "90d"
+     "7d",
+     "30d"
     ],
     "priority": "supporting",
     "acceptable_forms": [
      "estimate",
-     "range"
+     "exact"
     ]
    }
   ],
   "requirements": [],
   "deliverable": {
-   "form": "answer_once",
-   "refresh": "once",
-   "why": "A one-off question about a current figure ('these days'); a single number with window and caveats suffices.",
-   "max_seconds_to_read": 15,
-   "deliver_at_local": null
+   "form": "glance_view",
+   "refresh": "continuous",
+   "why": "'At a glance' means a view readable in seconds that stays current, headlined by one number of real active users.",
+   "deliver_at_local": null,
+   "max_seconds_to_read": 5
   },
   "definitions_to_state": [
-   "What 'LindyBooks' refers to (website, newsletter, app, publication, or book catalog); unknown which",
-   "What counts as 'actually read' (engagement threshold such as time on page, scroll depth, completion) versus visited/subscribed",
-   "'These days' interpreted as the last 30 days (with 7d and 90d for context)",
-   "Person vs. visit/device: unique people, deduplicated where possible",
-   "Whether bots, internal staff and non-reading subscribers are excluded",
-   "If exact count is impossible, report an estimate or range and state the method's limits"
-  ]
+   "What 'LindyBooks' refers to (product/site/app) and whether the principal owns it: unknown",
+   "'Real people': distinct humans, excluding bots, staff/test accounts, duplicates and fake accounts",
+   "'Actually using': defined as at least one meaningful action in the window, not just sign-up or a page view",
+   "Time window for 'using' (headline default e.g. 30 days, with 24h and 7d shown)",
+   "Deduplication method across devices/accounts, and whether the figure is exact, an estimate, a range or a lower bound",
+   "Whether anonymous (not logged-in) visitors count"
+  ],
+  "success_looks_like": "A single current headline number of distinct real human active users of LindyBooks for a stated window, readable in seconds, with the definition of 'real' and 'active' and any uncertainty (estimate/range) clearly labeled."
  },
- "at": "2026-10-03T03:20:05Z"
+ "at": "2026-10-03T03:18:44Z",
+ "rekeyed": {
+  "from": "bf69c654a1f8c84c7903",
+  "why": "need-analysis prompt gained the 'conversation' category; a live run with the new prompt classified this sentence the same way (software_capability)"
+ }
 }

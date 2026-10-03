@@ -242,6 +242,19 @@ class SoftwareAdapter(DomainAdapter):
         if need.get("handled_as") == "housing":
             m.tags = sorted(set(m.tags or []) | {"housing"})      # the housing work takes it from here
             return
+        if need.get("handled_as") == "conversation":
+            from regent.software.reasoner import ReasonerUnavailable
+            from regent.software.reply import reply
+
+            try:
+                ans = reply(need["sentence"], mission_id=m.id)
+            except ReasonerUnavailable as e:
+                m.attrs = {**attrs, "paused": {"why": "Regent's reasoning service did not answer: " + str(e)[:200],
+                                               "since": utcnow().isoformat()}}
+                return
+            m.attrs = {**attrs, "reply": ans}
+            m.status = "completed"
+            return
         if need.get("handled_as") != "software_capability":
             # nothing Regent can do here yet: say so instead of producing placeholder plans
             m.attrs = {**attrs, "unsupported": {"why": "This isn't something Regent can take on yet."}}
