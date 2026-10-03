@@ -50,6 +50,17 @@ export class Regent extends Container<Env> {
   sleepAfter = "720h";          // Regent keeps working while you are away; the cron below wakes it after restarts
   enableInternet = true;
 
+  async restartIfChanged(fingerprint: string): Promise<void> {
+    const started = await this.ctx.storage.get<string>("settings");
+    if (started === fingerprint) return;
+    await this.ctx.storage.put("settings", fingerprint);
+    try {
+      await this.stop();          // Regent saves its data on the way down; the next request starts it fresh
+    } catch {
+      // not running: nothing to restart
+    }
+  }
+
   constructor(ctx: DurableObjectState<{}>, env: Env) {
     super(ctx, env);
     if (env.SLEEP_AFTER) this.sleepAfter = env.SLEEP_AFTER;
@@ -68,6 +79,21 @@ function regent(env: Env) {
   return getContainer(env.REGENT, "regent");
 }
 
+// A container reads its settings only when it starts: when a key changes (e.g. a Claude key is
+// added), restart it once so the change takes effect without anyone having to do anything.
+async function settingsFingerprint(env: Env): Promise<string> {
+  const text = [env.REGENT_ACCESS_KEY, env.CLAUDE_CODE_OAUTH_TOKEN, env.ANTHROPIC_API_KEY, env.BACKUP_SECRET,
+                env.PUBLIC_URL].map((v) => v || "").join("\n");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function fresh(env: Env) {
+  const stub = regent(env);
+  await stub.restartIfChanged(await settingsFingerprint(env));
+  return stub;
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     if (!env.REGENT_ACCESS_KEY) return new Response("Regent is not set up yet: its access key is missing.", { status: 503 });
@@ -83,7 +109,7 @@ export default {
     fwd.headers.set("x-regent-apps-origin", env.APPS_ORIGIN || `https://${url.hostname.replace(/^[^.]+/, "$&-apps")}`);
     fwd.headers.set("x-forwarded-proto", url.protocol.replace(":", ""));
     try {
-      return await regent(env).fetch(fwd);
+      return await (await fresh(env)).fetch(fwd);
     } catch (e) {
       return new Response(
         "<!doctype html><meta name=viewport content='width=device-width'><meta http-equiv=refresh content=5>" +
@@ -94,6 +120,6 @@ export default {
   },
   // Keep Regent running (reminders, things it watches), and bring it back if the host restarted it.
   async scheduled(_ev: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(regent(env).fetch(new Request("http://regent/healthz")).then(() => undefined, () => undefined));
+    ctx.waitUntil(fresh(env).then((r) => r.fetch(new Request("http://regent/healthz"))).then(() => undefined, () => undefined));
   },
 };
