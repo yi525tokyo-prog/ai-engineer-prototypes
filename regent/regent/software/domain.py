@@ -83,7 +83,12 @@ class SoftwareAdapter(DomainAdapter):
         sentence = mission.objective or mission.title
         if need is None:
             paused = (mission.attrs or {}).get("paused")
-            if s is not None and _done(s, mission.id, "analyze") is not None:
+            if mission.status == "completed":           # answered or remembered at the front door
+                return []
+            last = _done(s, mission.id, "analyze") if s is not None else None
+            if last is not None and (last.plan or {}).get("routed") in ("busy", "continue"):
+                last = None                         # that pass only routed the sentence: analyse it now
+            if last is not None:
                 if not paused or (utcnow() - datetime.fromisoformat(paused["since"])).total_seconds() < 300:
                     return []
                 m_attrs = dict(mission.attrs or {})
@@ -154,6 +159,15 @@ class SoftwareAdapter(DomainAdapter):
             FRESH.add(m.id)                 # a redo survives a restart of Regent too
         if action == "analyze":
             from regent.software.need import analyze
+            from regent.software.router import route_mission, shape_need
+
+            if m is not None and (m.attrs or {}).get("route") == "pending":
+                outcome = route_mission(s, m)
+                note("route", f"{outcome}: {(m.attrs or {}).get('mode')}")
+                if outcome != "continue":
+                    req.plan = {"routed": outcome}
+                    req.log = list(req.log or []) + log
+                    return {"funnel": {"routed": outcome}}
 
             need = analyze(params.get("sentence") or (m.objective if m else ""), mission_id=mission_id)
             if (need.get("analysis") or {}).get("reasoner_error") and m is not None:
@@ -165,6 +179,7 @@ class SoftwareAdapter(DomainAdapter):
                 note("analyze", "reasoning worker unavailable; will retry")
                 req.log = list(req.log or []) + log
                 return {"funnel": {"paused": True}}
+            need = shape_need(need, (m.attrs or {}).get("mode") if m is not None else None)
             tz = (m.attrs or {}).get("timezone") if m is not None else None
             need["principal"] = {**_principal_hint(need["sentence"]), **({"timezone": tz} if tz else {})}
             if need.get("handled_as") == "software_capability":
@@ -228,6 +243,12 @@ class SoftwareAdapter(DomainAdapter):
                                                                                    "text": text}}
                     cap.provenance = prov
                     note("deliver", f"{cap.slug} -> principal ({day}): {text[:200]}")
+                told = K.change_worth_telling(cap, r)
+                if told:
+                    events.append("principal_notified", {"capability": cap.slug, "channel": "regent_inbox",
+                                                         "text": told, "view": f"/software/{cap.slug}"},
+                                  source=f"capability:{cap.slug}", mission_id=mission_id)
+                    note("deliver", f"{cap.slug} changed -> principal: {told[:200]}")
             stats = {"capabilities_observed": n}
         else:
             raise ValueError(f"unknown software action {action}")
@@ -367,7 +388,38 @@ def maintain(s: Session) -> list[str]:
         done.append(f"{c.slug}: {out.get('status')}")
     from regent.software import appcap
 
-    return done + appcap.maintain(s)
+    return done + _close_investigations(s) + appcap.maintain(s)
+
+
+def _close_investigations(s: Session) -> list[str]:
+    """An investigation is answered once, in the person's language, and then left alone."""
+    from regent.db import Mission
+    from regent.software.reasoner import ReasonerUnavailable
+    from regent.software.reply import findings_of, tell
+
+    done = []
+    for m in s.scalars(select(Mission).where(Mission.status.in_(("active", "monitoring")))):
+        attrs = m.attrs or {}
+        if attrs.get("mode") != "investigate" or attrs.get("reply"):
+            continue
+        cap = s.scalar(select(K.SwCapability).where(K.SwCapability.mission_id == m.id,
+                                                    K.SwCapability.status.in_(("usable", "degraded"))).limit(1))
+        if cap is None:
+            used = (attrs.get("need") or {}).get("reuse") or []
+            cap = s.get(K.SwCapability, used[0]["id"]) if used else None
+        if cap is None:
+            continue
+        r = K.read(s, cap, count_use=False)
+        if not any(x.get("value") is not None for x in r.get("metrics", [])) and m.status != "monitoring":
+            continue                                    # still looking
+        try:
+            said = tell(m.objective or m.title, findings_of(r), mission_id=m.id)
+        except ReasonerUnavailable:
+            continue
+        m.attrs = {**attrs, "reply": said, "answered_from": cap.slug}
+        m.status = "completed"
+        done.append(f"{m.id}: answered")
+    return done
 
 
 def _principal_hint(sentence: str) -> dict[str, Any]:

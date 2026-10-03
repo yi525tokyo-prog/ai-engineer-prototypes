@@ -457,6 +457,27 @@ def delivery_due(cap: SwCapability) -> str | None:
     return None if day in delivered else day
 
 
+def change_worth_telling(cap: SwCapability, r: dict[str, Any]) -> str | None:
+    """Watching: every look is recorded in the world model; the person hears about it only when what
+    they asked about has changed. A first look is worth a word only if the condition already holds."""
+    d = (cap.spec or {}).get("delivery") or {}
+    if d.get("schedule") != "on_change":
+        return None
+    heads = [m for m in r["metrics"] if m.get("headline") and m.get("value") is not None]
+    if not heads:
+        return None
+    state = {m["label"]: m["display"] for m in heads}
+    prov = dict(cap.provenance or {})
+    before = prov.get("watched")
+    prov["watched"], prov["watched_at"] = state, now().isoformat()
+    cap.provenance = prov
+    if before == state:
+        return None
+    if before is None and not any(m.get("form") == "decision" and m.get("value") in (True, 1) for m in heads):
+        return None
+    return digest(r)
+
+
 def digest(r: dict[str, Any]) -> str:
     """One message a person can read in seconds: the headline answers, then what is unknown."""
     heads = sorted([m for m in r["metrics"] if m.get("headline")], key=lambda m: m["headline"]) or r["metrics"][:1]

@@ -42,3 +42,27 @@ def reply(sentence: str, *, mission_id: str | None = None, reasoner: Reasoner | 
     out = ans.output
     return {"text": str(out.get("reply") or "").strip(), "language": out.get("language"),
             "unsure": [str(x) for x in (out.get("unsure") or [])][:5], "cost_usd": ans.cost_usd}
+
+
+TELL_INSTRUCTIONS = """The person asked a question about the world as it is now. Regent has looked it up; the
+findings are below, each with what exactly it measures. Tell them the answer in the SAME LANGUAGE they asked in,
+in one to four short sentences: the figure or verdict first, then what it covers and how current it is. Use only
+what the findings say. If the findings do not answer exactly what they asked (another area, another period, only a
+bound), say so plainly; if nothing answers it, say that Regent could not find it. Plain text, no markdown."""
+
+
+def tell(sentence: str, findings: dict[str, Any], *, mission_id: str | None = None,
+         reasoner: Reasoner | None = None) -> dict[str, Any]:
+    """An investigation's result, said once in the person's words. Raises ReasonerUnavailable."""
+    r = reasoner or get_reasoner()
+    ans = r.ask("tell_findings", TELL_INSTRUCTIONS, {"question": sentence, "findings": findings}, REPLY_SCHEMA,
+                budget_usd=0.3, mission_id=mission_id)
+    out = ans.output
+    return {"text": str(out.get("reply") or "").strip(), "language": out.get("language"),
+            "unsure": [str(x) for x in (out.get("unsure") or [])][:5]}
+
+
+def findings_of(read: dict[str, Any]) -> dict[str, Any]:
+    keep = ("label", "display", "form", "window", "definition", "why", "status", "unit")
+    return {"metrics": [{k: m.get(k) for k in keep if m.get(k) is not None} for m in read.get("metrics", [])][:12],
+            "not_answered": [u.get("question") for u in read.get("unanswered", [])][:5]}

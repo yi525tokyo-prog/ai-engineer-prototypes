@@ -284,7 +284,8 @@ _FORM_PHRASE = {"range": "a range", "activity": "an activity signal", "lower_bou
 
 def _refresh_s(need: dict[str, Any]) -> int:
     refresh = (need.get("deliverable") or {}).get("refresh")
-    return {"continuous": 900, "daily": 3 * 3600, "on_demand": 3600}.get(refresh, 86400)
+    # "once": an investigation is answered and then left alone, not polled
+    return {"continuous": 900, "daily": 3 * 3600, "on_demand": 3600, "once": 10 ** 9}.get(refresh, 86400)
 
 
 def _delivery(need: dict[str, Any], inventory: dict[str, Any]) -> dict[str, Any] | None:

@@ -209,6 +209,13 @@ function result(r) {
     box.append(el("div", { class: "body", text: r.text }));
     if (r.unsure && r.unsure.length) box.append(el("details", {}, el("summary", { text: "Worth double-checking" }),
       el("ul", { class: "plain" }, ...r.unsure.map((u) => el("li", { text: u })))));
+  } else if (r.kind === "remembered") {
+    box.append(el("div", { class: "body", text: r.note || "" }));
+    const when = [r.date, r.time].filter(Boolean).join(" ");
+    if (when) box.append(el("div", { class: "small", text: when }));
+    if (r.remind) box.append(el("div", { class: "why", text: "Regent will tell you at " +
+      (r.remind.daily_at_local ? r.remind.daily_at_local + " every day" : r.remind.once_at_local.replace("T", " ")) + "." }));
+    if (r.problem) box.append(el("div", { class: "why", text: "Kept, but no reminder: " + r.problem }));
   } else if (r.kind === "brief") {
     box.append(el("pre", { class: "small", text: r.text }));
   } else if (r.kind === "problem") {

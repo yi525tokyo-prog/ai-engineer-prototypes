@@ -15,6 +15,7 @@ def client(db, monkeypatch):
     from regent.api import home
 
     monkeypatch.setattr(home, "_kick", lambda bg: None)      # no loop run: these tests look at the surface
+    monkeypatch.setattr(home, "_route_now", lambda mid: None)
     monkeypatch.setattr(appmod.settings, "background_loop", False)
     with TestClient(appmod.app) as c:
         yield c
@@ -179,3 +180,72 @@ def test_a_question_to_think_through_gets_a_direct_answer(client, db, monkeypatc
     [item] = client.get("/api/home").json()["items"]
     assert item["state"] == "done" and item["result"]["kind"] == "reply"
     assert item["result"]["text"].startswith("主な方法") and item["result"]["unsure"]
+
+
+class _Said:
+    def __init__(self, output):
+        self.output, self.cost_usd = output, 0.0
+
+
+class _FrontDoor:
+    def __init__(self, output):
+        self.out = output
+
+    def ask(self, task, *a, **k):
+        assert task == "route"
+        return _Said(self.out)
+
+
+def _routed(db, monkeypatch, sentence, output):
+    from regent.core.goals.missions import MissionGraph
+    from regent.software import router as R
+
+    monkeypatch.setattr(R, "get_reasoner", lambda: _FrontDoor(output))
+    m = MissionGraph(db).create(title=sentence, objective=sentence,
+                                attrs={"route": "pending", "timezone": "Asia/Tokyo"})
+    outcome = R.route_mission(db, m)
+    db.commit()
+    return m, outcome
+
+
+def test_each_sentence_is_routed_by_what_it_should_make_happen(client, db, monkeypatch):
+    from regent import reminders as RM
+    from regent.software.router import shape_need
+
+    # answer: replied at the front door, finished
+    m, out = _routed(db, monkeypatch, "世界の労働をなくす方法を教えて",
+                     {"mode": "answer", "language": "ja", "why": "think", "reply": "三つの道があります。", "unsure": []})
+    assert out == "handled" and m.status == "completed" and m.attrs["reply"]["text"].startswith("三つ")
+    # remember: kept, and a dated appointment is mentioned on the morning of the day
+    m, out = _routed(db, monkeypatch, "10月15日に野田さんと面談", {
+        "mode": "remember", "language": "ja", "why": "keep", "remember": {
+            "note": "10月15日 野田さんと面談", "date_local": "2099-10-15", "time_local": None,
+            "remind_at_local": "2099-10-15T08:00", "daily_at_local": None, "message": "今日は野田さんと面談です"}})
+    assert out == "handled" and m.attrs["remembered"]["note"].startswith("10月15日")
+    [r] = RM.for_mission(db, m.id)
+    assert r.text == "今日は野田さんと面談です" and r.active
+    item = next(i for i in client.get("/api/home").json()["items"] if i["id"] == m.id)
+    assert item["state"] == "done" and item["result"]["kind"] == "remembered"
+    # investigate / watch / act continue into the longer path, shaped by what should happen
+    m, out = _routed(db, monkeypatch, "日本の失業率いま何%？", {"mode": "investigate", "language": "ja", "why": "look"})
+    assert out == "continue" and m.attrs["mode"] == "investigate" and m.status != "completed"
+    need = {"handled_as": "software_capability", "deliverable": {"form": "glance_view", "refresh": "daily"}}
+    assert shape_need(need, "investigate")["deliverable"] == {"form": "answer_once", "refresh": "once"}
+    assert shape_need(need, "watch")["deliverable"]["form"] == "alert"
+
+
+def test_a_watch_speaks_only_when_what_was_asked_about_changes():
+    from regent.software import capability as K
+    from regent.software.tables import SwCapability
+
+    cap = SwCapability(id="c1", slug="jobless", title="t", spec={"delivery": {"schedule": "on_change"}}, provenance={})
+
+    def look(value, display):
+        return {"metrics": [{"label": "Above 5%?", "display": display, "value": value, "form": "decision",
+                             "headline": 1}]}
+
+    assert K.change_worth_telling(cap, look(False, "No")) is None        # first look, nothing happening: silent
+    assert K.change_worth_telling(cap, look(False, "No")) is None        # unchanged: silent
+    assert cap.provenance["watched"] == {"Above 5%?": "No"}              # ...but every look is recorded
+    assert K.change_worth_telling(cap, look(True, "Yes")) == "Yes"       # it happened: say so, once
+    assert K.change_worth_telling(cap, look(True, "Yes")) is None

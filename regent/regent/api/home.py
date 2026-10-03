@@ -161,6 +161,10 @@ def _result(db: Session, m: Mission) -> dict[str, Any] | None:
     said = (m.attrs or {}).get("reply")
     if said and said.get("text"):
         return {"kind": "reply", "text": said["text"][:8000], "unsure": said.get("unsure") or []}
+    kept = (m.attrs or {}).get("remembered")
+    if kept:
+        return {"kind": "remembered", "note": kept.get("note"), "date": kept.get("date_local"),
+                "time": kept.get("time_local"), "remind": kept.get("remind"), "problem": kept.get("remind_problem")}
     from regent.software import capability as K
     from regent.software.tables import SwCapability
 
@@ -244,7 +248,9 @@ def _item(db: Session, m: Mission, open_q: list[dict[str, Any]]) -> dict[str, An
         state, now = "needs_you", "Waiting for you (below)"
     elif m.status == "completed" or (m.status == "monitoring" and result):
         state = "done"
-        now = ("Done — and it keeps this current" if result and result.get("kind") == "answer"
+        now = ("Keeping watch — you'll hear from Regent only when something changes"
+               if attrs.get("mode") == "watch" else
+               "Done — and it keeps this current" if result and result.get("kind") == "answer"
                and result.get("keeps_current") else "Done")
     elif m.status == "abandoned":
         state, now = "stopped", "Stopped"
@@ -342,10 +348,23 @@ def intent(body: IntentIn, bg: BackgroundTasks, db: Session = Depends(get_db)):
 
     text = body.text.strip()
     m = MissionGraph(db).create(title=text, objective=text,
-                                attrs={"timezone": body.timezone} if body.timezone else None)
+                                attrs={"route": "pending", **({"timezone": body.timezone} if body.timezone else {})})
     db.commit()
+    bg.add_task(_route_now, m.id)
     _kick(bg)
     return {"id": m.id}
+
+
+def _route_now(mission_id: str) -> None:
+    """Decide at once what the sentence should make happen; answers and things to remember finish here."""
+    from regent import db as dbm
+    from regent.software.router import route_mission
+
+    with dbm.session() as s:
+        m = s.get(Mission, mission_id)
+        if m is not None:
+            route_mission(s, m)
+            s.commit()
 
 
 class AnswerIn(BaseModel):
@@ -415,11 +434,13 @@ def retry(mid: str, bg: BackgroundTasks, db: Session = Depends(get_db)):
     text = m.objective or m.title
     from regent.software.reasoner import FRESH
 
+    tz = (m.attrs or {}).get("timezone")
     new = MissionGraph(db).create(title=text, objective=text,
-                                  attrs={"timezone": (m.attrs or {}).get("timezone")} if (m.attrs or {}).get("timezone") else None)
+                                  attrs={"route": "pending", **({"timezone": tz} if tz else {})})
     new.attrs = {**(new.attrs or {}), "fresh": True}
     FRESH.add(new.id)
     db.commit()
+    bg.add_task(_route_now, new.id)
     _kick(bg)
     return {"id": new.id}
 
