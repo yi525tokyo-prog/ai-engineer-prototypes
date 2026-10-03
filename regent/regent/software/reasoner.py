@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -161,6 +162,7 @@ class Reasoner:
             msg = _client().messages.create(model=self.model, max_tokens=16000, output_config=config,
                                             messages=[{"role": "user", "content": prompt}])
         except anthropic.BadRequestError as e:
+            logging.getLogger("regent.reasoner").warning("API rejected a request: %s", str(e)[:1000])
             raise ReasonerUnavailable(f"reasoning request rejected: {str(e)[:300]}") from e
         except anthropic.APIError as e:
             raise ReasonerUnavailable(f"reasoning service error: {str(e)[:300]}") from e
@@ -234,7 +236,8 @@ def _client():
     if _CLIENT is None:
         import anthropic
 
-        _CLIENT = anthropic.Anthropic(max_retries=2, timeout=600.0)
+        # a decision or an answer should come back in seconds; don't let a stuck connection hold a request
+        _CLIENT = anthropic.Anthropic(max_retries=1, timeout=anthropic.Timeout(120.0, connect=10.0))
     return _CLIENT
 
 

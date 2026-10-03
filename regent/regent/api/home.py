@@ -364,11 +364,37 @@ def _route_now(mission_id: str) -> None:
     from regent import db as dbm
     from regent.software.router import route_mission
 
+    import logging
+
+    from regent.ids import utcnow
+
+    log = logging.getLogger("regent.front_door")
+    t0 = time.time()
     with dbm.session() as s:
         m = s.get(Mission, mission_id)
-        if m is not None:
-            route_mission(s, m, stream=True)
+        if m is None:
+            return
+        try:
+            outcome = route_mission(s, m, stream=True)
             s.commit()
+            log.info("routed %s -> %s/%s in %.1fs", mission_id, outcome, (m.attrs or {}).get("mode"), time.time() - t0)
+        except Exception as e:  # noqa: BLE001 - never leave a request silently stuck
+            s.rollback()
+            log.exception("routing %s failed after %.1fs", mission_id, time.time() - t0)
+            m = s.get(Mission, mission_id)
+            m.attrs = {**(m.attrs or {}), "route": "pending",
+                       "paused": {"why": f"Regent hit a problem understanding this ({type(e).__name__}); "
+                                         "it will try again", "since": utcnow().isoformat()}}
+            s.commit()
+
+
+@router.get("/api/diagnostics")
+def diagnostics():
+    """Recent problems and what Regent thinks with, for whoever runs this Regent."""
+    from regent.api import diag
+    from regent.software.reasoner import LAST_FAILURE, get_reasoner
+
+    return {"reasoner": get_reasoner().describe(), "last_failure": LAST_FAILURE or None, "recent": diag.recent()}
 
 
 class AnswerIn(BaseModel):

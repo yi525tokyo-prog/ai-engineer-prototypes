@@ -9,6 +9,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+from regent.api.home import _route_now as _REAL_ROUTE_NOW  # noqa: E402
+
+
 @pytest.fixture()
 def client(db, monkeypatch):
     from regent.api import app as appmod
@@ -252,3 +255,20 @@ def test_a_watch_speaks_only_when_what_was_asked_about_changes():
     assert cap.provenance["watched"] == {"Above 5%?": "No"}              # ...but every look is recorded
     assert K.change_worth_telling(cap, look(True, "Yes")) == "Yes"       # it happened: say so, once
     assert K.change_worth_telling(cap, look(True, "Yes")) is None
+
+
+def test_a_request_never_stays_silently_stuck_at_the_front_door(client, db, monkeypatch):
+    from regent.core.goals.missions import MissionGraph
+    from regent.software import router as R
+
+    def broken(*a, **k):
+        raise RuntimeError("connection reset")
+
+    monkeypatch.setattr(R, "route_mission", broken)
+    m = MissionGraph(db).create(title="x", objective="子どもに税金をどう説明する？", attrs={"route": "pending"})
+    db.commit()
+    _REAL_ROUTE_NOW(m.id)
+    db.expire_all()
+    [item] = [i for i in client.get("/api/home").json()["items"] if i["id"] == m.id]
+    assert item["state"] == "paused" and "try again" in item["now"]
+    assert any("routing" in r["text"] for r in client.get("/api/diagnostics").json()["recent"])

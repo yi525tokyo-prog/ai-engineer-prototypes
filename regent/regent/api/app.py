@@ -122,6 +122,9 @@ async def access_key(request: Request, call_next):
         resp.set_cookie("regent_key", key, httponly=True, samesite="lax", secure=https, max_age=60 * 60 * 24 * 365)
     return resp
 
+from regent.api import diag as _diag  # noqa: E402
+
+_diag.install()
 from regent.api.acquisition import router as acquisition_router  # noqa: E402
 
 app.include_router(acquisition_router)
