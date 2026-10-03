@@ -264,7 +264,7 @@ def test_a_request_never_stays_silently_stuck_at_the_front_door(client, db, monk
     def broken(*a, **k):
         raise RuntimeError("connection reset")
 
-    monkeypatch.setattr(R, "route_mission", broken)
+    monkeypatch.setattr(R, "decide", broken)
     m = MissionGraph(db).create(title="x", objective="子どもに税金をどう説明する？", attrs={"route": "pending"})
     db.commit()
     _REAL_ROUTE_NOW(m.id)

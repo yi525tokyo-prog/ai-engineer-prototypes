@@ -89,8 +89,8 @@ class SoftwareAdapter(DomainAdapter):
             if created is not None and created.tzinfo is None:
                 created = created.replace(tzinfo=timezone.utc)
             route = (mission.attrs or {}).get("route")
-            if (route in ("pending", "answering") and not paused and created is not None
-                    and (utcnow() - created).total_seconds() < (90 if route == "pending" else 600)):
+            if (route == "pending" and not paused and created is not None
+                    and (utcnow() - created).total_seconds() < 120):
                 return []                               # the front door is deciding right now; don't race it
             last = _done(s, mission.id, "analyze") if s is not None else None
             if last is not None and (last.plan or {}).get("routed") in ("busy", "continue"):
@@ -387,9 +387,10 @@ def maintain(s: Session) -> list[str]:
     from regent.acquisition import service
 
     done = []
-    for c in s.scalars(select(K.SwCapability).where(K.SwCapability.status.in_(("usable", "degraded")))):
+    for c in list(s.scalars(select(K.SwCapability).where(K.SwCapability.status.in_(("usable", "degraded"))))):
         if c.implementation == "application" or not (K.due(c) or K.delivery_due(c)):
             continue
+        s.commit()                      # never hold the database across a slow look at the world
         out = service.run_action("observe", mission_id=c.mission_id, params={"capabilities": [c.id]},
                                  domain="software")
         done.append(f"{c.slug}: {out.get('status')}")
@@ -405,7 +406,7 @@ def _close_investigations(s: Session) -> list[str]:
     from regent.software.reply import findings_of, tell
 
     done = []
-    for m in s.scalars(select(Mission).where(Mission.status.in_(("active", "monitoring")))):
+    for m in list(s.scalars(select(Mission).where(Mission.status.in_(("active", "monitoring"))))):
         attrs = m.attrs or {}
         if attrs.get("mode") != "investigate" or attrs.get("reply"):
             continue
@@ -419,6 +420,7 @@ def _close_investigations(s: Session) -> list[str]:
         r = K.read(s, cap, count_use=False)
         if not any(x.get("value") is not None for x in r.get("metrics", [])) and m.status != "monitoring":
             continue                                    # still looking
+        s.commit()                      # don't hold the database while the answer is written
         try:
             said = tell(m.objective or m.title, findings_of(r), mission_id=m.id)
         except ReasonerUnavailable:

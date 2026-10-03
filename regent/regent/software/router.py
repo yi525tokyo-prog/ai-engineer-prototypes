@@ -74,6 +74,8 @@ investigation unless they ask to be told again later."""
 
 _busy: set[str] = set()
 _lock = threading.Lock()
+# answers being written right now, by request: shown on the page from memory, saved once finished
+WRITING: dict[str, str] = {}
 
 
 LATER = """
@@ -102,19 +104,22 @@ def route_mission(s, m, *, stream: bool = False) -> str:
     """Route one waiting request and do what can be done at once. Returns 'handled' (answered or
     remembered: finished), 'continue' (investigate/watch/act: the longer path takes it from here),
     'paused' (could not think right now) or 'busy' (already being routed)."""
-    from regent import reminders as RM
+    decision = decide(m.id, m.objective or m.title, dict(m.attrs or {}), stream=stream)
+    return apply(s, m, decision)
+
+
+def decide(mission_id: str, sentence: str, attrs: dict[str, Any], *, stream: bool = False) -> dict[str, Any]:
+    """The slow part (thinking, writing an answer), touching no database: a long loop pass elsewhere
+    can never hold it up."""
     from regent.ids import utcnow
 
     with _lock:
-        if m.id in _busy:
-            return "busy"
-        _busy.add(m.id)
+        if mission_id in _busy:
+            return {"outcome": "busy"}
+        _busy.add(mission_id)
     try:
-        attrs = dict(m.attrs or {})
-        if attrs.get("route") == "answering":
-            return "busy"
         if attrs.get("route") != "pending":
-            return "continue"
+            return {"outcome": "continue"}
         tz = attrs.get("timezone")
         try:
             zone = ZoneInfo(tz) if tz else None
@@ -125,61 +130,70 @@ def route_mission(s, m, *, stream: bool = False) -> str:
         r = get_reasoner()
         live = stream and r.backend == "api"        # decide fast, then write the answer where it can be read
         try:
-            out = route(m.objective or m.title, now_local=now_local, timezone=tz, mission_id=m.id, reasoner=r,
+            out = route(sentence, now_local=now_local, timezone=tz, mission_id=mission_id, reasoner=r,
                         answer_later=live)
             if live and out["mode"] == "answer":
-                out["reply"] = _speak(s, m, attrs, r, out.get("language"))
+                out["reply"] = _speak(mission_id, sentence, r)
         except ReasonerUnavailable as e:
-            m.attrs = {**attrs, "paused": {"why": "Regent's reasoning service did not answer: " + str(e)[:200],
-                                           "since": utcnow().isoformat()}}
-            return "paused"
-        attrs.pop("paused", None)
-        attrs.update({"route": "done", "mode": out["mode"], "language": out.get("language"),
-                      "routed": {"why": out.get("why")}})
-        if out["mode"] == "answer" and (out.get("reply") or "").strip():
-            attrs["reply"] = {"text": out["reply"].strip(), "unsure": [str(x) for x in out.get("unsure") or []][:5],
-                              "language": out.get("language")}
-            m.attrs, m.status = attrs, "completed"
-            return "handled"
-        if out["mode"] == "remember" and out.get("remember"):
-            rem = out["remember"]
-            kept = {k: rem.get(k) for k in ("note", "date_local", "time_local")}
-            plan = {"message": rem.get("message") or rem.get("note")}
-            if rem.get("daily_at_local"):
-                plan["daily_at_local"] = rem["daily_at_local"]
-            elif rem.get("remind_at_local"):
-                plan["once_at_local"] = rem["remind_at_local"]
-            if len(plan) > 1:
-                try:
-                    RM.schedule(s, m.id, plan, tz or "UTC")
-                    kept["remind"] = plan
-                except ValueError as e:                 # a time already past: say so, keep the note anyway
-                    kept["remind_problem"] = str(e)[:200]
-            attrs["remembered"] = kept
-            m.attrs, m.status = attrs, "completed"
-            return "handled"
-        m.attrs = attrs
-        return "continue"
+            return {"outcome": "paused", "why": "Regent's reasoning service did not answer: " + str(e)[:200]}
+        return {"outcome": "routed", "out": out, "tz": tz}
     finally:
         with _lock:
-            _busy.discard(m.id)
+            _busy.discard(mission_id)
 
 
-def _speak(s, m, attrs: dict[str, Any], r: Reasoner, language: str | None) -> str:
-    """Stream the answer into the request as it is written, so the page shows it within seconds."""
-    import time
+def apply(s, m, decision: dict[str, Any]) -> str:
+    """The quick part: record what was decided (and keep or schedule what was to be remembered)."""
+    from regent import reminders as RM
+    from regent.ids import utcnow
 
-    last = [0.0]
-    base = {**attrs, "route": "answering", "mode": "answer", "language": language}
+    if decision["outcome"] in ("busy", "continue"):
+        return decision["outcome"]
+    attrs = dict(m.attrs or {})
+    if attrs.get("route") != "pending":
+        return "continue"                               # someone else already routed it
+    if decision["outcome"] == "paused":
+        m.attrs = {**attrs, "paused": {"why": decision["why"], "since": utcnow().isoformat()}}
+        return "paused"
+    out, tz = decision["out"], decision.get("tz")
+    attrs.pop("paused", None)
+    attrs.update({"route": "done", "mode": out["mode"], "language": out.get("language"),
+                  "routed": {"why": out.get("why")}})
+    if out["mode"] == "answer" and (out.get("reply") or "").strip():
+        attrs["reply"] = {"text": out["reply"].strip(), "unsure": [str(x) for x in out.get("unsure") or []][:5],
+                          "language": out.get("language")}
+        m.attrs, m.status = attrs, "completed"
+        return "handled"
+    if out["mode"] == "remember" and out.get("remember"):
+        rem = out["remember"]
+        kept = {k: rem.get(k) for k in ("note", "date_local", "time_local")}
+        plan = {"message": rem.get("message") or rem.get("note")}
+        if rem.get("daily_at_local"):
+            plan["daily_at_local"] = rem["daily_at_local"]
+        elif rem.get("remind_at_local"):
+            plan["once_at_local"] = rem["remind_at_local"]
+        if len(plan) > 1:
+            try:
+                RM.schedule(s, m.id, plan, tz or "UTC")
+                kept["remind"] = plan
+            except ValueError as e:                     # a time already past: say so, keep the note anyway
+                kept["remind_problem"] = str(e)[:200]
+        attrs["remembered"] = kept
+        m.attrs, m.status = attrs, "completed"
+        return "handled"
+    m.attrs = attrs
+    return "continue"
+
+
+def _speak(mission_id: str, sentence: str, r: Reasoner) -> str:
+    """Write the answer where the page can show it while it is being written (memory, not the
+    database: a long-running loop pass must never hold up the first words)."""
+    WRITING[mission_id] = ""
 
     def show(text: str) -> None:
-        if time.time() - last[0] < 0.7:
-            return
-        last[0] = time.time()
-        m.attrs = {**base, "reply": {"text": text, "partial": True, "unsure": []}}
-        s.commit()
+        WRITING[mission_id] = text
 
-    return r.stream_text(SPEAK, m.objective or m.title, show)
+    return r.stream_text(SPEAK, sentence, show)
 
 
 def shape_need(need: dict[str, Any], mode: str | None) -> dict[str, Any]:

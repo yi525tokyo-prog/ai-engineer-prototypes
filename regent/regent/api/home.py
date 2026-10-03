@@ -158,6 +158,10 @@ def _failed_build(db: Session, mission_id: str) -> str | None:
 
 
 def _result(db: Session, m: Mission) -> dict[str, Any] | None:
+    from regent.software.router import WRITING
+
+    if m.id in WRITING:
+        return {"kind": "reply", "text": WRITING[m.id], "unsure": [], "writing": True}
     said = (m.attrs or {}).get("reply")
     if said and said.get("text"):
         return {"kind": "reply", "text": said["text"][:8000], "unsure": said.get("unsure") or []}
@@ -242,10 +246,10 @@ def _item(db: Session, m: Mission, open_q: list[dict[str, Any]]) -> dict[str, An
     failed = [o for o in ops if o.status == "failed"]
     if attrs.get("unsupported"):
         state, now = "cannot", attrs["unsupported"]["why"]
+    elif result and result.get("writing"):
+        state, now = "working", "Answering…"
     elif attrs.get("route") == "pending" and not attrs.get("paused"):
         state, now = "working", "Working out what to do with this"
-    elif (attrs.get("reply") or {}).get("partial"):
-        state, now = "working", "Answering…"
     elif attrs.get("paused"):
         state, now = "paused", "Waiting to try again: " + attrs["paused"]["why"]
     elif mine:
@@ -361,31 +365,41 @@ def intent(body: IntentIn, bg: BackgroundTasks, db: Session = Depends(get_db)):
 
 def _route_now(mission_id: str) -> None:
     """Decide at once what the sentence should make happen; answers and things to remember finish here."""
-    from regent import db as dbm
-    from regent.software.router import route_mission
-
     import logging
 
-    from regent.ids import utcnow
+    from sqlalchemy.exc import OperationalError
+
+    from regent import db as dbm
+
+    from regent.software.router import WRITING, apply, decide
 
     log = logging.getLogger("regent.front_door")
     t0 = time.time()
-    with dbm.session() as s:
+    with dbm.session() as s:                     # read what was asked, then let go of the database
         m = s.get(Mission, mission_id)
         if m is None:
             return
+        sentence, attrs = m.objective or m.title, dict(m.attrs or {})
+    try:
+        decision = decide(mission_id, sentence, attrs, stream=True)
+    except Exception as e:  # noqa: BLE001 - never leave a request silently stuck
+        log.exception("routing %s failed after %.1fs", mission_id, time.time() - t0)
+        decision = {"outcome": "paused",
+                    "why": f"Regent hit a problem understanding this ({type(e).__name__}); it will try again"}
+    # saving is quick, but a long loop pass may hold the database for a while: keep trying, don't give up
+    for attempt in range(150):
         try:
-            outcome = route_mission(s, m, stream=True)
-            s.commit()
-            log.info("routed %s -> %s/%s in %.1fs", mission_id, outcome, (m.attrs or {}).get("mode"), time.time() - t0)
-        except Exception as e:  # noqa: BLE001 - never leave a request silently stuck
-            s.rollback()
-            log.exception("routing %s failed after %.1fs", mission_id, time.time() - t0)
-            m = s.get(Mission, mission_id)
-            m.attrs = {**(m.attrs or {}), "route": "pending",
-                       "paused": {"why": f"Regent hit a problem understanding this ({type(e).__name__}); "
-                                         "it will try again", "since": utcnow().isoformat()}}
-            s.commit()
+            with dbm.session() as s:
+                m = s.get(Mission, mission_id)
+                outcome = apply(s, m, decision) if m is not None else "gone"
+                s.commit()
+            log.info("routed %s -> %s in %.1fs", mission_id, outcome, time.time() - t0)
+            break
+        except OperationalError:
+            time.sleep(2)
+    else:
+        log.error("could not save the routing of %s", mission_id)
+    WRITING.pop(mission_id, None)
 
 
 @router.get("/api/diagnostics")
