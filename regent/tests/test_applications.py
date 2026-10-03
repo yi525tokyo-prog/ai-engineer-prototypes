@@ -250,10 +250,11 @@ def test_a_tool_need_gets_build_routes_even_without_public_data():
     inv = {"kind": "tool", "app_sources": [], "alternatives": [], "existing_capabilities": [], "constraints": []}
     keys = [r.key for r in strategies({"id": "m1"}, need, inv)]
     assert "software-build-app" in keys and "software-manual" in keys
-    reuse = {"existing_capabilities": [{"id": "c1", "slug": "shelf", "title": "Shelf", "relation": "can_do"}]}
+    reuse = {"existing_capabilities": [{"id": "c1", "slug": "shelf", "title": "Shelf", "relation": "can_do",
+                                        "implementation": "application"}]}
     assert [r.key for r in strategies({"id": "m2"}, need, reuse)] == ["software-use-shelf"]
     ext = {"existing_capabilities": [{"id": "c1", "slug": "shelf", "title": "Shelf", "relation": "extend",
-                                      "gaps": ["sharing"]}]}
+                                      "gaps": ["sharing"], "implementation": "application"}]}
     assert {r.key for r in strategies({"id": "m3"}, need, ext)} == {"software-extend-shelf", "software-separate-shelf"}
 
 
@@ -402,3 +403,12 @@ def test_a_browser_step_fills_dropdowns_and_checkboxes_like_a_person(tmp_path):
         A._set_value(pg, '[data-testid="t"]', "Neuromancer")
         assert pg.eval_on_selector('[data-testid="t"]', "e => e.value") == "Neuromancer"
         b.close()
+
+
+def test_a_dashboard_judged_extendable_is_reused_not_rebuilt_as_an_app():
+    from regent.software.routes import strategies
+
+    inv = {"existing_capabilities": [{"id": "c1", "slug": "lindy", "title": "LindyBooks readers", "relation": "extend",
+                                      "implementation": "composed"}]}
+    [r] = strategies({"id": "m2"}, {"questions": []}, inv)
+    assert r.key == "software-reuse-lindy" and r.operations[0].action == "reuse"

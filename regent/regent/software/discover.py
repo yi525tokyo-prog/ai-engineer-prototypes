@@ -347,9 +347,14 @@ window), coverage (every member produced at least one unit), no_merging (no unit
 Say "unknown" when nothing observed settles it, and "no" when you know it fails (e.g. one IP address can be shared by
 a whole household or office, so IP counts merge people; crawlers have IPs too). Claim "measure" / "lower_bound" /
 "upper_bound" only if you believe the corresponding premises hold, otherwise "proxy". Regent applies the inference
-rules itself and only accepts premises whose evidence it finds verbatim in the input. A number counting something
-other than people using this product (upstream catalogue counts, sizes, budgets, caps) is "unrelated". Also list the
-product's commitments that constrain how usage may be measured, and other sources the principal likely holds."""
+rules itself and only accepts premises whose evidence it finds verbatim in the input. A figure that is, by its own
+published definition, a count of exactly the population asked about (e.g. an official population figure for the same
+area and date) meets every premise by that definition: quote the definition (label or title) as the evidence. If the
+figure covers a different population or area (a metropolitan area for a city, a country for a region), membership or
+coverage fail for the population asked about: call it "context" and say which population it covers. A number counting
+something other than people using this product (upstream catalogue counts, sizes, budgets, caps) is "unrelated". Also
+list the product's commitments that constrain how usage may be measured, and other sources the principal likely
+holds."""
 
 
 def inventory(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, reasoner: Reasoner | None = None,
@@ -582,7 +587,12 @@ def _loose(s: str) -> str:
 
 # ------------------------------------------------------------ tool needs
 
-ALT_SCHEMA: dict[str, Any] = {"type": "object", "required": ["alternatives"], "properties": {"alternatives": {
+ALT_SCHEMA: dict[str, Any] = {"type": "object", "required": ["alternatives", "a_built_app_can_do_it"], "properties": {
+    "a_built_app_can_do_it": {"type": "boolean", "description": "true only if a small app running on the principal's "
+                              "own computer, built for them, could meet the core requirements by itself -- without "
+                              "acting through someone else's account, payment, or a commitment in the principal's name"},
+    "why_an_app_cannot": {"type": ["string", "null"]},
+    "alternatives": {
     "type": "array", "items": {"type": "object", "required": ["name", "url", "meets", "account_needed", "privacy"],
                                "properties": {"name": {"type": "string"}, "url": {"type": "string"},
                                               "meets": {"type": "array", "items": {"type": "string"},
@@ -593,7 +603,9 @@ ALT_SCHEMA: dict[str, Any] = {"type": "object", "required": ["alternatives"], "p
 ALT_INSTRUCTIONS = """The principal wants an ability (requirements below). List existing software they could use
 instead of having something built (at most 4, real products with their home page URL), and for each the requirement
 ids it meets as it is today, whether an account is needed, and what it means for their privacy. Be strict: a
-requirement that needs integration with the named service is met only if the product actually integrates it."""
+requirement that needs integration with the named service is met only if the product actually integrates it. Also
+say whether a small app built just for them, running on their computer, could do it by itself (it cannot book, buy,
+sign up or act in their name at a third party)."""
 
 
 def inventory_tool(db: Session, need: dict[str, Any], resolved: dict[str, Any], *, reasoner: Reasoner | None = None,
@@ -614,7 +626,9 @@ def inventory_tool(db: Session, need: dict[str, Any], resolved: dict[str, Any], 
         try:
             ans = r.ask("app_alternatives", ALT_INSTRUCTIONS, {"need": {k: need.get(k) for k in (
                 "sentence", "requirements", "subjects")}}, ALT_SCHEMA, budget_usd=0.6, mission_id=mission_id)
-            meta = {"by": ans.provider, "cost_usd": ans.cost_usd, "answer_key": ans.key}
+            meta = {"by": ans.provider, "cost_usd": ans.cost_usd, "answer_key": ans.key,
+                    "app_can_do_it": ans.output.get("a_built_app_can_do_it", True),
+                    "why_an_app_cannot": ans.output.get("why_an_app_cannot")}
             fetcher = Fetcher(db, request_id=request_id, transport=transport, allow_browser=False, min_interval_s=0.3)
             try:
                 for a in ans.output.get("alternatives", [])[:4]:

@@ -1,0 +1,322 @@
+{
+ "task": "need_analysis",
+ "key": "6292d6883fa0f4685446",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.0417662,
+ "instructions": "You are the need-analysis step of an operational agent. The principal wrote one sentence. Decide\nwhether they want to know something (information), to have an ability they will keep using (tool), or to have\nsomething done once (action). Decide\nwhat information (or ability) they actually need, without choosing any implementation, provider, tool,\nmetric source or architecture. Identify the subjects exactly as written. For each question, define the quantity\nprecisely enough that two engineers would count the same thing, including who must be excluded for the answer to\nbe true to the principal's words, and which time windows make it meaningful. State which forms of answer are\nhonest when an exact count is impossible. Choose the deliverable form from the wording (e.g. 'at a glance' means\na view readable in seconds that stays current). For tool and action needs list requirements: what must be\npossible, each with an observable acceptance check, tied to the words it comes from; questions may then be empty.",
+ "payload": {
+  "sentence": "How many people actually read LindyBooks these days?"
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "handled_as",
+   "need_type",
+   "subjects",
+   "questions",
+   "requirements",
+   "deliverable",
+   "definitions_to_state"
+  ],
+  "properties": {
+   "handled_as": {
+    "type": "string",
+    "enum": [
+     "software_capability",
+     "housing",
+     "other"
+    ],
+    "description": "software_capability: anything answered, kept track of, reminded, built or done with software -- including a plain question about the world (a fact, a figure, a status), answered from sources Regent can read; housing: finding a place to live; other: only what no software can do (a physical task)"
+   },
+   "subjects": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "name",
+      "kind",
+      "as_written"
+     ],
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "product",
+        "website",
+        "organization",
+        "person",
+        "place",
+        "dataset",
+        "other"
+       ]
+      },
+      "as_written": {
+       "type": "string",
+       "description": "the exact words in the sentence"
+      },
+      "owned_by_principal": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    }
+   },
+   "questions": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "question",
+      "answer_type",
+      "quantity",
+      "unit",
+      "population",
+      "exclude",
+      "windows"
+     ],
+     "properties": {
+      "id": {
+       "type": "string",
+       "description": "snake_case"
+      },
+      "question": {
+       "type": "string"
+      },
+      "answer_type": {
+       "type": "string",
+       "enum": [
+        "count",
+        "amount",
+        "yes_no",
+        "category",
+        "list",
+        "text"
+       ]
+      },
+      "quantity": {
+       "type": "string",
+       "description": "what is counted/measured, precisely"
+      },
+      "unit": {
+       "type": "string"
+      },
+      "population": {
+       "type": "string",
+       "description": "who/what qualifies"
+      },
+      "exclude": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "windows": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "time windows that make the answer meaningful, e.g. 24h, 7d, 30d, all_time"
+      },
+      "acceptable_forms": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "exact, lower_bound, upper_bound, range, estimate"
+      },
+      "priority": {
+       "type": "string",
+       "enum": [
+        "core",
+        "supporting"
+       ]
+      }
+     }
+    }
+   },
+   "deliverable": {
+    "type": "object",
+    "required": [
+     "form",
+     "refresh",
+     "why"
+    ],
+    "properties": {
+     "form": {
+      "type": "string",
+      "enum": [
+       "glance_view",
+       "report",
+       "alert",
+       "tool",
+       "answer_once"
+      ]
+     },
+     "refresh": {
+      "type": "string",
+      "enum": [
+       "continuous",
+       "daily",
+       "on_demand",
+       "once"
+      ]
+     },
+     "max_seconds_to_read": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "deliver_at_local": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "HH:MM local time if the wording implies when to be told (e.g. 'every morning')"
+     },
+     "why": {
+      "type": "string"
+     }
+    }
+   },
+   "need_type": {
+    "type": "string",
+    "enum": [
+     "information",
+     "tool",
+     "action"
+    ],
+    "description": "information: wants to know something; tool: wants an ability they keep using (an app, a place to do X); action: wants something done once"
+   },
+   "requirements": {
+    "type": "array",
+    "description": "for tool and action needs: what must be possible, each with an observable acceptance check",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "capability",
+      "acceptance",
+      "priority"
+     ],
+     "properties": {
+      "id": {
+       "type": "string"
+      },
+      "capability": {
+       "type": "string"
+      },
+      "acceptance": {
+       "type": "string"
+      },
+      "priority": {
+       "type": "string",
+       "enum": [
+        "core",
+        "supporting"
+       ]
+      },
+      "from_words": {
+       "type": "string",
+       "description": "the words in the sentence this comes from"
+      }
+     }
+    }
+   },
+   "definitions_to_state": {
+    "type": "array",
+    "items": {
+     "type": "string"
+    },
+    "description": "ambiguities the answer must resolve explicitly"
+   },
+   "success_looks_like": {
+    "type": "string"
+   }
+  }
+ },
+ "output": {
+  "handled_as": "software_capability",
+  "need_type": "information",
+  "subjects": [
+   {
+    "name": "LindyBooks",
+    "kind": "other",
+    "as_written": "LindyBooks",
+    "owned_by_principal": null
+   }
+  ],
+  "questions": [
+   {
+    "id": "active_readers_recent",
+    "question": "How many distinct real people actually read LindyBooks in the recent past (last 30 days)?",
+    "answer_type": "count",
+    "quantity": "Distinct humans who engaged with LindyBooks content (loaded and read/engaged, not merely visited or bounced; e.g. meaningful time on content, scroll depth, or reading/opening a book or issue) in the window",
+    "unit": "people",
+    "population": "Distinct human readers/users of LindyBooks who actually consumed content",
+    "exclude": [
+     "bots and crawlers",
+     "internal/owner/staff traffic",
+     "bounces and drive-by visits with no real reading",
+     "duplicate counts of the same person across devices where detectable",
+     "subscribers or account holders who did not read in the window"
+    ],
+    "windows": [
+     "30d",
+     "7d",
+     "90d"
+    ],
+    "acceptable_forms": [
+     "exact",
+     "estimate",
+     "range",
+     "lower_bound"
+    ],
+    "priority": "core"
+   },
+   {
+    "id": "readers_trend",
+    "question": "Is the number of actual readers growing, flat, or shrinking compared with the prior period?",
+    "answer_type": "category",
+    "quantity": "Change in distinct actual readers, 30d vs previous 30d",
+    "unit": "percent change / direction",
+    "population": "Same as above",
+    "exclude": [
+     "bots",
+     "internal traffic"
+    ],
+    "windows": [
+     "30d",
+     "prior_30d"
+    ],
+    "acceptable_forms": [
+     "estimate",
+     "range"
+    ],
+    "priority": "supporting"
+   }
+  ],
+  "requirements": [],
+  "deliverable": {
+   "form": "answer_once",
+   "refresh": "once",
+   "why": "A plain 'how many' question asking for a current figure; 'these days' implies a recent window, not ongoing monitoring.",
+   "max_seconds_to_read": 10,
+   "deliver_at_local": null
+  },
+  "definitions_to_state": [
+   "What LindyBooks is (a website, app, publication, or book series) and whether the principal owns it; unknown from the sentence",
+   "'Read' meaning: what engagement threshold counts as actually reading versus visiting",
+   "'These days' window: assumed last 30 days, with 7d and 90d for context",
+   "'People' means distinct humans, not pageviews, sessions, or devices; bots and internal traffic excluded",
+   "If an exact count is impossible, report an estimate or range or lower bound and label it as such"
+  ]
+ },
+ "at": "2026-10-03T02:58:45Z"
+}

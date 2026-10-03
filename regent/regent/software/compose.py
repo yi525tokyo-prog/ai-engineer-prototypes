@@ -101,8 +101,9 @@ def metrics_for(field: dict[str, Any], sid: str, windows: list[str], unit: str =
                                f"{noun or 'the population'} follows from it."
                                + (f" Missing: {', '.join(audit.get('missing') or [])}." if audit.get('missing') else "")}]
     # cumulative totals and snapshots: the current value is the answer
-    label = {"lower_bound": "People, at least", "upper_bound": "People, at most", "estimate": "People (estimate)"}.get(
-        form) if field.get("counts") == "people" or audit else None
+    # say what was counted, not just "people": a figure for a neighbouring population must not pass for the answer
+    label = {"lower_bound": "At least", "upper_bound": "At most", "estimate": "About", "measure": "Measured"}.get(form)
+    label = f"{label}: {_short(field['meaning'], 56)}" if label and (field.get("counts") == "people" or audit) else None
     if field.get("service") and form != "context":
         label = f"{_short(field['meaning'], 48)} ({field['service'].split()[0]})"
     return [{**base, "id": mid, "label": label or _short(field["meaning"]), "expr": f'latest("{ref}")',
@@ -207,8 +208,8 @@ def compose(need: dict[str, Any], inventory: dict[str, Any], *, include: list[st
             metrics.insert(0, {"id": f"{_sid(q['id'])}_answer", "label": _short(q.get("question") or "Answer", 70),
                                "answers": q["id"], "form": "context", "unit": q.get("unit") or "", "expr": "coalesce()",
                                "unknowable": True, "window": "now", "headline": 1,
-                               "why": "nothing Regent can read counts these people: only proxies (below), each "
-                                      "missing a premise that would turn it into a bound",
+                               "why": ("none of the sources Regent can read gives this number; what they do give "
+                                       "is below, each labelled with what it actually counts"),
                                "definition": f"{q.get('quantity')}. Population: {q.get('population')}."})
         # a yes/no question with no rule Regent could state and check: say it is undecided, show the data
         # below -- never let a piece of data stand in for the verdict

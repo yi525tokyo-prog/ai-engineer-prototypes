@@ -45,7 +45,8 @@ PREMISE_SCHEMA = {"type": "object", "required": ["holds", "why", "evidence"],
 PREMISE_DOC = {
     "membership": "every counted unit was produced by a member of the question's population: a real, external "
                   "person as the question defines it (not a bot, crawler, the operator, staff or a test)",
-    "distinctness": "no member of the population is counted more than once",
+    "distinctness": "no member of the population is counted more than once (an official count of a population is "
+                    "distinct by its definition)",
     "window": "every counted unit falls inside the question's time window",
     "coverage": "every member of the population (in the window) produced at least one counted unit",
     "no_merging": "no single counted unit stands for two or more members of the population",

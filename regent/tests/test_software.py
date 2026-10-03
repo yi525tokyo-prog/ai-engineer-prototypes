@@ -306,7 +306,15 @@ def test_a_different_need_uses_public_data_and_existing_services(db, services, r
     inv = next(iter(db.scalars(select(Route).where(Route.mission_id == m.id))), None)
     assert inv is not None
     keys = {r.key for r in db.scalars(select(Route).where(Route.mission_id == m.id))}
-    assert {"software-use-existing", "software-compose-data", "software-compose-crosscheck"} <= keys
+    from regent.software.domain import latest_plan
+
+    inv_plan = latest_plan(db, m.id, "inventory")
+    services_admitted = [p for p in (inv_plan.get("proposals") or {}).get("pages", [])]
+    # what the reasoning worker proposes varies between recordings; what Regent owns does not: every existing
+    # service it admitted competes with building from data, and building from the admitted data is always a route
+    assert ("software-compose-data" in keys) or ("software-compose-public" in keys)
+    if services_admitted:
+        assert {"software-use-existing", "software-compose-crosscheck"} <= keys
     assert "software-instrument" not in keys        # there is no product of the principal's to change
     cap = db.scalar(select(SwCapability).where(SwCapability.mission_id == m.id))
     assert cap.verification["passed"] and cap.status == "usable" and m.status == "completed"

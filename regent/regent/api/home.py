@@ -124,7 +124,7 @@ def _question(db: Session, hi: HumanInterrupt) -> dict[str, Any]:
         th = route.thesis or ""
         privacy = th.split("Privacy: ", 1)[1].split(" From then on", 1)[0].strip() if "Privacy: " in th else ""
         name = route.title.replace("Use ", "", 1)
-        body = (f"Use {name}: create an account (a few minutes), then keep it there yourself — Regent can't work "
+        body = (f"Use {name}: create an account (a few minutes), then do it there yourself — Regent can't act "
                 f"inside {name} for you." + (f"\n\nWhere your data would live: {privacy}" if privacy else ""))
     elif route is not None and route.thesis:
         body = route.thesis

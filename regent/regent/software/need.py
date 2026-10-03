@@ -26,9 +26,10 @@ NEED_SCHEMA: dict[str, Any] = {
                  "definitions_to_state"],
     "properties": {
         "handled_as": {"type": "string", "enum": ["software_capability", "housing", "other"],
-                       "description": "software_capability: satisfying this needs some software to observe, "
-                                      "compute, present or act on something; housing: finding a place to live; "
-                                      "other: neither"},
+                       "description": "software_capability: anything answered, kept track of, reminded, built or "
+                                      "done with software -- including a plain question about the world (a fact, a "
+                                      "figure, a status), answered from sources Regent can read; housing: finding a "
+                                      "place to live; other: only what no software can do (a physical task)"},
         "subjects": {"type": "array", "items": {"type": "object", "required": ["name", "kind", "as_written"],
                      "properties": {"name": {"type": "string"},
                                     "kind": {"type": "string", "enum": ["product", "website", "organization",

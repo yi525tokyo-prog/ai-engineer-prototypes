@@ -100,6 +100,8 @@ def strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str, Any
         rel = cap.get("relation", "same_need")
         if cap.get("implementation") == "application" and rel == "same_need":
             rel = "can_do"            # an application answers a need by being used through its API
+        elif cap.get("implementation") != "application" and rel in ("can_do", "extend"):
+            rel = "same_need"         # a dashboard is read, not called or rebuilt as an app
         if rel in ("can_do", "extend"):
             routes += _app_reuse_routes(cap, rel, need, scale)
             continue
@@ -364,6 +366,7 @@ def tool_strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str
                                      information_gain=0.0),
             operations=[OperationSpec(key="regent.message", goal=f"Schedule the message ({when})", tool="software",
                                       action="remind", inputs={"plan": rm}, verification=_verify_passed())])]
+    buildable = (inv.get("alternatives_meta") or {}).get("app_can_do_it", True)
     routes = native + [RouteProposal(
         key="software-build-app", archetype="build", title="Have the application built, then verify and run it",
         thesis=("Nothing that exists does all of this; a coding agent builds it to Regent's interface contract and "
@@ -385,6 +388,8 @@ def tool_strategies(mission: dict[str, Any], need: dict[str, Any], inv: dict[str
                     OperationSpec(key="sw.build", goal="Delegate, inspect, build, test, run, accept, repair, promote",
                                   tool="software", action="build_app", retry=RetryPolicy(max_attempts=1), depends_on=["sw.design"], timeout_s=7200,
                                   verification=_verify_passed())])]
+    if not buildable:      # an app of its own cannot book, buy or act in the principal's name elsewhere
+        routes = native
     for a in inv.get("alternatives", []):
         if not a.get("reachable"):
             continue

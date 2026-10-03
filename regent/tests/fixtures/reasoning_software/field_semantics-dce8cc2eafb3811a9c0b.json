@@ -1,0 +1,1003 @@
+{
+ "task": "field_semantics",
+ "key": "dce8cc2eafb3811a9c0b",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.077138,
+ "instructions": "You read a live product from the outside for an operational agent. Given the principal's\nneed (questions with precise definitions) and what was observed (public JSON endpoints the product's own code calls,\nwith the code around each call and a sample response; the product's stated commitments; platform sources that exist\nbut need the principal's access, described by their documented fields), say for each numeric or event-list field\nthat could bear on the questions what it measures, what one unit of it is, and how it relates to the need. For a\nplatform source use its \"endpoint\" value (connector:<id>) and the field name as path, and quote its documentation as\nevidence. For a value inside a JSON array give the element's path with its index (e.g. \"daily.temperature_2m_max.0\").\nFor questions that are not counts of people use \"direct\" for a value that answers as it stands and \"context\" for\ninputs to a decision.\n\nFor fields bearing on a count of people, the relation must be earned. Answer each premise for the field:\nmembership (every counted unit was produced by a member of the question's population -- real, external, not bots,\ncrawlers, the operator, staff or tests), distinctness (no member counted twice), window (units fall in the question's\nwindow), coverage (every member produced at least one unit), no_merging (no unit stands for two or more members).\nSay \"unknown\" when nothing observed settles it, and \"no\" when you know it fails (e.g. one IP address can be shared by\na whole household or office, so IP counts merge people; crawlers have IPs too). Claim \"measure\" / \"lower_bound\" /\n\"upper_bound\" only if you believe the corresponding premises hold, otherwise \"proxy\". Regent applies the inference\nrules itself and only accepts premises whose evidence it finds verbatim in the input. A figure that is, by its own\npublished definition, a count of exactly the population asked about (e.g. an official population figure for the same\narea and date) meets every premise by that definition: quote the definition (label or title) as the evidence. If the\nfigure covers a different population or area (a metropolitan area for a city, a country for a region), membership or\ncoverage fail for the population asked about: call it \"context\" and say which population it covers. A number counting\nsomething other than people using this product (upstream catalogue counts, sizes, budgets, caps) is \"unrelated\". Also\nlist the product's commitments that constrain how usage may be measured, and other sources the principal likely\nholds.",
+ "payload": {
+  "need": {
+   "sentence": "I want to know, at a glance, how many real people are actually using LindyBooks.",
+   "questions": [
+    {
+     "id": "active_real_users",
+     "unit": "people",
+     "exclude": [
+      "bots and crawlers",
+      "automated/scripted traffic",
+      "internal staff, developers and test accounts",
+      "spam, fake or duplicate accounts",
+      "registered-but-inactive accounts",
+      "anonymous one-off page views with no meaningful action",
+      "users who only signed up and never used it"
+     ],
+     "windows": [
+      "24h",
+      "7d",
+      "30d"
+     ],
+     "priority": "core",
+     "quantity": "Distinct human individuals (deduplicated across devices/sessions/accounts where identifiable) who performed at least one meaningful product action (not just account creation, page load, or login) in the window",
+     "question": "How many distinct real human people actively used LindyBooks in the recent period?",
+     "population": "Real human users of LindyBooks who engaged in meaningful use during the window",
+     "answer_type": "count",
+     "acceptable_forms": [
+      "exact",
+      "estimate",
+      "range",
+      "lower_bound"
+     ]
+    },
+    {
+     "id": "total_registered_context",
+     "unit": "accounts",
+     "exclude": [
+      "bots",
+      "staff/test accounts",
+      "duplicates"
+     ],
+     "windows": [
+      "all_time"
+     ],
+     "priority": "supporting",
+     "quantity": "Distinct real, non-test registered accounts",
+     "question": "For context, how many real registered accounts exist versus those actively used?",
+     "population": "Registered LindyBooks accounts belonging to real people",
+     "answer_type": "count",
+     "acceptable_forms": [
+      "exact",
+      "estimate",
+      "lower_bound"
+     ]
+    }
+   ],
+   "definitions_to_state": [
+    "What 'LindyBooks' refers to (the product/site; whether the principal owns it is unknown)",
+    "What counts as 'using' (meaningful action vs. mere visit or signup)",
+    "What counts as a 'real person' (human, deduplicated, excluding bots, staff, test and fake accounts)",
+    "The time window for 'using' (default headline: 30 days, with 24h and 7d shown)",
+    "Whether the count is exact or an estimate/lower bound, and how identity is deduplicated when users are anonymous or multi-device"
+   ]
+  },
+  "endpoints": [
+   {
+    "url": "https://lindy-api.yi525tokyo.workers.dev/api/books",
+    "code_context": [
+     "ng={}; function fetchPageAt(offset){ var start=Math.floor(offset/3500)*3500; if(start<=0||_fetching[start]) return; _fetching[start]=1; fetch(API+\"/api/books?limit=3500&offset=\"+start).then(function(r){ return r.ok?r.json():null; }).then(function(d){ if(!d||!d.books||!d.books.length) return; var have={};",
+     "ge an entry // that is already sitting there. The deep-chunk URLs are left alone so the ~8MB the // app stores on-device itself survives. fetch(API+\"/api/books?limit=1500&v=2\").then(function(r){ return r.ok?r.json():null; }).then(function(d){ if(!d||!d.books||!d.books.length) return; // keep inline fallback "
+    ],
+    "used_with": [
+     "GET"
+    ],
+    "fields": {
+     "books": "list[200]",
+     "total": "int",
+     "corpus": "int",
+     "books.0.a": "str",
+     "books.0.s": "float",
+     "books.0.t": "str",
+     "books.0.dl": "int",
+     "books.0.id": "int",
+     "books.0.txt": "str",
+     "books.0.lang": "str",
+     "books.0.year": "int"
+    },
+    "sample": {
+     "books": [
+      {
+       "a": "Augustine, of Hippo, Saint",
+       "s": 15.7915,
+       "t": "The City of God, Volume I",
+       "dl": 102512,
+       "id": 45304,
+       "txt": "https://www.gutenberg.org/ebooks/45304.txt.utf-8",
+       "lang": "en",
+       "year": 430
+      },
+      {
+       "a": "Homer",
+       "s": 15.784,
+       "t": "The Odyssey: Rendered into English prose for the use of those who cannot read the original",
+       "dl": 35917,
+       "id": 1727,
+       "txt": "https://www.gutenberg.org/ebooks/1727.txt.utf-8",
+       "lang": "en",
+       "year": -650
+      },
+      {
+       "a": "Marcus Aurelius, Emperor of Rome",
+       "s": 15.4806,
+       "t": "Meditations",
+       "dl": 60197,
+       "id": 2680,
+       "txt": "https://www.gutenberg.org/ebooks/2680.txt.utf-8",
+       "lang": "en",
+       "year": 180
+      },
+      "… 197 more"
+     ],
+     "total": 5000,
+     "corpus": 78696
+    }
+   },
+   {
+    "url": "https://lindy-api.yi525tokyo.workers.dev/api/fund",
+    "code_context": [
+     "entDefault();}; } panel.appendChild(a); }); var fund=document.createElement(\"div\"); fund.className=\"sp-fund\"; fund.textContent=\"…\"; fetch(API+\"/api/fund\").then(function(r){return r.ok?r.json():null;}).then(function(f){ if(!f){ fund.remove(); return; } fund.textContent=\"¥\"+(((f.paid||{}).jpy)||0).toL"
+    ],
+    "used_with": [
+     "GET"
+    ],
+    "fields": {
+     "at": "str",
+     "caps": "dict",
+     "paid": "dict",
+     "today": "dict",
+     "total": "int",
+     "recent": "list[2]",
+     "sealed": "int",
+     "paid.jpy": "int",
+     "poolLeft": "int",
+     "caps.meta": "int",
+     "caps.prose": "int",
+     "paid.count": "int",
+     "recent.0.t": "int",
+     "today.meta": "int",
+     "today.prose": "int",
+     "recent.0.cur": "str",
+     "recent.0.amount": "int"
+    },
+    "sample": {
+     "at": "2026-10-02T07:08:28.045Z",
+     "caps": {
+      "meta": 200000,
+      "prose": 2000
+     },
+     "paid": {
+      "jpy": 1000,
+      "count": 2
+     },
+     "today": {
+      "meta": 0,
+      "prose": 0
+     },
+     "total": 78696,
+     "recent": [
+      {
+       "t": 1785548408224,
+       "cur": "usd",
+       "amount": 1200
+      },
+      {
+       "t": 1785394870691,
+       "cur": "jpy",
+       "amount": 1000
+      }
+     ],
+     "sealed": 60,
+     "poolLeft": 20000
+    }
+   },
+   {
+    "url": "https://lindy-api.yi525tokyo.workers.dev/api/search",
+    "code_context": [
+     "s=null; renderShelf(); return; } searchResults=null; renderShelf(); // show \"searching…\" immediately var mySeq=++searchSeq; fetch(API+\"/api/search?q=\"+encodeURIComponent(q)).then(function(r){ return r.ok?r.json():null; }).then(function(d){ if(mySeq!==searchSeq) return; // a newer "
+    ],
+    "used_with": [
+     "GET"
+    ],
+    "fields": {
+     "books": "list[0]",
+     "total": "int"
+    },
+    "sample": {
+     "books": [],
+     "total": 0
+    }
+   },
+   {
+    "url": "https://lindy-api.yi525tokyo.workers.dev/api/dam",
+    "code_context": [
+     " try{ history.replaceState({}, \"\", location.pathname); }catch(e){} // 再読込で再表示しない setTimeout(function(){ toast(tr(\"thanksGot\")); fetch(API+\"/api/dam\").then(function(r){ return r.ok?r.json():null; }).then(function(d){ if(!d || !d.total) return; setTimeout(function(){ toast(tr(\"sealedAll\")+\" \""
+    ],
+    "used_with": [
+     "GET"
+    ],
+    "fields": {
+     "at": "str",
+     "total": "int",
+     "sealed": "int"
+    },
+    "sample": {
+     "at": "2026-10-02T07:08:28.045Z",
+     "total": 78696,
+     "sealed": 60
+    }
+   }
+  ],
+  "commitments": [
+   {
+    "phrase": "No ads",
+    "context": "78,696 public-domain classics, free forever. No ads, no accounts, no tracking. Auto-translated into 13 languages — 広告なし・追跡なし、母語で読める"
+   },
+   {
+    "phrase": "no accounts",
+    "context": "78,696 public-domain classics, free forever. No ads, no accounts, no tracking. Auto-translated into 13 languages — 広告なし・追跡なし、母語で読める永久無料の図書館。 Lin"
+   },
+   {
+    "phrase": "no tracking",
+    "context": "78,696 public-domain classics, free forever. No ads, no accounts, no tracking. Auto-translated into 13 languages — 広告なし・追跡なし、母語で読める永久無料の図書館。 Lindy Books, 読書,"
+   },
+   {
+    "phrase": "free forever",
+    "context": "78,696 public-domain classics, free forever. No ads, no accounts, no tracking. Auto-translated into 13 languages — 広告なし・追跡な"
+   },
+   {
+    "phrase": "追跡なし",
+    "context": "ver. No ads, no accounts, no tracking. Auto-translated into 13 languages — 広告なし・追跡なし、母語で読める永久無料の図書館。 Lindy Books, 読書, 名著, 古典, パブリックドメイン, 無料, 電子書籍, reader, classics,"
+   },
+   {
+    "phrase": "広告なし",
+    "context": "forever. No ads, no accounts, no tracking. Auto-translated into 13 languages — 広告なし・追跡なし、母語で読める永久無料の図書館。 Lindy Books, 読書, 名著, 古典, パブリックドメイン, 無料, 電子書籍, reader, clas"
+   },
+   {
+    "phrase": "永久に無料",
+    "context": "ing. Lindy Books — the books that survived, in your language 翻訳 全言語アンロック 原語で読むのは永久に無料。翻訳(全言語・現代語)だけ有料。 アプリ ホーム画面に追加 気づき 開発者に送る 言語 表示 スクロールページ 文字 A−A+ 幅 SML 位置 ←中→ 気づ"
+   }
+  ],
+  "platform": [
+   {
+    "host": "lindy-books.org",
+    "platforms": [
+     "cloudflare"
+    ],
+    "analytics_found": []
+   }
+  ],
+  "platform_sources": [
+   {
+    "endpoint": "connector:cloudflare_analytics",
+    "title": "Cloudflare zone analytics (GraphQL Analytics API)",
+    "measures": "edge requests, page views and daily unique visitor IPs for the product's domain",
+    "population": "every client that reached the edge: people, crawlers and bots alike; 'uniques' are distinct IP addresses per day (a household behind one IP counts once, a crawler farm counts many)",
+    "fields": {
+     "uniques_last_full_day": "distinct client IPs on the last complete UTC day",
+     "page_views_last_full_day": "HTML page views on the last complete UTC day",
+     "uniques_7d_daily_max": "highest daily distinct-IP count in the last 7 complete days",
+     "page_views_7d": "HTML page views over the last 7 complete days",
+     "daily": "per-day rows"
+    }
+   },
+   {
+    "endpoint": "connector:stripe_payments",
+    "title": "Stripe payments (restricted read key)",
+    "measures": "distinct paying customers (by Stripe customer, else billing email) and successful charges; live-mode charges only, test-mode charges excluded",
+    "population": "paying customers only; a payment the operator makes to their own live account is not distinguishable from a reader's",
+    "fields": {
+     "paying_people": "distinct paying customers, all time",
+     "successful_charges": "paid, unrefunded charges"
+    }
+   },
+   {
+    "endpoint": "connector:google_search_console",
+    "title": "Google Search Console (site verified)",
+    "measures": "clicks from Google search results to the product (each click is a person choosing it)",
+    "population": "people arriving from Google search only; excludes direct visits and returning readers",
+    "fields": {
+     "clicks_28d": "search clicks over 28 days",
+     "impressions_28d": "search impressions over 28 days"
+    }
+   }
+  ]
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "fields",
+   "constraints",
+   "other_sources"
+  ],
+  "properties": {
+   "fields": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "endpoint",
+      "path",
+      "meaning",
+      "relation_to_need",
+      "question",
+      "time_semantics",
+      "evidence",
+      "confidence"
+     ],
+     "properties": {
+      "endpoint": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string",
+       "description": "dotted path in the JSON"
+      },
+      "meaning": {
+       "type": "string"
+      },
+      "counts": {
+       "type": "string",
+       "enum": [
+        "people",
+        "actions",
+        "items",
+        "money",
+        "time",
+        "other"
+       ]
+      },
+      "relation_to_need": {
+       "type": "string",
+       "enum": [
+        "measure",
+        "lower_bound",
+        "upper_bound",
+        "proxy",
+        "direct",
+        "context",
+        "unrelated"
+       ]
+      },
+      "counts_unit": {
+       "type": "string",
+       "description": "the thing each unit of the number is (payment, IP address, request, customer id, page view...)"
+      },
+      "premises": {
+       "type": "object",
+       "description": "only for fields bearing on a count of people: for each premise, does it hold for this field, why, and a verbatim quote showing it",
+       "properties": {
+        "membership": {
+         "type": "object",
+         "required": [
+          "holds",
+          "why",
+          "evidence"
+         ],
+         "properties": {
+          "holds": {
+           "type": "string",
+           "enum": [
+            "yes",
+            "no",
+            "unknown"
+           ]
+          },
+          "why": {
+           "type": "string"
+          },
+          "evidence": {
+           "type": "string",
+           "description": "verbatim quote from the input that shows it, or '' if nothing observed shows it"
+          }
+         }
+        },
+        "distinctness": {
+         "type": "object",
+         "required": [
+          "holds",
+          "why",
+          "evidence"
+         ],
+         "properties": {
+          "holds": {
+           "type": "string",
+           "enum": [
+            "yes",
+            "no",
+            "unknown"
+           ]
+          },
+          "why": {
+           "type": "string"
+          },
+          "evidence": {
+           "type": "string",
+           "description": "verbatim quote from the input that shows it, or '' if nothing observed shows it"
+          }
+         }
+        },
+        "window": {
+         "type": "object",
+         "required": [
+          "holds",
+          "why",
+          "evidence"
+         ],
+         "properties": {
+          "holds": {
+           "type": "string",
+           "enum": [
+            "yes",
+            "no",
+            "unknown"
+           ]
+          },
+          "why": {
+           "type": "string"
+          },
+          "evidence": {
+           "type": "string",
+           "description": "verbatim quote from the input that shows it, or '' if nothing observed shows it"
+          }
+         }
+        },
+        "coverage": {
+         "type": "object",
+         "required": [
+          "holds",
+          "why",
+          "evidence"
+         ],
+         "properties": {
+          "holds": {
+           "type": "string",
+           "enum": [
+            "yes",
+            "no",
+            "unknown"
+           ]
+          },
+          "why": {
+           "type": "string"
+          },
+          "evidence": {
+           "type": "string",
+           "description": "verbatim quote from the input that shows it, or '' if nothing observed shows it"
+          }
+         }
+        },
+        "no_merging": {
+         "type": "object",
+         "required": [
+          "holds",
+          "why",
+          "evidence"
+         ],
+         "properties": {
+          "holds": {
+           "type": "string",
+           "enum": [
+            "yes",
+            "no",
+            "unknown"
+           ]
+          },
+          "why": {
+           "type": "string"
+          },
+          "evidence": {
+           "type": "string",
+           "description": "verbatim quote from the input that shows it, or '' if nothing observed shows it"
+          }
+         }
+        }
+       }
+      },
+      "question": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "id of the need question it bears on"
+      },
+      "time_semantics": {
+       "type": "string",
+       "enum": [
+        "cumulative",
+        "resets_daily",
+        "snapshot",
+        "event_list",
+        "unknown"
+       ]
+      },
+      "timestamp_key": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "description": "for event lists: the item key holding the event time"
+      },
+      "caveats": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "evidence": {
+       "type": "string",
+       "description": "a verbatim quote (8-200 chars) from the endpoint's code context or response that supports this reading"
+      },
+      "confidence": {
+       "type": "number"
+      }
+     }
+    }
+   },
+   "constraints": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "statement",
+      "evidence",
+      "forbids"
+     ],
+     "properties": {
+      "statement": {
+       "type": "string"
+      },
+      "evidence": {
+       "type": "string",
+       "description": "verbatim quote of the promise"
+      },
+      "forbids": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "enum": [
+         "adds_client_code",
+         "third_party_tracking",
+         "writes_to_product",
+         "stores_personal_data",
+         "requires_accounts",
+         "shows_ads"
+        ]
+       }
+      }
+     }
+    }
+   },
+   "other_sources": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "title",
+      "access",
+      "question"
+     ],
+     "properties": {
+      "title": {
+       "type": "string"
+      },
+      "access": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "why": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "fields": [
+   {
+    "endpoint": "https://lindy-api.yi525tokyo.workers.dev/api/fund",
+    "path": "paid.count",
+    "meaning": "Number of paid donations/payments to the fund (all time); each unit is one payment, not a person",
+    "relation_to_need": "context",
+    "question": "active_real_users",
+    "time_semantics": "cumulative",
+    "counts": "money",
+    "counts_unit": "payment",
+    "evidence": "\"paid\":{\"jpy\":1000,\"count\":2}",
+    "confidence": 0.6
+   },
+   {
+    "endpoint": "https://lindy-api.yi525tokyo.workers.dev/api/fund",
+    "path": "recent.0.amount",
+    "meaning": "Amount of a recent payment in minor currency units (usd cents or jpy)",
+    "relation_to_need": "unrelated",
+    "question": null,
+    "time_semantics": "event_list",
+    "timestamp_key": "t",
+    "counts": "money",
+    "counts_unit": "payment amount",
+    "evidence": "{\"t\":1785548408224,\"cur\":\"usd\",\"amount\":1200}",
+    "confidence": 0.6
+   },
+   {
+    "endpoint": "https://lindy-api.yi525tokyo.workers.dev/api/fund",
+    "path": "today.prose",
+    "meaning": "Count of prose translations used/consumed today against a daily cap; a usage-of-budget counter, not people",
+    "relation_to_need": "unrelated",
+    "question": null,
+    "time_semantics": "resets_daily",
+    "counts": "actions",
+    "counts_unit": "translation job",
+    "evidence": "\"today\":{\"meta\":0,\"prose\":0}",
+    "confidence": 0.4
+   },
+   {
+    "endpoint": "https://lindy-api.yi525tokyo.workers.dev/api/fund",
+    "path": "total",
+    "meaning": "Catalogue size (number of books)",
+    "relation_to_need": "unrelated",
+    "question": null,
+    "time_semantics": "snapshot",
+    "counts": "items",
+    "counts_unit": "book",
+    "evidence": "\"total\":78696",
+    "confidence": 0.8
+   },
+   {
+    "endpoint": "https://lindy-api.yi525tokyo.workers.dev/api/books",
+    "path": "books.0.dl",
+    "meaning": "Gutenberg download count for a book (upstream, all-time); not LindyBooks usage",
+    "relation_to_need": "unrelated",
+    "question": null,
+    "time_semantics": "cumulative",
+    "counts": "actions",
+    "counts_unit": "download",
+    "evidence": "\"dl\":102512",
+    "confidence": 0.6
+   },
+   {
+    "endpoint": "connector:cloudflare_analytics",
+    "path": "uniques_last_full_day",
+    "meaning": "Distinct client IPs on last full UTC day, including bots and crawlers; shared IPs merge people",
+    "relation_to_need": "proxy",
+    "question": "active_real_users",
+    "time_semantics": "snapshot",
+    "counts": "people",
+    "counts_unit": "distinct IP address per day",
+    "evidence": "distinct client IPs on the last complete UTC day",
+    "confidence": 0.6,
+    "premises": {
+     "membership": {
+      "holds": "no",
+      "why": "Includes crawlers and bots",
+      "evidence": "every client that reached the edge: people, crawlers and bots alike"
+     },
+     "distinctness": {
+      "holds": "no",
+      "why": "Same person on different IPs/days counted multiple times",
+      "evidence": ""
+     },
+     "window": {
+      "holds": "yes",
+      "why": "One day approximates 24h window",
+      "evidence": "distinct client IPs on the last complete UTC day"
+     },
+     "coverage": {
+      "holds": "unknown",
+      "why": "Not all visitors necessarily reach the edge (cached/offline app)",
+      "evidence": ""
+     },
+     "no_merging": {
+      "holds": "no",
+      "why": "A household behind one IP counts once",
+      "evidence": "a household behind one IP counts once"
+     }
+    }
+   },
+   {
+    "endpoint": "connector:cloudflare_analytics",
+    "path": "uniques_7d_daily_max",
+    "meaning": "Peak daily distinct-IP count over 7 days",
+    "relation_to_need": "proxy",
+    "question": "active_real_users",
+    "time_semantics": "snapshot",
+    "counts": "people",
+    "counts_unit": "distinct IP address per day",
+    "evidence": "highest daily distinct-IP count in the last 7 complete days",
+    "confidence": 0.5,
+    "premises": {
+     "membership": {
+      "holds": "no",
+      "why": "Includes bots",
+      "evidence": "people, crawlers and bots alike"
+     },
+     "distinctness": {
+      "holds": "no",
+      "why": "Single day max, IPs not people",
+      "evidence": ""
+     },
+     "window": {
+      "holds": "no",
+      "why": "A single day, not 7d union",
+      "evidence": "highest daily distinct-IP count"
+     },
+     "coverage": {
+      "holds": "unknown",
+      "why": "unsettled",
+      "evidence": ""
+     },
+     "no_merging": {
+      "holds": "no",
+      "why": "Shared IPs",
+      "evidence": "a household behind one IP counts once"
+     }
+    }
+   },
+   {
+    "endpoint": "connector:cloudflare_analytics",
+    "path": "page_views_last_full_day",
+    "meaning": "HTML page views on last full day; page views, not people, includes bots",
+    "relation_to_need": "proxy",
+    "question": "active_real_users",
+    "time_semantics": "snapshot",
+    "counts": "actions",
+    "counts_unit": "HTML page view",
+    "evidence": "HTML page views on the last complete UTC day",
+    "confidence": 0.5,
+    "premises": {
+     "membership": {
+      "holds": "no",
+      "why": "Bots included",
+      "evidence": "people, crawlers and bots alike"
+     },
+     "distinctness": {
+      "holds": "no",
+      "why": "Repeat views by same person",
+      "evidence": ""
+     },
+     "window": {
+      "holds": "yes",
+      "why": "Last day",
+      "evidence": "HTML page views on the last complete UTC day"
+     },
+     "coverage": {
+      "holds": "unknown",
+      "why": "unsettled",
+      "evidence": ""
+     },
+     "no_merging": {
+      "holds": "unknown",
+      "why": "A view is one action",
+      "evidence": ""
+     }
+    }
+   },
+   {
+    "endpoint": "connector:cloudflare_analytics",
+    "path": "page_views_7d",
+    "meaning": "HTML page views over 7 complete days",
+    "relation_to_need": "proxy",
+    "question": "active_real_users",
+    "time_semantics": "snapshot",
+    "counts": "actions",
+    "counts_unit": "HTML page view",
+    "evidence": "HTML page views over the last 7 complete days",
+    "confidence": 0.5,
+    "premises": {
+     "membership": {
+      "holds": "no",
+      "why": "Bots included",
+      "evidence": "people, crawlers and bots alike"
+     },
+     "distinctness": {
+      "holds": "no",
+      "why": "Repeat views",
+      "evidence": ""
+     },
+     "window": {
+      "holds": "yes",
+      "why": "7d",
+      "evidence": "HTML page views over the last 7 complete days"
+     },
+     "coverage": {
+      "holds": "unknown",
+      "why": "unsettled",
+      "evidence": ""
+     },
+     "no_merging": {
+      "holds": "unknown",
+      "why": "",
+      "evidence": ""
+     }
+    }
+   },
+   {
+    "endpoint": "connector:cloudflare_analytics",
+    "path": "daily",
+    "meaning": "Per-day rows of requests, page views and unique IPs",
+    "relation_to_need": "proxy",
+    "question": "active_real_users",
+    "time_semantics": "event_list",
+    "timestamp_key": null,
+    "counts": "people",
+    "counts_unit": "distinct IP per day",
+    "evidence": "per-day rows",
+    "confidence": 0.4,
+    "premises": {
+     "membership": {
+      "holds": "no",
+      "why": "Bots included",
+      "evidence": "people, crawlers and bots alike"
+     },
+     "distinctness": {
+      "holds": "no",
+      "why": "IPs across days overlap",
+      "evidence": ""
+     },
+     "window": {
+      "holds": "unknown",
+      "why": "",
+      "evidence": ""
+     },
+     "coverage": {
+      "holds": "unknown",
+      "why": "",
+      "evidence": ""
+     },
+     "no_merging": {
+      "holds": "no",
+      "why": "Shared IPs",
+      "evidence": "a household behind one IP counts once"
+     }
+    }
+   },
+   {
+    "endpoint": "connector:stripe_payments",
+    "path": "paying_people",
+    "meaning": "Distinct paying customers all time; a subset of real users, possibly including operator's own payments",
+    "relation_to_need": "proxy",
+    "question": "active_real_users",
+    "time_semantics": "cumulative",
+    "counts": "people",
+    "counts_unit": "paying customer",
+    "evidence": "distinct paying customers, all time",
+    "confidence": 0.5,
+    "premises": {
+     "membership": {
+      "holds": "unknown",
+      "why": "Operator payments indistinguishable",
+      "evidence": "a payment the operator makes to their own live account is not distinguishable from a reader's"
+     },
+     "distinctness": {
+      "holds": "yes",
+      "why": "Distinct by Stripe customer else email",
+      "evidence": "distinct paying customers, all time"
+     },
+     "window": {
+      "holds": "no",
+      "why": "All time, not 24h/7d/30d",
+      "evidence": "distinct paying customers, all time"
+     },
+     "coverage": {
+      "holds": "no",
+      "why": "Only paying customers; most readers read free",
+      "evidence": "paying customers only"
+     },
+     "no_merging": {
+      "holds": "unknown",
+      "why": "Shared billing email possible",
+      "evidence": ""
+     }
+    }
+   },
+   {
+    "endpoint": "connector:stripe_payments",
+    "path": "successful_charges",
+    "meaning": "Count of paid, unrefunded charges",
+    "relation_to_need": "context",
+    "question": "active_real_users",
+    "time_semantics": "cumulative",
+    "counts": "money",
+    "counts_unit": "charge",
+    "evidence": "paid, unrefunded charges",
+    "confidence": 0.5
+   },
+   {
+    "endpoint": "connector:google_search_console",
+    "path": "clicks_28d",
+    "meaning": "Google search clicks to the site over 28 days; clicks not distinct people, search arrivals only",
+    "relation_to_need": "proxy",
+    "question": "active_real_users",
+    "time_semantics": "snapshot",
+    "counts": "people",
+    "counts_unit": "search click",
+    "evidence": "clicks from Google search results to the product (each click is a person choosing it)",
+    "confidence": 0.5,
+    "premises": {
+     "membership": {
+      "holds": "unknown",
+      "why": "Mostly humans but not verified",
+      "evidence": ""
+     },
+     "distinctness": {
+      "holds": "no",
+      "why": "Same person can click repeatedly",
+      "evidence": ""
+     },
+     "window": {
+      "holds": "no",
+      "why": "28d not 30d",
+      "evidence": "search clicks over 28 days"
+     },
+     "coverage": {
+      "holds": "no",
+      "why": "Excludes direct and returning readers",
+      "evidence": "excludes direct visits and returning readers"
+     },
+     "no_merging": {
+      "holds": "yes",
+      "why": "Each click is one choice",
+      "evidence": "each click is a person choosing it"
+     }
+    }
+   },
+   {
+    "endpoint": "connector:google_search_console",
+    "path": "impressions_28d",
+    "meaning": "Search result impressions over 28 days; not usage",
+    "relation_to_need": "context",
+    "question": null,
+    "time_semantics": "snapshot",
+    "counts": "actions",
+    "counts_unit": "impression",
+    "evidence": "impressions_28d",
+    "confidence": 0.4
+   }
+  ],
+  "constraints": [
+   {
+    "statement": "No accounts: registered-account counts do not exist, so total_registered_context cannot be measured",
+    "evidence": "No ads, no accounts, no tracking",
+    "forbids": [
+     "requires_accounts",
+     "stores_personal_data"
+    ]
+   },
+   {
+    "statement": "No tracking: no analytics or per-user tracking code may be added",
+    "evidence": "No ads, no accounts, no tracking",
+    "forbids": [
+     "third_party_tracking",
+     "adds_client_code"
+    ]
+   },
+   {
+    "statement": "No ads",
+    "evidence": "No ads, no accounts, no tracking",
+    "forbids": [
+     "shows_ads"
+    ]
+   }
+  ],
+  "other_sources": [
+   {
+    "title": "Cloudflare Worker logs / request analytics for lindy-api",
+    "access": "Cloudflare dashboard of the account owning the workers.dev API",
+    "question": "active_real_users",
+    "why": "API calls (search, books) are server-side actions that could be counted without client code, though still by IP"
+   },
+   {
+    "title": "Stripe dashboard",
+    "access": "Operator Stripe account",
+    "question": "active_real_users",
+    "why": "Paying customers as a lower-bound subset of engaged users"
+   },
+   {
+    "title": "Cloudflare bot management / WAF analytics",
+    "access": "Cloudflare zone dashboard",
+    "question": "active_real_users",
+    "why": "Separating bot from human traffic"
+   }
+  ]
+ },
+ "at": "2026-10-03T02:58:25Z"
+}

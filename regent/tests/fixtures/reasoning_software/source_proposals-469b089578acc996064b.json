@@ -1,0 +1,167 @@
+{
+ "task": "source_proposals",
+ "key": "469b089578acc996064b",
+ "model": "claude-sonnet-5-5",
+ "cost_usd": 0.0129194,
+ "instructions": "You advise an operational agent that must answer the principal's need with live data. Propose\n(1) public data APIs that need no key and return JSON relevant to the questions -- give exact GET URLs with every\nparameter filled in from the resolved subjects (coordinates, time zone, identifiers), and the JSON paths you expect\nin the answer; and (2) pages of existing services people already use that answer the question directly (give the\nexact page URL for this subject, plus the link texts a person would click from the site's home page to reach it,\nin case the URL has moved). Each proposal is fetched and checked; propose only what you are confident exists.\nPrefer few, reliable sources. If nothing beyond what was already observed is relevant, return empty lists.",
+ "payload": {
+  "need": {
+   "sentence": "I want to know, at a glance, how many real people are actually using LindyBooks.",
+   "questions": [
+    {
+     "id": "active_real_users",
+     "unit": "people",
+     "exclude": [
+      "bots and crawlers",
+      "automated/scripted traffic",
+      "internal staff, developers and test accounts",
+      "spam, fake or duplicate accounts",
+      "registered-but-inactive accounts",
+      "anonymous one-off page views with no meaningful action",
+      "users who only signed up and never used it"
+     ],
+     "windows": [
+      "24h",
+      "7d",
+      "30d"
+     ],
+     "priority": "core",
+     "quantity": "Distinct human individuals (deduplicated across devices/sessions/accounts where identifiable) who performed at least one meaningful product action (not just account creation, page load, or login) in the window",
+     "question": "How many distinct real human people actively used LindyBooks in the recent period?",
+     "population": "Real human users of LindyBooks who engaged in meaningful use during the window",
+     "answer_type": "count",
+     "acceptable_forms": [
+      "exact",
+      "estimate",
+      "range",
+      "lower_bound"
+     ]
+    },
+    {
+     "id": "total_registered_context",
+     "unit": "accounts",
+     "exclude": [
+      "bots",
+      "staff/test accounts",
+      "duplicates"
+     ],
+     "windows": [
+      "all_time"
+     ],
+     "priority": "supporting",
+     "quantity": "Distinct real, non-test registered accounts",
+     "question": "For context, how many real registered accounts exist versus those actively used?",
+     "population": "Registered LindyBooks accounts belonging to real people",
+     "answer_type": "count",
+     "acceptable_forms": [
+      "exact",
+      "estimate",
+      "lower_bound"
+     ]
+    }
+   ],
+   "deliverable": {
+    "why": "'At a glance' means a view readable in seconds that stays current, headlining one number of real active people.",
+    "form": "glance_view",
+    "refresh": "continuous",
+    "deliver_at_local": null,
+    "max_seconds_to_read": 5
+   }
+  },
+  "principal": {
+   "country": null,
+   "language": "en"
+  },
+  "subjects": [
+   {
+    "kind": "product",
+    "name": "LindyBooks",
+    "deployments": [
+     "lindy-books.org"
+    ]
+   }
+  ]
+ },
+ "schema": {
+  "type": "object",
+  "required": [
+   "apis",
+   "existing_services"
+  ],
+  "properties": {
+   "apis": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "url",
+      "why",
+      "expected_fields",
+      "question"
+     ],
+     "properties": {
+      "url": {
+       "type": "string",
+       "description": "full GET URL, parameters filled in"
+      },
+      "why": {
+       "type": "string"
+      },
+      "expected_fields": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "dotted JSON paths, list indexes as numbers"
+      },
+      "question": {
+       "type": "string"
+      },
+      "needs_key": {
+       "type": "boolean"
+      }
+     }
+    }
+   },
+   "existing_services": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "url",
+      "name",
+      "why",
+      "question",
+      "link_texts"
+     ],
+     "properties": {
+      "url": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "why": {
+       "type": "string"
+      },
+      "question": {
+       "type": "string"
+      },
+      "link_texts": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "visible link texts a person would click, from the site's home page to this page, in the site's language"
+      }
+     }
+    }
+   }
+  }
+ },
+ "output": {
+  "apis": [],
+  "existing_services": []
+ },
+ "at": "2026-10-02T15:00:00Z"
+}
