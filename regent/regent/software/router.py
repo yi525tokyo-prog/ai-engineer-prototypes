@@ -38,6 +38,17 @@ ROUTE_SCHEMA: dict[str, Any] = {
         "unsure": {"type": "array", "items": {"type": "string"},
                    "description": "only for answer: contested points or facts that may have changed, in the "
                                   "person's language"},
+        "act": {"type": ["object", "null"],
+                "description": "only for act",
+                "properties": {
+                    "possible": {"type": "boolean",
+                                 "description": "whether Regent can do this through what it has (listed under "
+                                                "'regent_can_act_through')"},
+                    "say": {"type": ["string", "null"],
+                            "description": "only when not possible: in the person's language, two or three short "
+                                           "sentences: what Regent would need to do this, that it doesn't have it "
+                                           "yet, and what it can do instead right now (e.g. write a draft if they "
+                                           "tell it what to say). No markdown."}}},
         "remember": {"type": ["object", "null"],
                      "description": "only for remember",
                      "properties": {
@@ -69,6 +80,8 @@ world, not what topic it is about:
 - watch: keep an eye on something over time and tell them when a condition is met, when it changes, or on a
   schedule ('every morning tell me...', 'tell me if X goes above Y').
 - act: do something in the world for them: send or reply to someone, book, buy, create, change, build a tool.
+  Regent can act only through what is listed under 'regent_can_act_through'; anything else (reading or sending
+  their messages, their calendar, their accounts, paying) is not possible yet, and you say so plainly.
 Reply in the person's language. A number in the sentence does not make it a watch; a question about now is an
 investigation unless they ask to be told again later."""
 
@@ -93,11 +106,24 @@ def route(sentence: str, *, now_local: str, timezone: str | None, mission_id: st
           reasoner: Reasoner | None = None, answer_later: bool = False) -> dict[str, Any]:
     r = reasoner or get_reasoner()
     ans = r.ask("route", INSTRUCTIONS + (LATER if answer_later else ""),
-                {"sentence": sentence, "now_local": now_local, "timezone": timezone},
+                {"sentence": sentence, "now_local": now_local, "timezone": timezone,
+                 "regent_can_act_through": channels()},
                 ROUTE_SCHEMA, budget_usd=0.5, mission_id=mission_id, effort="low" if answer_later else None)
     out = dict(ans.output)
     if out.get("mode") not in MODES:
         out["mode"] = "act"
+    return out
+
+
+def channels() -> list[str]:
+    """What Regent can act through right now, in plain words (the front door is told, so it never promises more)."""
+    import os
+
+    out = ["reminders and messages Regent itself shows the person, at a time they choose",
+           "small private apps Regent builds for the person, and doing things inside those apps",
+           "reading public web pages and official data"]
+    if os.environ.get("REGENT_SMTP_URL"):
+        out.append("sending an email from the person's configured address (it cannot read their mailbox)")
     return out
 
 
@@ -226,6 +252,11 @@ def apply(s, m, decision: dict[str, Any]) -> str:
     if out["mode"] == "answer" and (out.get("reply") or "").strip():
         attrs["reply"] = {"text": out["reply"].strip(), "unsure": [str(x) for x in out.get("unsure") or []][:5],
                           "language": out.get("language")}
+        m.attrs, m.status = attrs, "completed"
+        return "handled"
+    act = out.get("act") or {}
+    if out["mode"] == "act" and act.get("possible") is False and (act.get("say") or "").strip():
+        attrs["unsupported"] = {"why": act["say"].strip(), "language": out.get("language")}
         m.attrs, m.status = attrs, "completed"
         return "handled"
     if out["mode"] == "remember" and out.get("remember"):

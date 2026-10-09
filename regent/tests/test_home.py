@@ -266,6 +266,12 @@ def test_each_sentence_is_routed_by_what_it_should_make_happen(client, db, monke
     # investigate / watch / act continue into the longer path, shaped by what should happen
     m, out = _routed(db, monkeypatch, "日本の失業率いま何%？", {"mode": "investigate", "language": "ja", "why": "look"})
     assert out == "continue" and m.attrs["mode"] == "investigate" and m.status != "completed"
+    # act: what Regent has no way to do is said at once, in their words, with what it can do instead
+    said = "野田さんへの返信には、メッセージが届いている場所につながる必要がありますが、まだつながっていません。"
+    m, out = _routed(db, monkeypatch, "野田さんに返信して", {"mode": "act", "language": "ja", "why": "reply",
+                                                         "act": {"possible": False, "say": said}})
+    item = next(i for i in client.get("/api/home").json()["items"] if i["id"] == m.id)
+    assert out == "handled" and item["state"] == "cannot" and item["now"] == said and item["explained"]
     need = {"handled_as": "software_capability", "deliverable": {"form": "glance_view", "refresh": "daily"}}
     assert shape_need(need, "investigate")["deliverable"] == {"form": "answer_once", "refresh": "once"}
     assert shape_need(need, "watch")["deliverable"]["form"] == "alert"

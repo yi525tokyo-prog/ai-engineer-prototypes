@@ -288,6 +288,7 @@ def _item(db: Session, m: Mission, open_q: list[dict[str, Any]]) -> dict[str, An
         problem = f"The app Regent had built didn't pass its checks: {fb}."
     return {"id": m.id, "asked": m.objective or m.title, "state": state, "now": now, "result": result,
             "did": did[-8:], "why": why, "problem": problem, "updated": _ago(m.updated_at),
+            "explained": bool((attrs.get("unsupported") or {}).get("language")),     # said in their words
             "started": _ago(m.created_at)}
 
 

@@ -251,7 +251,7 @@ function item(i) {
     el("div", { class: "asked", text: i.asked }),
     status,
     i.problem ? el("div", { class: "why", text: i.problem }) : null,
-    i.state === "cannot" ? el("div", { class: "why", text: "Right now Regent can: answer questions about things on the web and keep the answer current, deliver a daily verdict or summary, build you a small private app and keep using it for you, and look for places to live." }) : null,
+    i.state === "cannot" && !i.explained ? el("div", { class: "why", text: "Right now Regent can: answer questions about things on the web and keep the answer current, deliver a daily verdict or summary, build you a small private app and keep using it for you, and look for places to live." }) : null,
     result(i.result),
     det,
     el("div", { class: "meta", text: `Asked ${i.started}` }),
