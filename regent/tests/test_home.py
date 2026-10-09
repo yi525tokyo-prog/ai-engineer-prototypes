@@ -56,6 +56,29 @@ def test_questions_are_plain_and_answerable(client, db):
     assert (db.get(Operation, "op_b").authority_decision or {}).get("approved_once")
 
 
+def test_a_removed_request_takes_everything_it_started_with_it(client, db):
+    from regent.core.goals.missions import MissionGraph
+    from regent.core.human.interrupts import HumanInterruptManager
+    from regent.db import Mission, Operation
+
+    g = MissionGraph(db)
+    m = g.create(title="x", objective="失業率が5%を超えたら教えて")
+    child = g.create(title="y", objective="acquire software.remind", tags=["capability_acquisition"],
+                     attrs={"capability": "software.remind", "for_mission": m.id})
+    for mid, oid in ((m.id, "op_p"), (child.id, "op_c")):
+        op = Operation(id=oid, mission_id=mid, key=oid, goal="g", executor="code", tool="software",
+                       action="build_app", required_authority="COMMIT", status="waiting_human")
+        db.add(op)
+        db.flush()
+        HumanInterruptManager(db).for_authorization(op, "needs approval")
+    db.commit()
+    assert len(client.get("/api/home").json()["questions"]) == 2
+    client.post(f"/api/items/{m.id}/remove")
+    db.expire_all()
+    assert client.get("/api/home").json()["questions"] == []              # nothing it started still asks
+    assert db.get(Mission, child.id).status == "abandoned" and db.get(Mission, m.id).status == "abandoned"
+
+
 def test_a_reminder_is_delivered_by_regent_itself_at_its_time(client, db):
     from regent import reminders as RM
     from regent.core.goals.missions import MissionGraph
@@ -246,6 +269,8 @@ def test_each_sentence_is_routed_by_what_it_should_make_happen(client, db, monke
     need = {"handled_as": "software_capability", "deliverable": {"form": "glance_view", "refresh": "daily"}}
     assert shape_need(need, "investigate")["deliverable"] == {"form": "answer_once", "refresh": "once"}
     assert shape_need(need, "watch")["deliverable"]["form"] == "alert"
+    # "tell me if unemployment goes above 5%" sounds like a tool to build; it is Regent keeping watch
+    assert shape_need({**need, "need_type": "tool"}, "watch")["need_type"] == "information"
 
 
 def test_a_watch_speaks_only_when_what_was_asked_about_changes():

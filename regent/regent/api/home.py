@@ -418,19 +418,35 @@ def stop(mid: str, db: Session = Depends(get_db)):
     if m is None:
         raise HTTPException(404)
     m.status = "abandoned"
-    for hi in db.scalars(select(HumanInterrupt).where(HumanInterrupt.mission_id == mid,
-                                                      HumanInterrupt.status == "open")):
-        hi.status, hi.resolution = "cancelled", "stopped by the person"
     _silence(db, mid)
     return {"ok": True}
 
 
-def _silence(db: Session, mid: str) -> None:
-    """A request the person stopped or removed never speaks up again: its reminders are cancelled."""
+def _silence(db: Session, mid: str, why: str = "stopped by the person") -> None:
+    """A request the person stopped, removed or started over never speaks up again: its questions are
+    withdrawn, its reminders cancelled, what it keeps watching is retired (apps it built keep running:
+    they hold the person's data), and so for whatever it started on its behalf."""
     from regent import reminders as RM
+    from regent.software.tables import SwCapability
 
-    for r in RM.for_mission(db, mid):
-        r.active = False
+    todo, seen = [mid], set()
+    while todo:
+        cur = todo.pop()
+        if cur in seen:
+            continue
+        seen.add(cur)
+        for r in RM.for_mission(db, cur):
+            r.active = False
+        for hi in db.scalars(select(HumanInterrupt).where(HumanInterrupt.mission_id == cur,
+                                                          HumanInterrupt.status == "open")):
+            hi.status, hi.resolution = "cancelled", why
+        for c in db.scalars(select(SwCapability).where(SwCapability.mission_id == cur,
+                                                       SwCapability.implementation != "application")):
+            c.status = "retired"
+        for child in db.scalars(select(Mission).where(Mission.status.notin_(("completed", "abandoned")))):
+            if (child.attrs or {}).get("for_mission") == cur:
+                child.status = "abandoned"
+                todo.append(child.id)
 
 
 @router.post("/api/items/{mid}/retry")
@@ -438,17 +454,11 @@ def retry(mid: str, bg: BackgroundTasks, db: Session = Depends(get_db)):
     """Start the request over: what it produced last time is set aside (kept, not deleted) so the
     new attempt looks at the world again instead of reusing it."""
     from regent.core.goals.missions import MissionGraph
-    from regent.software.tables import SwCapability
 
     m = db.get(Mission, mid)
     if m is None:
         raise HTTPException(404)
-    for c in db.scalars(select(SwCapability).where(SwCapability.mission_id == mid,
-                                                   SwCapability.implementation != "application")):
-        c.status = "retired"          # applications keep running: they hold the person's data
-    for hi in db.scalars(select(HumanInterrupt).where(HumanInterrupt.mission_id == mid,
-                                                      HumanInterrupt.status == "open")):
-        hi.status, hi.resolution = "cancelled", "started over"
+    _silence(db, mid, "started over")
     m.attrs = {**(m.attrs or {}), "hidden": True, "replaced": True}
     if m.status not in ("completed",):
         m.status = "abandoned"
@@ -472,9 +482,9 @@ def remove(mid: str, db: Session = Depends(get_db)):
     if m is None:
         raise HTTPException(404)
     m.attrs = {**(m.attrs or {}), "hidden": True}
-    if m.status not in ("completed", "monitoring"):
+    if m.status != "completed":
         m.status = "abandoned"
-    _silence(db, mid)
+    _silence(db, mid, "removed by the person")
     return {"ok": True}
 
 

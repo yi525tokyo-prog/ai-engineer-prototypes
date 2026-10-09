@@ -276,6 +276,9 @@ def shape_need(need: dict[str, Any], mode: str | None) -> dict[str, Any]:
         d.update({"form": "answer_once", "refresh": "once"})
     elif mode == "watch" and d.get("form") not in ("alert", "report"):
         d["form"] = "alert"
-    if mode in ("investigate", "watch") and need.get("handled_as") in ("conversation", "other"):
-        need = {**need, "handled_as": "software_capability"}
+    if mode in ("investigate", "watch"):
+        # Regent itself finds out (and keeps looking): something to know, never an app to build
+        need = {**need, "need_type": "information"}
+        if need.get("handled_as") in ("conversation", "other"):
+            need["handled_as"] = "software_capability"
     return {**need, "deliverable": d, "mode": mode}
