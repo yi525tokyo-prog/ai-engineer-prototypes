@@ -204,9 +204,11 @@ def _result(db: Session, m: Mission) -> dict[str, Any] | None:
         metrics = r.get("metrics", [])
         head = min((x for x in metrics if x.get("headline")), key=lambda x: x["headline"], default=None)
         others = [x for x in metrics if x is not head and x.get("value") is not None][:5]
+        asked = {q.get("id"): q.get("question") for q in need.get("questions") or []}
         return {"kind": "answer", "view": f"/software/{c.slug}", "keeps_current": (c.spec or {}).get("refresh_s"),
+                "said": ((attrs.get("watch_said") or {}).get("text") if attrs.get("mode") == "watch" else None),
                 "headline": _metric(head) if head else None, "also": [_metric(x) for x in others],
-                "unknown": [u.get("question") for u in r.get("unanswered", [])][:3],
+                "unknown": [asked.get(u.get("question")) or u.get("question") for u in r.get("unanswered", [])][:3],
                 "reused": bool(used) and c.mission_id != m.id}
     # housing and other acquisition work: the shortlist it wrote
     for o in db.scalars(select(Operation).where(Operation.mission_id == m.id).order_by(Operation.created_at.desc())):
@@ -264,7 +266,8 @@ def _item(db: Session, m: Mission, open_q: list[dict[str, Any]]) -> dict[str, An
         state, now = "stopped", "Stopped"
     elif running:
         o = running[-1]
-        state, now = "working", DOING.get(f"{o.tool}.{o.action}") or o.goal
+        state, now = "working", DOING.get(f"{o.tool}.{o.action}") or (
+            "Looking things up" if o.tool in ("web", "http", "browser", "acquire") else "Working on it")
     elif failed and not result:
         state, now = "stuck", "Hit a problem and is looking for another way"
     else:

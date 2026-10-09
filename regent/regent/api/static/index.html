@@ -163,7 +163,13 @@ function metricBlock(h) {
 function result(r) {
   if (!r) return null;
   const box = el("div", { class: "result" });
-  if (r.kind === "answer") {
+  if (r.kind === "answer" && r.said) {                     // a watch: where things stand, in the person's words
+    box.append(el("div", { class: "body", text: r.said }));
+    const list = el("ul", { class: "plain small" }, ...[r.headline, ...(r.also || [])].filter((m) => m && m.value !== null && m.value !== undefined)
+      .map((m) => el("li", {}, `${m.label}: `, el("strong", { text: m.value }))));
+    box.append(el("details", {}, el("summary", { text: "Based on" }), list));
+    box.append(el("div", { class: "actions" }, el("a", { href: r.view, target: "_blank", text: "Open the live view" })));
+  } else if (r.kind === "answer") {
     box.append(metricBlock(r.headline));
     if (r.also && r.also.length) {
       const list = el("ul", { class: "plain small" }, ...r.also.map((m) => el("li", {}, `${m.label}: `, el("strong", { text: m.value }))));

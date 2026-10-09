@@ -290,6 +290,30 @@ def test_a_watch_speaks_only_when_what_was_asked_about_changes():
     assert K.change_worth_telling(cap, look(True, "Yes")) is None
 
 
+def test_a_watch_says_where_things_stand_in_the_persons_words(db, monkeypatch):
+    from regent.core.goals.missions import MissionGraph
+    from regent.software import domain as D
+    from regent.software import reply as R
+
+    written = []
+
+    def line(sentence, findings, **k):
+        written.append(findings)
+        return {"text": f"いまは{findings['metrics'][0]['display']}%（8月、総務省統計局）。5%を超えたらお知らせします。",
+                "language": "ja"}
+
+    monkeypatch.setattr(R, "watch_line", line)
+    m = MissionGraph(db).create(title="x", objective="失業率が5%を超えたら教えて", attrs={"mode": "watch"})
+    db.commit()
+
+    def look(rate):
+        return {"metrics": [{"label": "rate", "display": rate, "value": float(rate), "form": "estimate"}]}
+
+    assert D._watch_line(db, m, look("2.5")).startswith("いまは2.5%")
+    assert D._watch_line(db, m, look("2.5")).startswith("いまは2.5%") and len(written) == 1   # unchanged: not rewritten
+    assert D._watch_line(db, m, look("2.6")).startswith("いまは2.6%") and len(written) == 2
+
+
 def test_a_request_never_stays_silently_stuck_at_the_front_door(client, db, monkeypatch):
     from regent.core.goals.missions import MissionGraph
     from regent.software import router as R

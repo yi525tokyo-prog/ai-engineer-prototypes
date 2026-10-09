@@ -62,6 +62,22 @@ def tell(sentence: str, findings: dict[str, Any], *, mission_id: str | None = No
             "unsure": [str(x) for x in (out.get("unsure") or [])][:5]}
 
 
+WATCH_INSTRUCTIONS = """Regent is keeping watch for the person (what they asked is below) and has just looked.
+Say in one or two short sentences, in the SAME LANGUAGE they asked in: where things stand now (the figure with its
+unit, the period it covers and who published it, as the findings give them) and what will make Regent tell them.
+Use only what the findings say; if something they asked about is not known, say so in a few words. Plain text, no
+markdown."""
+
+
+def watch_line(sentence: str, findings: dict[str, Any], *, mission_id: str | None = None,
+               reasoner: Reasoner | None = None) -> dict[str, Any]:
+    """Where a watch stands, said in the person's words. Raises ReasonerUnavailable."""
+    r = reasoner or get_reasoner()
+    ans = r.ask("watch_line", WATCH_INSTRUCTIONS, {"asked": sentence, "findings": findings}, REPLY_SCHEMA,
+                budget_usd=0.2, mission_id=mission_id)
+    return {"text": str(ans.output.get("reply") or "").strip(), "language": ans.output.get("language")}
+
+
 def findings_of(read: dict[str, Any]) -> dict[str, Any]:
     keep = ("label", "display", "form", "window", "definition", "why", "status", "unit")
     return {"metrics": [{k: m.get(k) for k in keep if m.get(k) is not None} for m in read.get("metrics", [])][:12],

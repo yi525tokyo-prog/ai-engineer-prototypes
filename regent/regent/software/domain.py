@@ -252,6 +252,10 @@ class SoftwareAdapter(DomainAdapter):
                     note("deliver", f"{cap.slug} -> principal ({day}): {text[:200]}")
                 told = K.change_worth_telling(cap, r)
                 if told:
+                    from regent.db import Mission
+
+                    watcher = s.get(Mission, mission_id) if mission_id else None
+                    told = (_watch_line(s, watcher, r) if watcher is not None else None) or told
                     events.append("principal_notified", {"capability": cap.slug, "channel": "regent_inbox",
                                                          "text": told, "view": f"/software/{cap.slug}"},
                                   source=f"capability:{cap.slug}", mission_id=mission_id)
@@ -400,8 +404,31 @@ def maintain(s: Session) -> list[str]:
     return done + _close_investigations(s) + appcap.maintain(s)
 
 
+def _watch_line(s: Session, m, r: dict[str, Any]) -> str | None:
+    """Where a watch stands, in the person's words; written again only when what it found changed."""
+    from regent.software.reasoner import ReasonerUnavailable
+    from regent.software.reply import findings_of, watch_line
+
+    known = [f"{x.get('label')}={x.get('display')}" for x in r.get("metrics", []) if x.get("value") is not None]
+    if not known:
+        return None
+    key = "|".join(sorted(known))
+    said = (m.attrs or {}).get("watch_said") or {}
+    if said.get("for") == key:
+        return said.get("text")
+    s.commit()                          # don't hold the database while it is written
+    try:
+        out = watch_line(m.objective or m.title, findings_of(r), mission_id=m.id)
+    except ReasonerUnavailable:
+        return None
+    if out["text"]:
+        m.attrs = {**(m.attrs or {}), "watch_said": {**out, "for": key}}
+    return out["text"] or None
+
+
 def _close_investigations(s: Session) -> list[str]:
-    """An investigation is answered once, in the person's language, and then left alone."""
+    """An investigation is answered once, in the person's language, and then left alone. A watch says
+    where things stand, in the same words, whenever that changes."""
     from regent.db import Mission
     from regent.software.reasoner import ReasonerUnavailable
     from regent.software.reply import findings_of, tell
@@ -409,6 +436,16 @@ def _close_investigations(s: Session) -> list[str]:
     done = []
     for m in list(s.scalars(select(Mission).where(Mission.status.in_(("active", "monitoring"))))):
         attrs = m.attrs or {}
+        if attrs.get("mode") == "watch":
+            cap = s.scalar(select(K.SwCapability).where(K.SwCapability.mission_id == m.id,
+                                                        K.SwCapability.status.in_(("usable", "degraded"))).limit(1))
+            seen = str((cap.provenance or {}).get("watched_at") or cap.updated_at) if cap is not None else None
+            if cap is not None and (attrs.get("watch_said") or {}).get("seen") != seen:   # it looked again
+                if _watch_line(s, m, K.read(s, cap, count_use=False)):
+                    m.attrs = {**(m.attrs or {}), "watch_said": {**(m.attrs or {}).get("watch_said", {}),
+                                                                 "seen": seen}}
+                    done.append(f"{m.id}: watch status checked")
+            continue
         if attrs.get("mode") != "investigate" or attrs.get("reply"):
             continue
         cap = s.scalar(select(K.SwCapability).where(K.SwCapability.mission_id == m.id,
