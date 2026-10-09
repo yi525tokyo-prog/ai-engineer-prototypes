@@ -325,6 +325,16 @@ def test_a_watch_says_where_things_stand_in_the_persons_words(db, monkeypatch):
     D._close_investigations(db)                  # no new look since: nothing rewritten
     assert len(written) == 3
 
+    # "what is it now?" answered with what the watch already reads: said once, as an answer to that question
+    monkeypatch.setattr(R, "tell", lambda sentence, findings, **k: {"text": "2.7%です（8月）。", "language": "ja",
+                                                                   "unsure": []})
+    q = MissionGraph(db).create(title="q", objective="日本の失業率いま何%？", attrs={
+        "mode": "investigate", "need": {"reuse": [{"id": "cap_w"}]}})
+    q.status = "completed"                       # reuse finished it before anything was said
+    db.commit()
+    D._close_investigations(db)
+    assert q.attrs["reply"]["text"] == "2.7%です（8月）。"
+
 
 def test_a_request_never_stays_silently_stuck_at_the_front_door(client, db, monkeypatch):
     from regent.core.goals.missions import MissionGraph

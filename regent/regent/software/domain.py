@@ -446,8 +446,12 @@ def _close_investigations(s: Session) -> list[str]:
                                                                  "seen": seen}}
                     done.append(f"{m.id}: watch status checked")
             continue
-        if attrs.get("mode") != "investigate" or attrs.get("reply") or m.status == "completed":
+        if attrs.get("mode") != "investigate" or attrs.get("reply"):
             continue
+        created = m.created_at if m.created_at is None or m.created_at.tzinfo else m.created_at.replace(
+            tzinfo=timezone.utc)
+        if m.status == "completed" and (created is None or (utcnow() - created).total_seconds() > 86400):
+            continue                                    # long settled before answers were said this way
         cap = s.scalar(select(K.SwCapability).where(K.SwCapability.mission_id == m.id,
                                                     K.SwCapability.status.in_(("usable", "degraded"))).limit(1))
         if cap is None:

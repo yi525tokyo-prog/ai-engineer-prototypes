@@ -256,6 +256,8 @@ def _item(db: Session, m: Mission, open_q: list[dict[str, Any]]) -> dict[str, An
         state, now = "paused", "Waiting to try again: " + attrs["paused"]["why"]
     elif mine:
         state, now = "needs_you", "Waiting for you (below)"
+    elif attrs.get("mode") == "investigate" and not attrs.get("reply") and result and result.get("kind") == "answer":
+        state, now, result = "working", "Putting the answer into words", None    # found: said in a moment
     elif m.status == "completed" or (m.status == "monitoring" and result):
         state = "done"
         now = ("Keeping watch — you'll hear from Regent only when something changes"
