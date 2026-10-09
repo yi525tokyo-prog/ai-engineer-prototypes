@@ -434,9 +434,9 @@ def _close_investigations(s: Session) -> list[str]:
     from regent.software.reply import findings_of, tell
 
     done = []
-    for m in list(s.scalars(select(Mission).where(Mission.status.in_(("active", "monitoring"))))):
+    for m in list(s.scalars(select(Mission).where(Mission.status.in_(("active", "monitoring", "completed"))))):
         attrs = m.attrs or {}
-        if attrs.get("mode") == "watch":
+        if attrs.get("mode") == "watch":             # set up and done, yet it keeps looking
             cap = s.scalar(select(K.SwCapability).where(K.SwCapability.mission_id == m.id,
                                                         K.SwCapability.status.in_(("usable", "degraded"))).limit(1))
             seen = str((cap.provenance or {}).get("watched_at") or cap.updated_at) if cap is not None else None
@@ -446,7 +446,7 @@ def _close_investigations(s: Session) -> list[str]:
                                                                  "seen": seen}}
                     done.append(f"{m.id}: watch status checked")
             continue
-        if attrs.get("mode") != "investigate" or attrs.get("reply"):
+        if attrs.get("mode") != "investigate" or attrs.get("reply") or m.status == "completed":
             continue
         cap = s.scalar(select(K.SwCapability).where(K.SwCapability.mission_id == m.id,
                                                     K.SwCapability.status.in_(("usable", "degraded"))).limit(1))

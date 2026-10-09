@@ -304,6 +304,7 @@ def test_a_watch_says_where_things_stand_in_the_persons_words(db, monkeypatch):
 
     monkeypatch.setattr(R, "watch_line", line)
     m = MissionGraph(db).create(title="x", objective="失業率が5%を超えたら教えて", attrs={"mode": "watch"})
+    m.status = "completed"                       # set up: the request is done, the watch goes on
     db.commit()
 
     def look(rate):
@@ -312,6 +313,17 @@ def test_a_watch_says_where_things_stand_in_the_persons_words(db, monkeypatch):
     assert D._watch_line(db, m, look("2.5")).startswith("いまは2.5%")
     assert D._watch_line(db, m, look("2.5")).startswith("いまは2.5%") and len(written) == 1   # unchanged: not rewritten
     assert D._watch_line(db, m, look("2.6")).startswith("いまは2.6%") and len(written) == 2
+    from regent.software import capability as K
+
+    cap = K.SwCapability(id="cap_w", slug="jobless", title="t", mission_id=m.id, status="usable", spec={},
+                         provenance={})
+    db.add(cap)
+    db.commit()
+    monkeypatch.setattr(K, "read", lambda s, c, count_use=False: look("2.7"))
+    D._close_investigations(db)                  # the loop's own pass picks it up
+    assert m.attrs["watch_said"]["text"].startswith("いまは2.7%") and len(written) == 3
+    D._close_investigations(db)                  # no new look since: nothing rewritten
+    assert len(written) == 3
 
 
 def test_a_request_never_stays_silently_stuck_at_the_front_door(client, db, monkeypatch):
