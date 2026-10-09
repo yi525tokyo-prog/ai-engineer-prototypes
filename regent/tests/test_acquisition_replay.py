@@ -1,0 +1,276 @@
+"""World Acquisition on *recorded real pages* (tests/fixtures/web, captured by Regent from
+the public web and replayed through the same Fetcher via httpx). No candidate is
+seeded: Regent starts from portal entry pages, reads live market rents, picks areas,
+navigates to listings, extracts claims, resolves identities and runs the funnel."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pytest
+from sqlalchemy import func, select
+
+from regent.acquisition import service
+from regent.acquisition.fetch import html_to_text
+from regent.acquisition.housing.extractor import RENT_MAX, RENT_MIN, HousingExtractor
+from regent.acquisition.replay import ReplayTransport
+from regent.acquisition.tables import AcqClaim, AcqDocument, AcqEntity, AcqRequest, AcqSource
+from regent.acquisition.types import FetchedDocument
+
+FIX = Path(__file__).parent / "fixtures" / "web"
+FIX_GLOBAL = Path(__file__).parent / "fixtures" / "web_global"
+JP_ONLY = {"regions": [{"name": "東京都", "country": "JP"}], "household": 1, "max_areas": 1}
+
+
+@pytest.fixture()
+def web(monkeypatch):
+    t = ReplayTransport(FIX)
+    monkeypatch.setattr(service, "TRANSPORT", t)
+    monkeypatch.setattr(service, "ENGINE_KW", {"max_pages": 60, "min_interval_s": 0, "deadline_s": 600})
+    return t
+
+
+def _doc(url: str) -> FetchedDocument:
+    import gzip
+
+    t = ReplayTransport(FIX)
+    html = gzip.decompress((FIX / t.pages[url]["file"]).read_bytes()).decode()
+    _, text = html_to_text(html)
+    return FetchedDocument(id="d", url=url, final_url=url, host=url.split("/")[2], status=200, html=html, text=text,
+                           fetched_at=datetime(2026, 9, 29, tzinfo=timezone.utc), render="static")
+
+
+def test_extractor_reads_real_listing_and_market_pages():
+    x = HousingExtractor()
+    for url, min_units in (("https://suumo.jp/chintai/tokyo/sc_edogawa/", 30),
+                           ("https://www.homes.co.jp/chintai/tokyo/edogawa-city/list/", 40),
+                           ("https://www.chintai.net/tokyo/area/13123/list/", 20)):
+        units = [m for m in x.extract(_doc(url), "listing") if m.entity_type == "unit"]
+        assert len(units) >= min_units, url
+        for u in units:
+            c = {k.attribute: k.value for k in u.claims}
+            assert RENT_MIN <= c["rent"] <= RENT_MAX and c.get("layout") and c.get("area_m2")
+            assert all(k.evidence for k in u.claims)           # provenance text for every claim
+            assert u.parent is not None and (u.parent.value("address") or u.parent.value("name"))
+    market = [m for m in x.extract(_doc("https://suumo.jp/chintai/soba/tokyo/"), "market") if m.entity_type == "area"]
+    assert len(market) >= 20
+    assert all(any(c.attribute.startswith("market_rent_") for c in m.claims) for m in market)
+    # listing pages carry neighbour-area widgets: those are not market data
+    listing = x.extract(_doc("https://www.homes.co.jp/chintai/tokyo/edogawa-city/list/"), "listing")
+    assert not [m for m in listing if m.entity_type == "area"]
+
+
+def test_discovery_from_entry_pages_without_any_candidate_list(db, web):
+    out = service.run_action("discover", mission_id=None,
+                             params={**JP_ONLY, "assumptions": []})
+    assert out["status"] == "done"
+    db.expire_all()
+    req = db.get(AcqRequest, out["request_id"])
+    # areas were chosen from live market data, not given
+    # the principal named the region; the areas inside it were chosen from live market data
+    acquired = req.plan["regions_acquired"][0]
+    assert acquired["name"] == "東京都" and acquired["summary"]["areas"] == ["江戸川区"]
+    assert "market rents from live data" in acquired["summary"]["area_rationale"]
+    f = out["funnel"]
+    assert f["units"] >= 150 and f["units"] > f["passed_filters"] >= f["filtered"] >= f["shortlisted"] >= 1
+    assert f["filtered"] <= 25 and f["shortlisted"] <= 8
+    # several independent sources were navigated to from their entry pages
+    hosts = {h for (hs,) in db.execute(select(AcqEntity.source_hosts).where(AcqEntity.entity_type == "unit"))
+             for h in hs or []}
+    assert {"suumo.jp", "www.homes.co.jp", "www.chintai.net", "www.monthly-mansion.com"} <= hosts
+    assert any(u.startswith("https://suumo.jp/chintai/tokyo/sc_edogawa/") for u in web.requests)
+    # the same room found on two portals became one unit with claims from both
+    multi = [hs for (hs,) in db.execute(select(AcqEntity.source_hosts).where(AcqEntity.entity_type == "unit"))
+             if len(hs or []) >= 2]
+    assert multi
+    # access control is respected and recorded, not bypassed
+    athome = db.get(AcqSource, "www.athome.co.jp")
+    assert athome.blocked >= 1 and athome.ok == 0
+    assert any("blocked" in e["message"] for e in req.log if "athome" in e["message"])
+    # every observed claim is traceable to the page that asserted it; derived claims state their basis
+    orphan = db.scalar(select(func.count()).select_from(AcqClaim).where(
+        AcqClaim.source_kind != "derived",
+        (AcqClaim.url == "") | AcqClaim.document_id.is_(None) | (AcqClaim.evidence == "")))
+    assert orphan == 0
+    assert not db.scalar(select(func.count()).select_from(AcqClaim).where(AcqClaim.evidence == ""))
+    docs = {d.id for d in db.scalars(select(AcqDocument))}
+    assert all(c.document_id in docs for c in db.scalars(select(AcqClaim).where(AcqClaim.source_kind != "derived")
+                                                         .limit(500)))
+    # shortlisted candidates carry evidence-backed beliefs
+    short = db.scalars(select(AcqEntity).where(AcqEntity.stage == "shortlisted")).all()
+    assert short and all(e.beliefs["rent"]["hypotheses"][0]["sources"] for e in short)
+    assert "## 1." in out["brief_markdown"]
+
+
+@pytest.fixture()
+def world_web(monkeypatch):
+    """Pages Regent recorded while acquiring housing across five regions on three continents."""
+    t = ReplayTransport(FIX_GLOBAL)
+    monkeypatch.setattr(service, "TRANSPORT", t)
+    monkeypatch.setattr(service, "ENGINE_KW", {"max_pages": 280, "min_interval_s": 0, "deadline_s": 900})
+    return t
+
+
+def test_geography_is_decided_not_assumed(db, world_web):
+    """Only the sentence. Regent builds a candidate world from public directories, prices it live,
+    and acquires regions in several countries -- the principal's apparent country is evidence."""
+    out = service.run_action("discover", mission_id=None,
+                             params={"mission_text": "住居を安定させたい", "household": 1, "assumptions": []})
+    db.expire_all()
+    req = db.get(AcqRequest, out["request_id"])
+    plan = req.plan
+    assert plan["principal"]["home"] == "JP" and "weak signal" in plan["principal"]["home_evidence"]
+    countries = {r["country"] for r in plan["regions"]}
+    assert len(countries - {"JP"}) >= 2, countries
+    assert plan["regions_rejected"] and all(r["reason"] for r in plan["regions_rejected"])
+    acquired = {r["country"]: r["units"] for r in plan["regions_acquired"]}
+    assert sum(1 for cc, n in acquired.items() if cc != "JP" and n >= 5) >= 2
+    # money is compared in one reference currency (ECB rates), amounts stay in their own currency
+    assert plan["ref_currency"] == "JPY" and plan["fx"]["per_eur"]["JPY"] > 0
+    cur = {c.value for c in db.scalars(select(AcqClaim).where(AcqClaim.attribute == "currency"))}
+    assert {"EUR", "NZD"} <= cur
+    # a country without a pack or seeds bootstrapped its own source from the web
+    from regent.acquisition.tables import AcqSourceRecipe
+
+    es = db.scalars(select(AcqSourceRecipe).where(AcqSourceRecipe.scope == "ES")).all()
+    assert any(r.status == "verified" and r.origin.startswith("discovered:") for r in es)
+    assert any(r.status in ("blocked", "rejected") and (r.evidence or {}).get("why") for r in es)
+    # every region's shortlist exists; three per region in multi-region mode
+    assert out["funnel"]["shortlisted"] >= 3 * len(acquired) - 3
+    # one enrichment pass settles every candidate -- including ones with nothing to enrich --
+    # so the loop does not ask for enrichment again on every tick
+    from regent.acquisition import domain as D
+
+    adapter = D.adapters()["housing"]
+    pending = service.mission_state(db, None, adapter)["shortlist_pending_enrichment"]
+    assert pending
+    enriched: set[str] = set()
+    for _ in range(4):        # enrichment may reject a candidate and promote the next one: converge
+        assert not (set(pending) & enriched), "a candidate was enriched twice"
+        service.run_action("enrich", mission_id=None, params={"entity_ids": pending})
+        enriched |= set(pending)
+        db.expire_all()
+        pending = service.mission_state(db, None, adapter)["shortlist_pending_enrichment"]
+        if not pending:
+            break
+    assert pending == []
+
+
+def test_loop_acquires_the_world_from_a_mission_sentence(db, services, world_web):
+    """Only the mission text. The ACQUIRE phase runs discovery before any strategy is compared,
+    then strategies compete across borders -- including not signing anything yet."""
+    from regent.core.goals.missions import MissionGraph
+    from regent.core.loop import RegentLoop
+    from regent.db import Operation, Route
+
+    m = MissionGraph(db).create(title="住居を安定させたい", objective="住居を安定させたい")
+    db.commit()
+    reps = RegentLoop(db, services).run(m.id, max_ticks=2)
+    first = reps[0]
+    acq = next(p for p in first.phases if p["phase"] == "acquire")
+    assert acq["operations"] and acq["needs"][0]["action"] == "discover"
+    assert acq["executed_before_planning"]
+    op = db.scalar(select(Operation).where(Operation.mission_id == m.id, Operation.tool == "acquire",
+                                           Operation.action == "discover"))
+    assert op.status == "succeeded" and op.outputs["funnel"]["shortlisted"] >= 3
+    from regent.core.world.state import WorldView
+
+    world = WorldView.load(db)
+    regions = [e for e in world.entities.values() if e.kind == "region"]
+    assert len({e.attrs.get("country") for e in regions}) >= 3
+    routes = list(db.scalars(select(Route).where(Route.mission_id == m.id)))
+    abroad = [r for r in routes if "relocation" in (r.tags or [])]
+    home = [r for r in routes if r.key.startswith("housing-lease-jp")]
+    assert len(abroad) >= 2 and home and any(r.key == "housing-defer" for r in routes)
+    # every region with shortlisted homes to rent gets its lease route: route generation sees the
+    # whole world, not a truncated summary (truncation once dropped whole regions arbitrarily)
+    leased = {r.key.split("-", 3)[3] for r in routes if r.key.startswith("housing-lease-")}
+    with_homes = {e.name.split(",")[0].lower() for e in regions if any(
+        u.attrs.get("region_id") == e.id and u.attrs.get("stage") == "shortlisted" and u.attrs.get("kind") != "room"
+        for u in world.entities.values() if u.kind == "unit")}
+    assert with_homes <= leased, (with_homes, leased)
+    assert all(any(u["fact_key"].startswith("principal.right_to_reside.") for u in r.uncertainty) for r in abroad)
+    # later requests (enrichment) keep region semantics: home stays home, nothing floats region-less
+    assert all(r.title.startswith("Lease now in") for r in home)
+    assert not db.scalar(select(func.count()).select_from(AcqEntity).where(
+        AcqEntity.entity_type == "unit", AcqEntity.stage == "shortlisted", AcqEntity.region_id.is_(None)))
+
+
+def test_acquisition_api_exposes_hypotheses_with_provenance(db, web, live_server):
+    import httpx
+
+    service.run_action("discover", mission_id=None, params=JP_ONLY)
+    o = httpx.get(f"{live_server}/api/acquisition/overview").json()
+    assert o["funnel"]["shortlisted"] >= 1 and o["candidates"][0]["stage"] == "shortlisted"
+    src = {s["host"]: s for s in o["sources"]}
+    assert src["www.athome.co.jp"]["blocked"] >= 1 and src["suumo.jp"]["records"] > 0
+    cid = o["candidates"][0]["id"]
+    d = httpx.get(f"{live_server}/api/acquisition/entities/{cid}").json()
+    rent = d["attributes"]["rent"]
+    assert rent["claims"] and all(c["url"].startswith("https://") and c["source_host"] for c in rent["claims"])
+    assert rent["belief"]["ttl_s"] == 24 * 3600 and d["parent"] is not None
+    assert d["resolution_links"], "identity decisions are exposed"
+    assert httpx.get(f"{live_server}/api/acquisition/entities/nope").status_code == 404
+
+
+def test_time_sensitive_claims_expire_and_are_rechecked_once(db, web, monkeypatch):
+    from datetime import timedelta
+
+    from regent.acquisition import domain as D
+    from regent.acquisition.tables import AcqJob
+    from regent.ids import utcnow
+
+    service.run_action("discover", mission_id="m1", params=JP_ONLY)
+    adapter = D.adapters()["housing"]
+    db.expire_all()
+    pending = service.mission_state(db, "m1", adapter)["shortlist_pending_enrichment"]
+    assert pending
+    service.run_action("enrich", mission_id="m1", params={"entity_ids": pending})
+    db.expire_all()
+    st = service.mission_state(db, "m1", adapter)
+    assert st["shortlist_pending_enrichment"] == [] and st["stale_shortlisted"] == []
+    t7 = utcnow() + timedelta(hours=7)            # past availability's 6 h TTL, inside rent's 24 h
+    monkeypatch.setattr(service, "CLOCK", lambda: t7)
+    stale = service.mission_state(db, "m1", adapter)["stale_shortlisted"]
+    assert stale, "availability claims older than 6 h must be flagged"
+    out = service.run_action("recheck", mission_id="m1", params={"entity_ids": stale})
+    db.expire_all()
+    jobs = db.scalars(select(AcqJob).where(AcqJob.kind == "recheck", AcqJob.request_id == out["request_id"])).all()
+
+    assert jobs and all(abs((j.created_at - t7).total_seconds()) < 5 for j in jobs)
+    for j in jobs:
+        if j.status == "done" and j.result.get("re_observed"):
+            e = db.get(AcqEntity, j.entity_id)
+            assert e.beliefs["availability"]["fresh"], "a re-observed claim is fresh again"
+    # rechecked within the hour: not rechecked again (no loop), whether or not the source answered
+    assert service.mission_state(db, "m1", adapter)["stale_shortlisted"] == []
+    t9 = t7 + timedelta(hours=2)
+    monkeypatch.setattr(service, "CLOCK", lambda: t9)
+    still = service.mission_state(db, "m1", adapter)["stale_shortlisted"]
+    refreshed = {j.entity_id for j in jobs if j.status == "done" and j.result.get("re_observed")}
+    assert set(still) <= set(stale) and not (set(still) & refreshed)
+
+
+def test_acquisition_is_deterministic(workspace, monkeypatch):
+    """Same pages in, same world out: two runs on fresh databases fetch the same URLs in the same
+    order and shortlist the same candidates with the same scores. (Row order, random ids and equal
+    timestamps once decided which candidate got enriched and which region got a lease route.)"""
+    from regent import db as dbm
+
+    runs = []
+    for _ in range(2):
+        dbm.configure()
+        dbm.init_db(drop=True)
+        t = ReplayTransport(FIX)
+        monkeypatch.setattr(service, "TRANSPORT", t)
+        monkeypatch.setattr(service, "ENGINE_KW", {"max_pages": 60, "min_interval_s": 0, "deadline_s": 600})
+        out = service.run_action("discover", mission_id=None, params=JP_ONLY)
+        service.run_action("enrich", mission_id=None, params={"entity_ids": out["shortlisted"][:4]})
+        s = dbm.session()
+        units = [(e.label, e.stage, round(e.score, 6)) for e in s.scalars(
+            select(AcqEntity).where(AcqEntity.entity_type == "unit").order_by(AcqEntity.label, AcqEntity.score))]
+        s.close()
+        runs.append((list(t.requests), units))
+    assert runs[0][0] == runs[1][0]
+    assert runs[0][1] == runs[1][1]

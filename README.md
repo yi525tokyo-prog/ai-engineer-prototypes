@@ -84,6 +84,16 @@ Sample output:
   lane: claude  (1 conversational signal(s) matched)
 ```
 
+## 4. Regent — an operational principal
+
+[`regent/`](regent/) is a full monorepo, not a single-file prototype. It keeps an event-sourced
+model of your world (PostgreSQL), generates *competing* strategies and scores them with its own
+framework. It executes permitted work through real tools (Playwright, pytest, a sandboxed
+filesystem, mail, calendar and more) and asks the human only for bounded actions such as a
+CAPTCHA. It then verifies the results and replans when the evidence changes. It comes with a
+Next.js operational cockpit, a seeded case study and 39 tests. See
+[regent/README.md](regent/README.md).
+
 ---
 
 All three were built and run-verified for this application — happy to

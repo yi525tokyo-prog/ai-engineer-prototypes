@@ -1,0 +1,68 @@
+{
+  "properties": {
+    "expected_upside": {
+      "default": 0.0,
+      "description": "Upside if the route succeeds, in mission value units",
+      "title": "Expected Upside",
+      "type": "number"
+    },
+    "success_probability": {
+      "default": 0.5,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Success Probability",
+      "type": "number"
+    },
+    "time_cost_hours": {
+      "default": 0.0,
+      "minimum": 0,
+      "title": "Time Cost Hours",
+      "type": "number"
+    },
+    "money_cost": {
+      "default": 0.0,
+      "description": "Cash cost, in the money resource unit",
+      "minimum": 0,
+      "title": "Money Cost",
+      "type": "number"
+    },
+    "information_gain": {
+      "default": 0.0,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Information Gain",
+      "type": "number"
+    },
+    "reversibility": {
+      "default": 0.5,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Reversibility",
+      "type": "number"
+    },
+    "optionality": {
+      "default": 0.5,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Optionality",
+      "type": "number"
+    },
+    "risk": {
+      "default": 0.3,
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Risk",
+      "type": "number"
+    },
+    "authority_cost": {
+      "default": 0.0,
+      "description": "How much human authority/attention the route consumes",
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Authority Cost",
+      "type": "number"
+    }
+  },
+  "title": "RouteEstimates",
+  "type": "object"
+}
