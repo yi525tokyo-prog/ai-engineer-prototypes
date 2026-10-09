@@ -365,41 +365,9 @@ def intent(body: IntentIn, bg: BackgroundTasks, db: Session = Depends(get_db)):
 
 def _route_now(mission_id: str) -> None:
     """Decide at once what the sentence should make happen; answers and things to remember finish here."""
-    import logging
+    from regent.software.router import front_door
 
-    from sqlalchemy.exc import OperationalError
-
-    from regent import db as dbm
-
-    from regent.software.router import WRITING, apply, decide
-
-    log = logging.getLogger("regent.front_door")
-    t0 = time.time()
-    with dbm.session() as s:                     # read what was asked, then let go of the database
-        m = s.get(Mission, mission_id)
-        if m is None:
-            return
-        sentence, attrs = m.objective or m.title, dict(m.attrs or {})
-    try:
-        decision = decide(mission_id, sentence, attrs, stream=True)
-    except Exception as e:  # noqa: BLE001 - never leave a request silently stuck
-        log.exception("routing %s failed after %.1fs", mission_id, time.time() - t0)
-        decision = {"outcome": "paused",
-                    "why": f"Regent hit a problem understanding this ({type(e).__name__}); it will try again"}
-    # saving is quick, but a long loop pass may hold the database for a while: keep trying, don't give up
-    for attempt in range(150):
-        try:
-            with dbm.session() as s:
-                m = s.get(Mission, mission_id)
-                outcome = apply(s, m, decision) if m is not None else "gone"
-                s.commit()
-            log.info("routed %s -> %s in %.1fs", mission_id, outcome, time.time() - t0)
-            break
-        except OperationalError:
-            time.sleep(2)
-    else:
-        log.error("could not save the routing of %s", mission_id)
-    WRITING.pop(mission_id, None)
+    front_door(mission_id)
 
 
 @router.get("/api/diagnostics")

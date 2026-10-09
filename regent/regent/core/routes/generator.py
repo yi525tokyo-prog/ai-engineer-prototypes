@@ -189,7 +189,7 @@ class RouteGenerator:
                 r.invalidated_reason = None
             r.updated_at = utcnow()
             seen.add(prop.key)
-        self.db.flush()
+        self.db.commit()                    # critics take a while to think: hold no database meanwhile
         self._criticize(mission, world, res)
         mission.attrs = {**(mission.attrs or {}), "generation_signature": self._world_signature(world),
                          "regenerate": False, "last_generation_reason": reason}

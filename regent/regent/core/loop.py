@@ -305,10 +305,14 @@ class RegentLoop:
             from regent.reminders import deliver_due
             from regent.software.domain import maintain
 
+            from regent.software.router import resume_lost
+
             self.db.commit()
             sent = deliver_due(self.db)
             self.db.commit()
-            return [f"reminders delivered: {len(sent)}"] * bool(sent) + maintain(self.db)
+            resumed = resume_lost(self.db)
+            return ([f"reminders delivered: {len(sent)}"] * bool(sent) + [f"routing resumed: {len(resumed)}"]
+                    * bool(resumed) + maintain(self.db))
         except Exception as e:                      # maintenance must never stop the loop
             self.db.rollback()
             return [f"maintenance failed: {type(e).__name__}: {e}"[:200]]

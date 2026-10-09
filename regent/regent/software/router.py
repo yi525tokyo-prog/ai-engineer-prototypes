@@ -17,7 +17,7 @@ and acting continue into Regent's longer path (sources, capabilities, routes and
 from __future__ import annotations
 
 import threading
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -74,6 +74,7 @@ investigation unless they ask to be told again later."""
 
 _busy: set[str] = set()
 _lock = threading.Lock()
+_sent: dict[str, float] = {}                   # requests handed back to the front door, and when
 # answers being written right now, by request: shown on the page from memory, saved once finished
 WRITING: dict[str, str] = {}
 
@@ -106,6 +107,69 @@ def route_mission(s, m, *, stream: bool = False) -> str:
     'paused' (could not think right now) or 'busy' (already being routed)."""
     decision = decide(m.id, m.objective or m.title, dict(m.attrs or {}), stream=stream)
     return apply(s, m, decision)
+
+
+def front_door(mission_id: str) -> None:
+    """Route one request from start to finish: read it, decide (no database held), save what was decided."""
+    import logging
+    import time
+
+    from sqlalchemy.exc import OperationalError
+
+    from regent import db as dbm
+    from regent.db import Mission
+
+    log = logging.getLogger("regent.front_door")
+    t0 = time.time()
+    with dbm.session() as s:                     # read what was asked, then let go of the database
+        m = s.get(Mission, mission_id)
+        if m is None:
+            return
+        sentence, attrs = m.objective or m.title, dict(m.attrs or {})
+    try:
+        decision = decide(mission_id, sentence, attrs, stream=True)
+    except Exception as e:  # noqa: BLE001 - never leave a request silently stuck
+        log.exception("routing %s failed after %.1fs", mission_id, time.time() - t0)
+        decision = {"outcome": "paused",
+                    "why": f"Regent hit a problem understanding this ({type(e).__name__}); it will try again"}
+    # saving is quick, but a long loop pass may hold the database for a while: keep trying, don't give up
+    for _ in range(150):
+        try:
+            with dbm.session() as s:
+                m = s.get(Mission, mission_id)
+                outcome = apply(s, m, decision) if m is not None else "gone"
+                s.commit()
+            log.info("routed %s -> %s in %.1fs", mission_id, outcome, time.time() - t0)
+            break
+        except OperationalError:
+            time.sleep(2)
+    else:
+        log.error("could not save the routing of %s", mission_id)
+    WRITING.pop(mission_id, None)
+
+
+def resume_lost(s, *, older_than_s: float = 120) -> list[str]:
+    """Requests whose routing was lost (Regent restarted mid-way) go back through the front door."""
+    import time
+
+    from sqlalchemy import select
+
+    from regent.db import Mission
+    from regent.ids import utcnow
+
+    out = []
+    for m in s.scalars(select(Mission).where(Mission.status != "abandoned")):
+        attrs = m.attrs or {}
+        if attrs.get("route") != "pending" or attrs.get("paused") or m.created_at is None:
+            continue
+        created = m.created_at if m.created_at.tzinfo else m.created_at.replace(tzinfo=UTC)
+        if (utcnow() - created).total_seconds() < older_than_s or m.id in _busy \
+                or time.time() - _sent.get(m.id, 0) < 600:
+            continue
+        _sent[m.id] = time.time()
+        threading.Thread(target=front_door, args=(m.id,), name=f"front-door-{m.id}", daemon=True).start()
+        out.append(m.id)
+    return out
 
 
 def decide(mission_id: str, sentence: str, attrs: dict[str, Any], *, stream: bool = False) -> dict[str, Any]:

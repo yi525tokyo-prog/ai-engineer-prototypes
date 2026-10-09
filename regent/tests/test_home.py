@@ -139,6 +139,7 @@ def test_workers_sign_in_as_the_person_without_their_setup(monkeypatch, tmp_path
 
 def test_hosted_regent_keeps_its_data_across_containers(tmp_path):
     import sqlite3
+    import time
 
     from regent import cloud
 
@@ -152,6 +153,13 @@ def test_hosted_regent_keeps_its_data_across_containers(tmp_path):
     con.execute("create table t (x)")
     con.execute("insert into t values (42)")
     con.commit()                                  # still open: the copy must come from SQLite, not the raw file
+    seen = cloud.fingerprint(home)
+    time.sleep(0.01)
+    con.execute("insert into t values (43)")
+    con.commit()                                  # only the write-ahead log changes: it must still be saved
+    assert cloud.fingerprint(home) != seen
+    con.execute("delete from t where x = 43")
+    con.commit()
     data = cloud.pack(home)
     con.close()
     fresh = tmp_path / "fresh"
@@ -272,6 +280,34 @@ def test_a_request_never_stays_silently_stuck_at_the_front_door(client, db, monk
     [item] = [i for i in client.get("/api/home").json()["items"] if i["id"] == m.id]
     assert item["state"] == "paused" and "try again" in item["now"]
     assert any("routing" in r["text"] for r in client.get("/api/diagnostics").json()["recent"])
+
+
+def test_a_request_whose_routing_was_lost_goes_back_through_the_front_door(db, monkeypatch):
+    import time
+
+    from regent.core.goals.missions import MissionGraph
+    from regent.core.loop import RegentLoop
+    from regent.ids import utcnow
+    from regent.software import router as R
+
+    sent = []
+    monkeypatch.setattr(R, "front_door", sent.append)
+    monkeypatch.setattr(R, "_sent", {})
+    g = MissionGraph(db)
+    lost = g.create(title="x", objective="失業率が5%を超えたら教えて", tags=["manual"], attrs={"route": "pending"})
+    lost.created_at = utcnow() - timedelta(minutes=10)    # Regent restarted while deciding what this was
+    lost.status = "monitoring"
+    just_now = g.create(title="y", objective="週末の過ごし方は？", tags=["manual"], attrs={"route": "pending"})
+    db.commit()
+    RegentLoop(db).maintain()
+    for _ in range(50):
+        if sent:
+            break
+        time.sleep(0.02)
+    assert sent == [lost.id] and just_now.id not in sent
+    RegentLoop(db).maintain()                            # handed over once, not on every pass
+    time.sleep(0.05)
+    assert sent == [lost.id]
 
 
 def test_the_loop_never_overwrites_what_the_front_door_wrote_meanwhile(db, monkeypatch):

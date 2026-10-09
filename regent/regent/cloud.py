@@ -46,13 +46,16 @@ def _files(home: Path):
 
 
 def fingerprint(home: Path) -> tuple:
+    """What changes whenever anything worth saving changes. A database's write-ahead log counts: SQLite
+    commits land there and reach the database file only at a checkpoint, maybe days later."""
     out = []
     for p in _files(home):
-        try:
-            st = p.stat()
-        except FileNotFoundError:
-            continue
-        out.append((str(p.relative_to(home)), st.st_size, st.st_mtime_ns))
+        for f in (p, p.with_name(p.name + "-wal")) if p.suffix == ".db" else (p,):
+            try:
+                st = f.stat()
+            except FileNotFoundError:
+                continue
+            out.append((str(f.relative_to(home)), st.st_size, st.st_mtime_ns))
     return tuple(sorted(out))
 
 
