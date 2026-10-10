@@ -76,7 +76,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
   <canvas id="gl" aria-label="射的屋の棚。狙って撃つと景品を落とせる"></canvas>
   <div class="reticle" id="reticle" aria-hidden="true"><span></span></div>
   <div class="hud">
-    <h1><small>コルク十発・五百円</small>射的</h1>
+    <h1><small>コルク十五発・五百円</small>射的</h1>
     <div class="stats">
       <div class="stat"><b>コルク</b><div class="corks" id="corks"></div></div>
       <div class="stat"><b>点数</b><output id="score">0</output></div>
@@ -122,7 +122,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
   try { renderer = new THREE.WebGLRenderer({ canvas: $("gl"), antialias: true }); } catch (e) { fail(); return; }
 
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const CORKS = 10;
+  const CORKS = 15;
 
   // m = weight, d = footprint depth; tipping needs hitHeight > m*d, pushing moves it back by PUSH/m per hit
   const KINDS = {
@@ -133,7 +133,8 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
     neko:    { name: "招き猫",       pts: 80,  m: 2.8, d: .36, H: .58 },
     console: { name: "ゲーム機の箱", pts: 150, m: 4.5, d: .55, H: .72 },
   };
-  const PUSH = .038;
+  const PUSH = .075;
+  const TIP_EASE = .5;   // < 1 makes prizes tip over from lower hits
 
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
@@ -275,7 +276,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
         inner.position.z = k.d / 2;               // pivot sits on the back bottom edge
         inner.traverse(o => { if (o.isMesh) { o.castShadow = true; hitMeshes.push(o); o.userData.prizeIdx = prizes.length; } });
         const pivot = new THREE.Group(); pivot.add(inner);
-        const margin = .03 + Math.random() * .04;
+        const margin = .015 + Math.random() * .025;
         pivot.position.set(-span / 2 + step * (i + .5) + (Math.random() - .5) * .15, tier.y, tier.back + margin);
         pivot.rotation.y = (Math.random() - .5) * .3;
         scene.add(pivot);
@@ -304,7 +305,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
   let swayT = 0;
   function swayed() {
     const a = reduced ? .4 : 1;
-    return { x: aim.x + Math.sin(swayT * 1.3) * .018 * a + Math.sin(swayT * 3.1) * .006 * a, y: aim.y + Math.sin(swayT * 1.7 + 1) * .016 * a };
+    return { x: aim.x + Math.sin(swayT * 1.3) * .007 * a + Math.sin(swayT * 3.1) * .002 * a, y: aim.y + Math.sin(swayT * 1.7 + 1) * .006 * a };
   }
   const gl = $("gl"), reticle = $("reticle");
   function setAim(e) {
@@ -338,18 +339,41 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
     const start = new THREE.Vector3(); corkTip.getWorldPosition(start);
     let end, target = null;
     if (hits.length) { end = hits[0].point.clone(); target = { p: prizes[hits[0].object.userData.prizeIdx], point: end.clone() }; }
-    else { end = ray.ray.at(8, new THREE.Vector3()); }
+    else {
+      // near miss: count it as a hit on the closest prize within a small on-screen radius
+      const near = nearestPrize(s);
+      if (near) { end = near.point; target = near; } else end = ray.ray.at(8, new THREE.Vector3());
+    }
     const cork = new THREE.Mesh(new THREE.CylinderGeometry(.03, .036, .07, 10), std({ color: 0xd6a86a }));
     cork.castShadow = true; scene.add(cork);
     const dist = start.distanceTo(end);
     flying.push({ mesh: cork, start, end, t: 0, dur: Math.max(.12, dist / 22), target });
   }
 
+  function nearestPrize(s) {
+    const r = gl.getBoundingClientRect(), ASSIST_PX = 34;
+    let best = null, bestD = ASSIST_PX;
+    for (const p of prizes) {
+      if (p.state !== "idle") continue;
+      const base = p.inner.getWorldPosition(new THREE.Vector3());
+      const c = base.clone(); c.y += p.k.H / 2;
+      const v = c.clone().project(camera);
+      const d = Math.hypot((v.x - s.x) / 2 * r.width, (v.y - s.y) / 2 * r.height) - Math.max(0, (v.y - base.clone().project(camera).y) / 2 * r.height * .4);
+      if (d < bestD) {
+        bestD = d;
+        const pt = ray.ray.closestPointToPoint(c, new THREE.Vector3());
+        pt.set(c.x, Math.max(base.y, Math.min(base.y + p.k.H, pt.y)), c.z);
+        best = { p, point: pt };
+      }
+    }
+    return best;
+  }
+
   function resolveHit(p, point) {
     const k = p.k;
     const local = p.pivot.worldToLocal(point.clone());
     const h = Math.max(0, Math.min(k.H, local.y));        // hit height above the shelf
-    const tipNeed = k.m * k.d;
+    const tipNeed = k.m * k.d * TIP_EASE;
     p.spin += (local.x > 0 ? -1 : 1) * Math.min(.12, Math.abs(local.x) * .6) / k.m;
     if (h > tipNeed) { topple(p); return "落ちた!"; }
     p.pivot.position.z -= PUSH / k.m * (.6 + h / k.H);
