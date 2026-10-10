@@ -437,7 +437,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
     let ty = p.team === 0 ? L - depth : depth;
     if (!ball.owner && Math.sign(ball.vy) === Math.sign(gy - ball.y) && Math.abs(ball.vy) > 4) {
       const t = (gy - ball.y) / ball.vy;
-      if (t > 0 && t < 1.5) tx = clamp(ball.x + ball.vx * t, GX0 - 1, GX1 + 1);
+      // keepers read the shot late and only partly: weak positioning guesses worse
+      if (t > 0 && t < 1.5) tx = tx * (.55 - p.st.pos * .25) + clamp(ball.x + ball.vx * t, GX0 - 1, GX1 + 1) * (.45 + p.st.pos * .25);
     }
     if (!ball.owner && d < AREA && Math.abs(ball.vy) < 6 && (!restart || restart.team === p.team)) { tx = ball.x; ty = ball.y; }
     p.tx = tx; p.ty = ty;
@@ -504,7 +505,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
     // shot charging: hold to fill, release to shoot
     if (mine && input.shootDown) { if (charge < 0) charge = 0; charge = Math.min(1, charge + dt * 1.1); }
     if (charge >= 0 && (!input.shootDown || !mine)) {
-      if (mine) { const [dx] = inputSim(); shoot(p, W / 2 + clamp(dx, -1, 1) * 1.6, Math.max(.2, charge)); }
+      if (mine) {
+        // no stick: aim for the corner the keeper is furthest from
+        let [dx] = inputSim();
+        if (Math.abs(dx) < .2) { const gk = players.find(q => q.team === 1 && q.role === "GK"); dx = gk.x > W / 2 ? -1 : 1; }
+        shoot(p, W / 2 + clamp(dx, -1, 1) * 1.75, Math.max(.2, charge));
+      }
       charge = -1;
     }
     p.tackleCd = Math.max(0, p.tackleCd - dt);
@@ -531,7 +537,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
       const carrying = ball.owner === p;
       const isUser = p.id === user;
       const sprint = isUser && input.dash;
-      let maxV = p.stun > 0 ? 1.2 : carrying ? 4.6 + p.st.dribble * 1.6 : 6.2;
+      let maxV = p.stun > 0 ? 1.2 : carrying ? 4.6 + p.st.dribble * 1.6 : p.role === "GK" ? 4.4 : 6.2;
       if (sprint && p.stun <= 0) maxV *= carrying ? 1.22 : 1.3;
       if (pause > 0 && !carrying) maxV = 3;
       let ax, ay;
@@ -649,11 +655,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
     for (const g of players) {
       if (g.role !== "GK" || g.stun > 0) continue;
       if (Math.abs(g.y - ownGoalY(g.team)) >= AREA || (restart && restart.team !== g.team) || (ball.last === g && ball.lastT > 0)) continue;
-      const reach = .75 + g.st.jump * .85 + g.st.pos * .3, d = Math.hypot(g.x - ball.x, g.y - ball.y);
+      const reach = .55 + g.st.jump * .6 + g.st.pos * .2, d = Math.hypot(g.x - ball.x, g.y - ball.y);
       if (d < reach && ball.z < 1.9 + g.st.jump * .6 && !ball.tried.has(g.id)) {
         ball.tried.add(g.id);
         const s = Math.hypot(ball.vx, ball.vy);
-        const p = clamp(1.3 - s / 26 + g.st.pos * .2 - (d / reach) * .35, .1, 1);
+        // shots straight at the keeper get held; shots toward the corners mostly go in
+        const p = ball.shot ? clamp(1.2 - s / 24 + g.st.pos * .15 - (d / reach) * .75, .03, .95) : clamp(1.3 - s / 26 + g.st.pos * .2 - (d / reach) * .35, .1, 1);
         if (d > .6) { g.jumpT = .5; g.diveDir = Math.sign((ball.x - g.x) * (g.team === 0 ? 1 : -1)) || 1; }
         if (ball.shot) teams[1 - g.team].onT++;
         if (Math.random() < p) {
