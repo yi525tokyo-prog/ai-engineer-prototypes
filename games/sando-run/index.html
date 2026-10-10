@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>水風船の参道ラン</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* Layout: full-bleed 3D night street; a thin HUD floats over the top, cards sit centered for start / game over. Single dark summer-night look by choice. */
+:root {
+  --night: #141a33;
+  --lantern: #e4483a;
+  --paper: #f3ecdc;
+  --muted: #a3a9c8;
+  --gold: #f2b43c;
+  --font-display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--night); color: var(--paper); font-family: var(--font-body); font-size: 15px; overflow: hidden; }
+.stage { position: relative; height: 100%; min-height: 420px; }
+#gl { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+.hud {
+  position: absolute; left: 0; right: 0; top: 0;
+  padding: 14px 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  pointer-events: none; font-variant-numeric: tabular-nums;
+  background: linear-gradient(rgba(13,18,40,.7), rgba(13,18,40,0));
+}
+.hud h1 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(18px, 4.5vw, 26px); letter-spacing: .04em; line-height: 1.1; }
+.hud h1 small { display: block; font-family: var(--font-body); font-size: 11px; letter-spacing: .2em; color: var(--muted); font-weight: 700; }
+.stats { display: flex; gap: 16px; }
+.stat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.stat b { font-size: 11px; letter-spacing: .14em; color: var(--muted); }
+.stat output { font-family: var(--font-display); font-size: 24px; line-height: 1; }
+.stat output.fish { color: var(--gold); }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px 16px; background: rgba(13,18,40,.62); text-align: center; }
+.card { max-width: 420px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(24px, 6vw, 34px); line-height: 1.25; text-wrap: balance; }
+.card p { margin: 0; line-height: 1.75; }
+.rules { color: var(--muted); font-size: 13.5px; text-align: left; }
+kbd { font-family: var(--font-body); border: 1px solid #4a5078; border-radius: 4px; padding: 0 5px; font-size: 12px; color: var(--paper); }
+.big { font-family: var(--font-display); font-size: 54px; line-height: 1; color: var(--gold); font-variant-numeric: tabular-nums; }
+button {
+  font-family: var(--font-display); font-size: 18px; letter-spacing: .08em;
+  color: var(--paper); background: var(--lantern); border: 0; border-radius: 999px;
+  padding: 12px 34px; cursor: pointer; box-shadow: 0 6px 0 #8f2219;
+}
+button:active { transform: translateY(3px); box-shadow: 0 3px 0 #8f2219; }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.err { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <canvas id="gl" aria-label="参道を転がる水風船の3D画面"></canvas>
+  <div class="hud">
+    <h1><small>夏祭り・宵宮</small>参道ラン</h1>
+    <div class="stats">
+      <div class="stat"><b>距離</b><output id="dist">0m</output></div>
+      <div class="stat"><b>金魚</b><output id="fish" class="fish">0</output></div>
+      <div class="stat"><b>最高</b><output id="best">0</output></div>
+    </div>
+  </div>
+  <div class="overlay" id="startScreen">
+    <div class="card">
+      <h2>水風船を割らずに<br>参道を駆け抜けろ。</h2>
+      <div class="rules">
+        <p>・樽はジャンプで飛び越える。屋台の荷車は左右によける。</p>
+        <p>・浮かぶ金魚を拾うと 1 匹 50 点。奥へ行くほど速くなります。</p>
+        <p>・<kbd>←</kbd><kbd>→</kbd> で移動、<kbd>↑</kbd> か <kbd>Space</kbd> でジャンプ。</p>
+        <p>・スマホは左右にスワイプで移動、タップでジャンプ。</p>
+      </div>
+      <button id="startBtn" type="button">走り出す</button>
+    </div>
+  </div>
+  <div class="overlay" id="endScreen" hidden>
+    <div class="card">
+      <p id="endLabel">パチン!</p>
+      <div class="big" id="finalScore">0</div>
+      <h2 id="endTitle">水風船が割れた</h2>
+      <p id="endNote"></p>
+      <button id="againBtn" type="button">もう一回</button>
+    </div>
+  </div>
+  <div class="overlay" id="noGl" hidden>
+    <div class="card"><h2>3D 表示を開けませんでした</h2><p class="err">このブラウザでは WebGL が使えないようです。別のブラウザか端末で開いてください。</p></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  if (!window.THREE) { $("startScreen").hidden = true; $("noGl").hidden = false; return; }
+
+  const LANE = 2.2, LANES = [-LANE, 0, LANE];
+  const SPAWN_Z = -100, KILL_Z = 12;
+  const R = 0.62; // balloon radius
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: $("gl"), antialias: true });
+  } catch (e) { $("startScreen").hidden = true; $("noGl").hidden = false; return; }
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  const SKY = 0x161c3a;
+  scene.background = new THREE.Color(SKY);
+  scene.fog = new THREE.Fog(SKY, 30, 120);
+
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+  camera.position.set(0, 3.6, 7.5);
+  camera.lookAt(0, 1, -6);
+
+  scene.add(new THREE.HemisphereLight(0x8090d0, 0x302020, 0.55));
+  const moon = new THREE.DirectionalLight(0xc8d4ff, 0.55);
+  moon.position.set(-6, 14, 6);
+  moon.castShadow = true;
+  moon.shadow.mapSize.set(1024, 1024);
+  Object.assign(moon.shadow.camera, { left: -8, right: 8, top: 12, bottom: -12, near: 1, far: 40 });
+  scene.add(moon);
+  const warm = new THREE.PointLight(0xff8a50, 1.2, 18);
+  warm.position.set(0, 4, -2);
+  scene.add(warm);
+
+  // ---------- textures ----------
+  function canvasTex(w, h, paint) {
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    paint(c.getContext("2d"), w, h);
+    const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+  }
+  const stoneTex = canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = "#4a4d5e"; g.fillRect(0, 0, w, h);
+    for (let row = 0; row < 4; row++) for (let col = 0; col < 2; col++) {
+      const off = row % 2 ? 64 : 0, x = col * 128 + off, y = row * 64;
+      const v = 70 + Math.random() * 25;
+      g.fillStyle = `rgb(${v},${v + 2},${v + 14})`;
+      g.fillRect(x + 3, y + 3, 122, 58); g.fillRect(x - 256 + 3, y + 3, 122, 58);
+    }
+  });
+  stoneTex.wrapS = stoneTex.wrapT = THREE.RepeatWrapping;
+  stoneTex.repeat.set(3, 40);
+  const balloonTex = canvasTex(256, 128, (g, w, h) => {
+    g.fillStyle = "#f3ecdc"; g.fillRect(0, 0, w, h);
+    const cols = ["#e4483a", "#2c74b8", "#f2b43c", "#3aa37a"];
+    for (let i = 0; i < 8; i++) {
+      g.fillStyle = cols[i % 4];
+      g.beginPath(); g.moveTo(i * 32, 0);
+      g.bezierCurveTo(i * 32 + 22, h * .35, i * 32 - 6, h * .65, i * 32 + 16, h);
+      g.lineTo(i * 32 + 24, h); g.bezierCurveTo(i * 32 + 2, h * .65, i * 32 + 30, h * .35, i * 32 + 8, 0); g.fill();
+    }
+  });
+  const lanternTex = canvasTex(128, 128, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, "#ff9c6a"); gr.addColorStop(.5, "#ff5a3c"); gr.addColorStop(1, "#ff9c6a");
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.strokeStyle = "rgba(120,20,10,.35)"; g.lineWidth = 2;
+    for (let y = 8; y < h; y += 12) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    g.fillStyle = "#1a1214"; g.font = "bold 46px serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("祭", w / 4, h / 2); g.fillText("祭", w * 3 / 4, h / 2);
+  });
+  const awningTexes = ["#e4483a", "#2c74b8", "#3aa37a", "#c0389a"].map(col => canvasTex(128, 32, (g, w, h) => {
+    for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? "#f3ecdc" : col; g.fillRect(i * 16, 0, 16, h); }
+  }));
+
+  // ---------- static ground ----------
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(9, 320), new THREE.MeshStandardMaterial({ map: stoneTex, roughness: .9 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.z = -140; ground.receiveShadow = true;
+  scene.add(ground);
+  const gravel = new THREE.Mesh(new THREE.PlaneGeometry(80, 320), new THREE.MeshStandardMaterial({ color: 0x24263a, roughness: 1 }));
+  gravel.rotation.x = -Math.PI / 2; gravel.position.set(0, -0.01, -140);
+  scene.add(gravel);
+
+  // ---------- player ----------
+  const balloon = new THREE.Mesh(new THREE.SphereGeometry(R, 32, 24),
+    new THREE.MeshStandardMaterial({ map: balloonTex, roughness: .25, metalness: .05 }));
+  balloon.castShadow = true;
+  const player = new THREE.Group(); player.add(balloon);
+  const knot = new THREE.Mesh(new THREE.SphereGeometry(.08, 8, 8), new THREE.MeshStandardMaterial({ color: 0xe4483a }));
+  knot.position.y = R; balloon.add(knot);
+  scene.add(player);
+
+  // ---------- shared geometry / materials ----------
+  const M = {
+    wood: new THREE.MeshStandardMaterial({ color: 0x7a4a2a, roughness: .8 }),
+    darkWood: new THREE.MeshStandardMaterial({ color: 0x4a2c1a, roughness: .85 }),
+    torii: new THREE.MeshStandardMaterial({ color: 0xd8402c, roughness: .6 }),
+    black: new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: .7 }),
+    hoop: new THREE.MeshStandardMaterial({ color: 0x2a2a30, metalness: .6, roughness: .4 }),
+    lantern: new THREE.MeshStandardMaterial({ map: lanternTex, emissive: 0xff5a3c, emissiveMap: lanternTex, emissiveIntensity: .9 }),
+    fish: new THREE.MeshStandardMaterial({ color: 0xff6a3a, emissive: 0xff4a1a, emissiveIntensity: .45, roughness: .4 }),
+    fishGold: new THREE.MeshStandardMaterial({ color: 0xf2b43c, emissive: 0xf2a020, emissiveIntensity: .6, roughness: .3 }),
+    bag: new THREE.MeshStandardMaterial({ color: 0xbfe4ff, transparent: true, opacity: .28, roughness: .05 }),
+  };
+  const G = {
+    barrel: new THREE.CylinderGeometry(.62, .62, 1.0, 20),
+    hoop: new THREE.TorusGeometry(.63, .04, 6, 24),
+    cartBody: new THREE.BoxGeometry(1.8, 1.4, 1.6),
+    cartRoof: new THREE.BoxGeometry(2.1, .12, 1.9),
+    wheel: new THREE.CylinderGeometry(.45, .45, .12, 16),
+    post: new THREE.CylinderGeometry(.1, .1, 2.2, 8),
+    lantern: new THREE.SphereGeometry(.42, 16, 12),
+    fishBody: new THREE.SphereGeometry(.22, 12, 10),
+    fishTail: new THREE.ConeGeometry(.16, .3, 8),
+    bag: new THREE.SphereGeometry(.42, 14, 12),
+  };
+
+  function makeBarrel() {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(G.barrel, M.wood); b.position.y = .5; b.castShadow = true; g.add(b);
+    [.12, .88].forEach(y => { const h = new THREE.Mesh(G.hoop, M.hoop); h.rotation.x = Math.PI / 2; h.position.y = y; g.add(h); });
+    return g;
+  }
+  function makeCart() {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(G.cartBody, M.darkWood); body.position.y = 1.15; body.castShadow = true; g.add(body);
+    const roof = new THREE.Mesh(G.cartRoof, new THREE.MeshStandardMaterial({ map: awningTexes[Math.floor(Math.random() * 4)] }));
+    roof.position.y = 2.35; g.add(roof);
+    [[-.95, .45], [.95, .45]].forEach(([x, y]) => { const w = new THREE.Mesh(G.wheel, M.black); w.rotation.z = Math.PI / 2; w.position.set(x, y, 0); g.add(w); });
+    [[-.95, 1.9], [.95, 1.9]].forEach(([x, y]) => { const p = new THREE.Mesh(G.post, M.wood); p.scale.y = .3; p.position.set(x * .9, y, .8); g.add(p); });
+    return g;
+  }
+  function makeFish(gold) {
+    const g = new THREE.Group();
+    const mat = gold ? M.fishGold : M.fish;
+    const body = new THREE.Mesh(G.fishBody, mat); body.scale.set(1, .8, 1.4); g.add(body);
+    const tail = new THREE.Mesh(G.fishTail, mat); tail.rotation.x = -Math.PI / 2; tail.position.z = .38; tail.scale.set(1.3, 1, .6); g.add(tail);
+    const bag = new THREE.Mesh(G.bag, M.bag); g.add(bag);
+    g.userData.tail = tail;
+    return g;
+  }
+
+  // ---------- decor (recycled) ----------
+  const decor = [];
+  function addLanternPair(z) {
+    [-1, 1].forEach(s => {
+      const g = new THREE.Group();
+      const p = new THREE.Mesh(G.post, M.darkWood); p.position.y = 1.1; g.add(p);
+      const l = new THREE.Mesh(G.lantern, M.lantern); l.scale.y = 1.25; l.position.y = 2.6; g.add(l);
+      g.position.set(s * 4.1, 0, z); scene.add(g); decor.push({ obj: g, span: 160 });
+    });
+  }
+  function addStall(z, side) {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 3), M.darkWood); body.position.y = 1; g.add(body);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(3.4, .15, 3.6), new THREE.MeshStandardMaterial({ map: awningTexes[Math.floor(Math.random() * 4)] }));
+    roof.position.set(0, 2.9, 0); roof.rotation.z = side * .12; g.add(roof);
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1), new THREE.MeshBasicMaterial({ color: 0xffc070 }));
+    glow.position.set(-side * 1.51, 1.6, 0); glow.rotation.y = -side * Math.PI / 2; g.add(glow);
+    g.position.set(side * 7, 0, z); scene.add(g); decor.push({ obj: g, span: 160 });
+  }
+  function addTorii(z) {
+    const g = new THREE.Group();
+    [-3.6, 3.6].forEach(x => { const p = new THREE.Mesh(new THREE.CylinderGeometry(.28, .32, 6, 14), M.torii); p.position.set(x, 3, 0); p.castShadow = true; g.add(p); });
+    const kasagi = new THREE.Mesh(new THREE.BoxGeometry(10, .45, .6), M.black); kasagi.position.y = 6.2; g.add(kasagi);
+    const shimaki = new THREE.Mesh(new THREE.BoxGeometry(9.4, .35, .5), M.torii); shimaki.position.y = 5.8; g.add(shimaki);
+    const nuki = new THREE.Mesh(new THREE.BoxGeometry(8.6, .3, .35), M.torii); nuki.position.y = 4.8; g.add(nuki);
+    g.position.z = z; scene.add(g); decor.push({ obj: g, span: 160 });
+  }
+  for (let z = 0; z > -160; z -= 8) addLanternPair(z);
+  for (let z = -4; z > -160; z -= 10) { addStall(z, -1); addStall(z - 5, 1); }
+  for (let z = -20; z > -160; z -= 40) addTorii(z);
+
+  // ---------- game state ----------
+  let state = "title", speed, dist, fishCount, items, lane, laneX, vy, py, spawnAt, t = 0, popT = 0, shake = 0;
+  let best = 0;
+  try { best = +localStorage.getItem("sando-best") || 0; } catch (e) {}
+  $("best").value = best;
+
+  function clearItems() { (items || []).forEach(it => scene.remove(it.obj)); items = []; }
+  function reset() {
+    clearItems();
+    speed = 14; dist = 0; fishCount = 0; lane = 1; laneX = 0; vy = 0; py = R; spawnAt = -40; popT = 0;
+    balloon.visible = true; balloon.scale.set(1, 1, 1);
+    player.position.set(0, R, 0);
+    hud();
+  }
+
+  function spawnRow(z) {
+    // never block all three lanes: pick 1-2 hazard lanes, leave at least one clear
+    const lanes = [0, 1, 2].sort(() => Math.random() - .5);
+    const nHaz = Math.random() < Math.min(.65, .25 + dist / 2500) ? 2 : 1;
+    for (let i = 0; i < nHaz; i++) {
+      const tall = Math.random() < .45;
+      const obj = tall ? makeCart() : makeBarrel();
+      obj.position.set(LANES[lanes[i]], 0, z);
+      scene.add(obj);
+      items.push({ obj, kind: tall ? "cart" : "barrel", lane: lanes[i], depth: tall ? .9 : .65 });
+    }
+    const free = lanes[nHaz];
+    const gold = Math.random() < .08;
+    const n = gold ? 1 : 3 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < n; k++) {
+      const f = makeFish(gold);
+      f.position.set(LANES[free], 1.0, z + 2 - k * 2.2);
+      scene.add(f);
+      items.push({ obj: f, kind: "fish", gold, lane: free, depth: .6 });
+    }
+  }
+
+  // ---------- input ----------
+  function move(d) { if (state === "play") lane = Math.max(0, Math.min(2, lane + d)); }
+  function jump() { if (state === "play" && py <= R + .01) { vy = 9.5; } }
+  addEventListener("keydown", (e) => {
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", " ", "a", "d", "w"].includes(e.key)) e.preventDefault();
+    if (e.repeat) return;
+    if (e.key === "ArrowLeft" || e.key === "a") move(-1);
+    if (e.key === "ArrowRight" || e.key === "d") move(1);
+    if (e.key === "ArrowUp" || e.key === " " || e.key === "w") jump();
+  });
+  let sx = 0, sy = 0, st = 0;
+  const gl = $("gl");
+  gl.addEventListener("pointerdown", (e) => { sx = e.clientX; sy = e.clientY; st = performance.now(); });
+  gl.addEventListener("pointerup", (e) => {
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1);
+    else if (dy < -30 || (Math.abs(dx) < 12 && Math.abs(dy) < 12 && performance.now() - st < 350)) jump();
+  });
+
+  // ---------- update ----------
+  function update(dt) {
+    t += dt;
+    const running = state === "play";
+    const v = running ? speed : state === "title" ? 6 : 0;
+    if (running) {
+      speed = Math.min(34, speed + dt * .35);
+      dist += v * dt;
+    }
+
+    // player
+    laneX += (LANES[lane] - laneX) * Math.min(1, dt * 14);
+    vy -= 26 * dt; py += vy * dt;
+    if (py < R) { if (vy < -6) balloon.scale.set(1.12, .86, 1.12); py = R; vy = 0; }
+    balloon.scale.lerp(new THREE.Vector3(1, 1, 1), Math.min(1, dt * 8));
+    player.position.set(laneX, py, 0);
+    if (balloon.visible) balloon.rotation.x -= v * dt / R;
+    balloon.rotation.z = (laneX - LANES[lane]) * .25;
+
+    // world scroll
+    const dz = v * dt;
+    decor.forEach(d => { d.obj.position.z += dz; if (d.obj.position.z > KILL_Z) d.obj.position.z -= d.span; });
+    stoneTex.offset.y += dz / 8;
+
+    if (running) {
+      spawnAt += dz;
+      while (spawnAt > -40) { spawnRow(SPAWN_Z + (spawnAt + 40)); spawnAt -= 16 + Math.random() * 10 - Math.min(6, dist / 400); }
+    }
+    for (const it of items) {
+      it.obj.position.z += dz;
+      if (it.kind === "fish") {
+        it.obj.rotation.y = Math.sin(t * 3 + it.obj.position.z) * .5;
+        it.obj.position.y = 1.0 + Math.sin(t * 2.5 + it.obj.position.z * .3) * .15;
+        it.obj.userData.tail.rotation.y = Math.sin(t * 12) * .5;
+      }
+      if (!running || it.done) continue;
+      const z = it.obj.position.z;
+      if (Math.abs(z) < it.depth + R * .7 && Math.abs(LANES[it.lane] - laneX) < 1.1) {
+        if (it.kind === "fish") {
+          it.done = true; scene.remove(it.obj); fishCount += it.gold ? 5 : 1;
+        } else if (it.kind === "cart" || py - R < .9) {
+          pop(); break;
+        }
+      }
+    }
+    items = items.filter(it => { if (it.obj.position.z > KILL_Z || it.done) { scene.remove(it.obj); return false; } return true; });
+
+    // pop animation
+    if (state === "over" && popT < 1) {
+      popT += dt * 4;
+      balloon.scale.setScalar(1 + popT * .6);
+      if (popT >= 1) balloon.visible = false;
+    }
+    if (shake > 0) shake -= dt;
+
+    // camera
+    camera.position.x += (laneX * .45 - camera.position.x) * Math.min(1, dt * 4);
+    camera.position.y = 3.6 + (py - R) * .25 + (shake > 0 && !reduced ? (Math.random() - .5) * .25 : 0);
+    camera.lookAt(laneX * .3, 1, -6);
+    warm.position.x = laneX;
+    if (running) hud();
+  }
+
+  function score() { return Math.floor(dist) + fishCount * 50; }
+  function hud() {
+    $("dist").value = Math.floor(dist) + "m";
+    $("fish").value = fishCount;
+    $("best").value = best;
+  }
+
+  function pop() {
+    state = "over"; shake = .35;
+    for (let i = 0; i < 18; i++) {
+      const d = new THREE.Mesh(new THREE.SphereGeometry(.07, 6, 6), M.bag);
+      d.position.copy(player.position);
+      d.userData.v = new THREE.Vector3((Math.random() - .5) * 6, Math.random() * 6 + 2, (Math.random() - .5) * 6);
+      splash.push(d); scene.add(d);
+    }
+    const s = score(), isBest = s > best;
+    if (isBest) { best = s; try { localStorage.setItem("sando-best", String(best)); } catch (e) {} }
+    setTimeout(() => {
+      $("finalScore").textContent = s + "点";
+      $("endLabel").textContent = isBest && s > 0 ? "自己ベスト更新!" : "パチン!";
+      $("endNote").textContent = `${Math.floor(dist)}m 進んで、金魚を ${fishCount} 匹拾いました。`;
+      $("endScreen").hidden = false; hud(); $("againBtn").focus();
+    }, 650);
+  }
+  const splash = [];
+  function updateSplash(dt) {
+    for (let i = splash.length - 1; i >= 0; i--) {
+      const d = splash[i]; d.userData.v.y -= 20 * dt; d.position.addScaledVector(d.userData.v, dt);
+      if (d.position.y < 0) { scene.remove(d); splash.splice(i, 1); }
+    }
+  }
+
+  function start() {
+    reset(); state = "play";
+    $("startScreen").hidden = true; $("endScreen").hidden = true;
+    gl.focus?.();
+  }
+  $("startBtn").addEventListener("click", start);
+  $("againBtn").addEventListener("click", start);
+
+  function resize() {
+    const el = $("stage"), w = el.clientWidth, h = el.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = w / h < .8 ? 72 : 60;
+    camera.updateProjectionMatrix();
+  }
+  addEventListener("resize", resize);
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    update(dt); updateSplash(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  reset(); resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

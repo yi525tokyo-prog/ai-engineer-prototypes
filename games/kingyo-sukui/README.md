@@ -10,4 +10,4 @@ open games/kingyo-sukui/index.html   # ブラウザで開くだけ
 - 水中で速く動かす・長く浸ける・重い金魚を乗せるほど紙が弱る
 - ポイは 3 本。全部破れたら終了。和金 1 点 / 更紗 2 点 / 黒出目金 3 点 / 黄金 10 点
 
-`game.html` は Artifact 公開用（`<head>` なし）、`index.html` はそれを単体で開けるよう包んだもの。
+`game.html` は Artifact 公開用（`<head>` なし）。`index.html` は `games/wrap.sh games/kingyo-sukui` で生成。
