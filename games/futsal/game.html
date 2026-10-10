@@ -1,18 +1,16 @@
-<title>5対5 フットサル采配</title>
+<title>5対5 ナイトフットサル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
 <style>
-/* Layout: night five-a-side cage. Scoreboard strip on top, vertical pitch fills the middle, a match-commentary ticker below.
-   Setup is a sheet of 9 sliders in the three groups the stats come in. Single dark floodlit look by choice. */
+/* Layout: full-bleed 3D broadcast view of a floodlit cage pitch. Scoreboard top-left, controlled-player card bottom-left,
+   touch stick + buttons on phones. Setup and result are sheets over the pitch. Single dark floodlit look by choice. */
 :root {
-  --night: #0f1a17;        /* cage at night */
-  --panel: #17261f;
-  --turf: #1f5a3a;
+  --night: #0c1512;
+  --panel: rgba(12, 21, 18, .82);
   --line: #eef0e2;
-  --home: #f3f0e6;         /* white kit */
-  --home-ink: #22306b;
-  --away: #e8562e;         /* orange kit */
+  --home: #f3f0e6;
+  --away: #e8562e;
   --muted: #9fb3a8;
   --gold: #f2c230;
   --font-display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
@@ -21,147 +19,178 @@
 }
 html, body { height: 100%; }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--night); color: var(--line); font-family: var(--font-body); font-size: 14px; overflow: hidden; }
-.app { height: 100%; display: flex; flex-direction: column; }
+body { margin: 0; background: var(--night); color: var(--line); font-family: var(--font-body); font-size: 14px; overflow: hidden; -webkit-user-select: none; user-select: none; }
+.stage { position: relative; height: 100%; min-height: 420px; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 .board {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding-inline: 16px; padding-block: 10px; background: var(--panel);
-  font-variant-numeric: tabular-nums;
+  position: absolute; top: 10px; left: 12px; display: flex; align-items: stretch; border-radius: 6px; overflow: hidden;
+  font-variant-numeric: tabular-nums; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.4);
 }
-.board h1 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 16px; letter-spacing: .04em; line-height: 1.1; }
-.board h1 small { display: block; font-family: var(--font-body); font-size: 10.5px; color: var(--muted); letter-spacing: .16em; font-weight: 700; }
-.score { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 24px; }
-.score .kit { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-.score .kit.h { background: var(--home); }
-.score .kit.a { background: var(--away); }
-.score .clock { font-size: 14px; color: var(--muted); font-family: var(--font-body); font-weight: 700; min-width: 3.2em; text-align: right; }
-.field { position: relative; flex: 1; min-height: 0; }
-#pitch { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-.ticker {
-  padding-inline: 16px; padding-block: 8px 10px; background: var(--panel);
-  display: flex; flex-direction: column; gap: 2px; min-height: 58px; font-size: 12.5px;
+.board > * { display: flex; align-items: center; padding: 6px 10px; }
+.board .team { background: var(--panel); font-weight: 700; font-size: 12px; letter-spacing: .08em; gap: 6px; }
+.board .team i { width: 10px; height: 10px; border-radius: 2px; }
+.board .sc { background: var(--line); color: #10201a; font-family: var(--font-display); font-size: 18px; gap: 8px; padding: 4px 12px; }
+.board .clock { background: #10201a; font-weight: 700; font-size: 13px; min-width: 3.4em; justify-content: center; }
+.card {
+  position: absolute; left: 12px; bottom: 12px; background: var(--panel); border-radius: 8px; padding: 8px 12px;
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; align-items: center; min-width: 190px; pointer-events: none;
 }
-.ticker div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
-.ticker div:first-child { color: var(--line); }
-.ticker .h::before, .ticker .a::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
-.ticker .h::before { background: var(--home); }
-.ticker .a::before { background: var(--away); }
-.keys { position: absolute; right: 12px; bottom: 10px; font-size: 11px; color: var(--muted); text-align: right; line-height: 1.6; pointer-events: none; }
-.pad { position: absolute; right: 12px; bottom: 14px; display: grid; grid-template-columns: repeat(2, 64px); gap: 10px; }
-.pad button { width: 64px; height: 64px; border-radius: 50%; padding: 0; font-size: 13px; box-shadow: none; background: rgba(243,240,230,.16); border: 2px solid rgba(243,240,230,.35); color: var(--line); font-family: var(--font-body); font-weight: 700; letter-spacing: 0; }
-.pad button.main { background: rgba(232,86,46,.55); border-color: var(--away); grid-row: span 2; align-self: center; }
-.overlay { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-start; padding: 16px; background: rgba(10,18,15,.86); overflow-y: auto; }
-.sheet { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 14px; padding-block: 8px 24px; }
-.sheet h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(22px, 5vw, 30px); text-wrap: balance; }
-.sheet p { margin: 0; line-height: 1.7; color: var(--muted); }
-.budget { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--line); }
-.budget b { font-family: var(--font-display); font-weight: 400; font-size: 20px; color: var(--gold); }
-.groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.group { background: var(--panel); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.group h3 { margin: 0; font-size: 13px; letter-spacing: .12em; }
-.row { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
-.row label { font-size: 13px; }
-.row output { font-family: var(--font-display); font-size: 15px; font-variant-numeric: tabular-nums; }
-.row small { grid-column: 1 / -1; font-size: 11px; color: var(--muted); line-height: 1.45; }
-.row input { grid-column: 1 / -1; width: 100%; accent-color: var(--gold); }
-.choices { display: flex; flex-wrap: wrap; gap: 8px; }
-.choices label { display: flex; align-items: center; gap: 6px; background: var(--panel); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
-.choices input { accent-color: var(--away); margin: 0; }
-.choices label:has(input:checked) { outline: 2px solid var(--away); }
-.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-button {
-  font-family: var(--font-display); font-size: 17px; letter-spacing: .06em;
-  color: #fff; background: var(--away); border: 0; border-radius: 999px;
-  padding: 11px 30px; cursor: pointer; box-shadow: 0 5px 0 #8f2a14;
+.card .num { grid-row: span 4; font-family: var(--font-display); font-size: 30px; line-height: 1; }
+.card .role { font-size: 11px; color: var(--muted); letter-spacing: .14em; font-weight: 700; }
+.card .bar { display: grid; grid-template-columns: 6.5em 1fr; gap: 6px; align-items: center; font-size: 11px; color: var(--muted); }
+.card .bar span { height: 5px; background: rgba(238,240,226,.18); border-radius: 3px; overflow: hidden; }
+.card .bar b { display: block; height: 100%; background: var(--gold); }
+.gauge { position: absolute; width: 70px; height: 8px; margin-left: -35px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.6); border-radius: 4px; overflow: hidden; pointer-events: none; }
+.gauge b { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #f2c230, #e8562e); }
+.toast { position: absolute; left: 50%; top: 56px; transform: translateX(-50%); background: var(--panel); border-radius: 999px; padding: 6px 14px; font-size: 13px; white-space: nowrap; pointer-events: none; transition: opacity .3s; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; }
+.goal { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--font-display); font-size: clamp(54px, 14vw, 120px); color: var(--gold); text-shadow: 0 6px 0 rgba(0,0,0,.45); letter-spacing: .04em; }
+.keys { position: absolute; right: 12px; bottom: 12px; background: var(--panel); border-radius: 8px; padding: 8px 12px; font-size: 11.5px; line-height: 1.7; color: var(--muted); pointer-events: none; }
+.keys kbd { font-family: var(--font-body); color: var(--line); border: 1px solid rgba(238,240,226,.35); border-radius: 3px; padding: 0 4px; }
+.pad { position: absolute; right: 14px; bottom: 16px; width: 176px; height: 176px; }
+.pad button {
+  position: absolute; width: 66px; height: 66px; border-radius: 50%; padding: 0; box-shadow: none;
+  background: rgba(238,240,226,.14); border: 2px solid rgba(238,240,226,.4); color: var(--line);
+  font-family: var(--font-body); font-weight: 700; font-size: 12.5px; letter-spacing: 0; touch-action: none;
 }
-button.ghost { background: transparent; box-shadow: none; border: 2px solid var(--muted); color: var(--line); }
-button:active { transform: translateY(2px); }
-button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
-.result { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 18px; font-variant-numeric: tabular-nums; max-width: 420px; }
-.result span:nth-child(3n+2), .result span:nth-child(3n) { text-align: right; font-weight: 700; }
-.result .hd { color: var(--muted); font-size: 12px; }
-.final { font-family: var(--font-display); font-size: 52px; line-height: 1; }
-@media (max-width: 640px) {
-  .groups { grid-template-columns: minmax(0, 1fr); }
-  .keys { display: none; }
-}
+.pad button.on { background: rgba(242,194,48,.45); }
+#bShoot { right: 0; top: 54px; width: 76px; height: 76px; background: rgba(232,86,46,.5); border-color: var(--away); }
+#bPass { right: 58px; bottom: 0; }
+#bThru { right: 84px; top: 0; }
+#bDash { left: -64px; bottom: 0; }
+.stickbase { position: absolute; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 2px solid rgba(238,240,226,.3); pointer-events: none; }
+.stickbase i { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: rgba(238,240,226,.35); }
 @media (hover: hover) and (pointer: fine) { .pad { display: none; } }
-@media (hover: none), (pointer: coarse) { .keys { display: none; } }
+@media (hover: none), (pointer: coarse) { .keys { display: none; } .card { display: none; } }
+.overlay { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-start; padding: 16px; background: rgba(8,14,12,.84); overflow-y: auto; -webkit-user-select: text; user-select: text; }
+.sheet { width: 100%; max-width: 760px; display: flex; flex-direction: column; gap: 14px; padding-block: 8px 24px; }
+.sheet h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(22px, 5vw, 32px); line-height: 1.25; text-wrap: balance; }
+.sheet p { margin: 0; line-height: 1.7; color: var(--muted); }
+.sheet h3 { margin: 0; font-size: 12px; letter-spacing: .16em; color: var(--muted); }
+.teams { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.tcard { background: rgba(238,240,226,.06); border: 2px solid transparent; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; min-width: 0; color: var(--line); text-align: left; font-family: var(--font-body); font-size: 13px; letter-spacing: 0; box-shadow: none; }
+.tcard[aria-pressed="true"] { border-color: var(--gold); background: rgba(242,194,48,.1); }
+.tcard.opp[aria-pressed="true"] { border-color: var(--away); background: rgba(232,86,46,.12); }
+.tcard b { font-weight: 700; font-size: 13px; }
+.tcard .mini { display: grid; grid-template-columns: 3.2em 1fr; gap: 4px; align-items: center; font-size: 10.5px; color: var(--muted); }
+.tcard .mini span { height: 4px; background: rgba(238,240,226,.15); border-radius: 2px; overflow: hidden; }
+.tcard .mini span i { display: block; height: 100%; background: currentColor; color: var(--gold); }
+.tcard.opp .mini span i { color: var(--away); }
+details { background: rgba(238,240,226,.05); border-radius: 10px; padding: 10px 12px; }
+summary { cursor: pointer; font-weight: 700; }
+.groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+.group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.group h4 { margin: 0; font-size: 12px; letter-spacing: .12em; }
+.row { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; align-items: center; font-size: 12.5px; }
+.row output { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.row input { grid-column: 1 / -1; width: 100%; accent-color: var(--gold); }
+.budget { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.budget b { color: var(--gold); font-family: var(--font-display); font-weight: 400; }
+.controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 18px; font-size: 13px; color: var(--muted); }
+.controls kbd { font-family: var(--font-body); color: var(--line); border: 1px solid rgba(238,240,226,.35); border-radius: 3px; padding: 0 5px; font-size: 12px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+button { font-family: var(--font-display); font-size: 17px; letter-spacing: .06em; color: #fff; background: var(--away); border: 0; border-radius: 999px; padding: 12px 32px; cursor: pointer; box-shadow: 0 5px 0 #8f2a14; }
+button.ghost { background: transparent; box-shadow: none; border: 2px solid var(--muted); color: var(--line); }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.final { font-family: var(--font-display); font-size: 56px; line-height: 1; font-variant-numeric: tabular-nums; }
+.result { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 18px; max-width: 420px; font-variant-numeric: tabular-nums; }
+.result span:nth-child(3n+2), .result span:nth-child(3n) { text-align: right; font-weight: 700; }
+.result .hd { color: var(--muted); font-size: 12px; font-weight: 400 !important; }
+.err { color: var(--muted); }
+@media (max-width: 640px) {
+  .teams { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .groups { grid-template-columns: minmax(0, 1fr); }
+  .controls { grid-template-columns: minmax(0, 1fr); }
+  .card { display: none; }
+}
 </style>
 
-<div class="app">
+<div class="stage" id="stage">
+  <canvas id="gl" aria-label="フットサルの試合画面。自分のチームは白、相手ゴールを攻める"></canvas>
   <div class="board">
-    <h1><small>5対5・3分間</small>フットサル采配</h1>
-    <div class="score"><span class="kit h"></span><span id="sH">0</span><span>-</span><span id="sA">0</span><span class="kit a"></span><span class="clock" id="clock">3:00</span></div>
+    <div class="team"><i style="background:var(--home)"></i>HOME</div>
+    <div class="sc"><span id="sH">0</span><span>-</span><span id="sA">0</span></div>
+    <div class="team"><span id="awayName">AWAY</span><i style="background:var(--away)"></i></div>
+    <div class="clock" id="clock">3:00</div>
   </div>
-  <div class="field" id="field">
-    <canvas id="pitch" aria-label="上から見たフットサルコート。白がホーム、オレンジがアウェイ"></canvas>
-    <div class="keys" id="keys">移動 ←↑↓→ / WASD<br>Z パス・切替　X シュート・タックル　C ロブ</div>
-    <div class="pad" id="pad">
-      <button type="button" id="bA">パス</button>
-      <button type="button" id="bB" class="main">シュート</button>
-      <button type="button" id="bC">ロブ</button>
-    </div>
-    <div class="overlay" id="setup">
-      <div class="sheet">
-        <h2>チームの能力を振り分けて、キックオフ。</h2>
-        <p>9 つの能力に合計 <span class="budget">50</span> ポイント（各 1〜10）。全員がこの能力をもとに動きます。数字の差が、競り合いや抜き合いの結果にそのまま出ます。</p>
-        <div class="budget">残り <b id="left">0</b> ポイント</div>
+  <div class="toast" id="toast" style="opacity:0"></div>
+  <div class="gauge" id="gauge" hidden><b id="gaugeFill"></b></div>
+  <div class="goal" id="goalText" hidden>GOAL!</div>
+  <div class="card" id="card" hidden>
+    <div class="num" id="cNum">9</div>
+    <div class="role" id="cRole">PIVO</div>
+    <div class="bar">フィジカル<span><b id="cPhy"></b></span></div>
+    <div class="bar">サッカーIQ<span><b id="cIq"></b></span></div>
+    <div class="bar">タッチ<span><b id="cTch"></b></span></div>
+  </div>
+  <div class="keys" id="keys">
+    <kbd>WASD</kbd>/<kbd>←↑↓→</kbd> 移動　<kbd>Shift</kbd> ダッシュ<br>
+    攻撃　<kbd>Z</kbd> パス　<kbd>X</kbd> 長押しシュート　<kbd>C</kbd> スルー　<kbd>V</kbd> ロブ<br>
+    守備　<kbd>Z</kbd> 選手切替　<kbd>X</kbd> 長押しプレス　<kbd>C</kbd> タックル
+  </div>
+  <div class="stickbase" id="stick" hidden><i id="knob"></i></div>
+  <div class="pad" id="pad">
+    <button type="button" id="bShoot">シュート</button>
+    <button type="button" id="bPass">パス</button>
+    <button type="button" id="bThru">スルー</button>
+    <button type="button" id="bDash">ダッシュ</button>
+  </div>
+
+  <div class="overlay" id="setup">
+    <div class="sheet">
+      <h2>白のホームを操作して、相手ゴールを狙え。</h2>
+      <p>3 分間の 5 対 5。操作するのは黄色い矢印の選手です。ほかの 4 人は、チームの能力に従って自分で動きます。</p>
+      <h3>自分のチーム</h3>
+      <div class="teams" id="myTeams"></div>
+      <details id="custom">
+        <summary>能力を細かく振り分ける（合計 50 ポイント）</summary>
         <div class="groups" id="groups"></div>
-        <div>
-          <p style="margin-bottom:8px">相手チーム</p>
-          <div class="choices" id="opps"></div>
-        </div>
-        <div>
-          <p style="margin-bottom:8px">遊び方</p>
-          <div class="choices">
-            <label><input type="radio" name="mode" value="play" checked>自分で操作する</label>
-            <label><input type="radio" name="mode" value="watch">監督として観戦する</label>
-          </div>
-        </div>
-        <div class="actions">
-          <button type="button" id="kickoff">キックオフ</button>
-          <button type="button" class="ghost" id="randomize">おまかせで振り分け</button>
-        </div>
+        <div class="budget">残り <b id="left">0</b> ポイント</div>
+      </details>
+      <h3>相手チーム</h3>
+      <div class="teams" id="oppTeams"></div>
+      <h3>操作</h3>
+      <div class="controls">
+        <span><kbd>WASD</kbd> / <kbd>←↑↓→</kbd> 移動、<kbd>Shift</kbd> ダッシュ</span>
+        <span><kbd>Z</kbd> パス ／ 守備では選手切替</span>
+        <span><kbd>X</kbd> 長押しでパワーを溜めてシュート ／ 守備では押している間プレス</span>
+        <span><kbd>C</kbd> スルーパス ／ 守備ではタックル</span>
+        <span><kbd>V</kbd> ロブ（浮き球）</span>
+        <span>スマホ：左側をなぞって移動、右下のボタン</span>
       </div>
+      <div class="actions"><button type="button" id="kickoff">キックオフ</button></div>
     </div>
-    <div class="overlay" id="result" hidden>
-      <div class="sheet">
-        <p id="resLabel">試合終了</p>
-        <div class="final" id="resScore">0 - 0</div>
-        <h2 id="resTitle"></h2>
-        <div class="result" id="resTable"></div>
-        <p id="resNote"></p>
-        <div class="actions">
-          <button type="button" id="again">同じチームでもう一試合</button>
-          <button type="button" class="ghost" id="rebuild">能力を振り直す</button>
-        </div>
+  </div>
+  <div class="overlay" id="result" hidden>
+    <div class="sheet">
+      <p id="resLabel">試合終了</p>
+      <div class="final" id="resScore">0 - 0</div>
+      <h2 id="resTitle"></h2>
+      <div class="result" id="resTable"></div>
+      <div class="actions">
+        <button type="button" id="again">もう一試合</button>
+        <button type="button" class="ghost" id="rebuild">チームを選び直す</button>
       </div>
     </div>
   </div>
-  <div class="ticker" id="ticker"><div>能力を決めてキックオフしてください。</div></div>
+  <div class="overlay" id="noGl" hidden><div class="sheet"><h2>3D 表示を開けませんでした</h2><p class="err">このブラウザでは WebGL が使えないようです。別のブラウザか端末で開いてください。</p></div></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  // ---------- stats ----------
+  const fail = () => { $("setup").hidden = true; $("noGl").hidden = false; };
+  if (!window.THREE) { fail(); return; }
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: $("gl"), antialias: true }); } catch (e) { fail(); return; }
+
+  // ================= stats =================
   const GROUPS = [
-    { name: "フィジカル", stats: [
-      ["kick", "キック", "パスとシュートの速さ"],
-      ["jump", "ジャンプ", "浮き球の競り合い、GK の届く範囲"],
-      ["contact", "フィジカルコンタクト", "タックルで当たり負けしない強さ"]] },
-    { name: "サッカーIQ", stats: [
-      ["pos", "立ち位置", "空いた場所・守る場所に正しく立つ"],
-      ["aggr", "積極性", "前からのプレス、前へのパス、遠目からのシュート"],
-      ["pass", "消極性", "陣形を崩さない、無理せず安全なパス"]] },
-    { name: "タッチ", stats: [
-      ["dribble", "ドリブル", "持ったときの速さとトラップの確実さ"],
-      ["body", "ボディコンタクト", "体を入れてボールを守る"],
-      ["space", "間合い", "寄せる距離・かわす距離の正確さ"]] },
+    { name: "フィジカル", stats: [["kick", "キック"], ["jump", "ジャンプ"], ["contact", "フィジカルコンタクト"]] },
+    { name: "サッカーIQ", stats: [["pos", "立ち位置"], ["aggr", "積極性"], ["pass", "消極性"]] },
+    { name: "タッチ", stats: [["dribble", "ドリブル"], ["body", "ボディコンタクト"], ["space", "間合い"]] },
   ];
   const KEYS = GROUPS.flatMap(g => g.stats.map(s => s[0]));
-  const NAMES = Object.fromEntries(GROUPS.flatMap(g => g.stats.map(s => [s[0], s[1]])));
   const BUDGET = 50;
   const PRESETS = {
     balance:  { name: "バランス",       v: [6, 5, 6, 6, 5, 5, 6, 5, 6] },
@@ -170,41 +199,35 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
     brain:    { name: "頭脳派",         v: [5, 4, 4, 10, 4, 7, 5, 4, 7] },
     press:    { name: "前プレ命",       v: [7, 5, 7, 5, 10, 1, 6, 4, 5] },
   };
-  let mine = PRESETS.balance.v.slice();
+  let mine = PRESETS.tech.v.slice(), myPick = "tech", oppPick = "physical";
+  const groupAvg = (v, gi) => (v[gi * 3] + v[gi * 3 + 1] + v[gi * 3 + 2]) / 30;
 
+  function teamCard(id, p, opp) {
+    return `<button type="button" class="tcard${opp ? " opp" : ""}" data-id="${id}" aria-pressed="false"><b>${p.name}</b>${GROUPS.map((g, gi) => `<div class="mini">${g.name.replace("サッカー", "")}<span><i style="width:${Math.round(groupAvg(p.v, gi) * 100)}%"></i></span></div>`).join("")}</button>`;
+  }
   function buildSetup() {
-    $("groups").innerHTML = GROUPS.map(g => `<div class="group"><h3>${g.name}</h3>${g.stats.map(([k, n, d]) => {
-      const i = KEYS.indexOf(k);
-      return `<div class="row"><label for="st-${k}">${n}</label><output id="o-${k}">${mine[i]}</output><input type="range" id="st-${k}" min="1" max="10" step="1" value="${mine[i]}"><small>${d}</small></div>`;
-    }).join("")}</div>`).join("");
+    $("myTeams").innerHTML = Object.entries(PRESETS).map(([id, p]) => teamCard(id, p, false)).join("");
+    $("oppTeams").innerHTML = Object.entries(PRESETS).map(([id, p]) => teamCard(id, p, true)).join("");
+    $("myTeams").addEventListener("click", (e) => { const b = e.target.closest(".tcard"); if (!b) return; myPick = b.dataset.id; mine = PRESETS[myPick].v.slice(); syncSetup(); });
+    $("oppTeams").addEventListener("click", (e) => { const b = e.target.closest(".tcard"); if (!b) return; oppPick = b.dataset.id; syncSetup(); });
+    $("groups").innerHTML = GROUPS.map(g => `<div class="group"><h4>${g.name}</h4>${g.stats.map(([k, n]) => `<div class="row"><label for="st-${k}">${n}</label><output id="o-${k}"></output><input type="range" id="st-${k}" min="1" max="10" step="1"></div>`).join("")}</div>`).join("");
     KEYS.forEach((k, i) => $("st-" + k).addEventListener("input", (e) => {
       const others = mine.reduce((s, v, j) => s + (j === i ? 0 : v), 0);
-      const v = Math.min(+e.target.value, BUDGET - others);
-      mine[i] = Math.max(1, v); e.target.value = mine[i]; $("o-" + k).value = mine[i]; budget();
+      mine[i] = Math.max(1, Math.min(+e.target.value, BUDGET - others));
+      myPick = "custom"; syncSetup();
     }));
-    $("opps").innerHTML = Object.entries(PRESETS).map(([id, p], i) => `<label><input type="radio" name="opp" value="${id}" ${i === 1 ? "checked" : ""}>${p.name}</label>`).join("");
-    budget();
+    syncSetup();
   }
-  function syncSliders() { KEYS.forEach((k, i) => { $("st-" + k).value = mine[i]; $("o-" + k).value = mine[i]; }); budget(); }
-  function budget() { $("left").textContent = BUDGET - mine.reduce((a, b) => a + b, 0); }
-  $("randomize").addEventListener("click", () => {
-    mine = KEYS.map(() => 1); let left = BUDGET - KEYS.length;
-    while (left > 0) { const i = Math.floor(Math.random() * KEYS.length); if (mine[i] < 10) { mine[i]++; left--; } }
-    syncSliders();
-  });
-
-  // ---------- pitch geometry (metres) ----------
-  const W = 20, L = 34, GOAL_W = 4.2, GX0 = W / 2 - GOAL_W / 2, GX1 = W / 2 + GOAL_W / 2, AREA = 6;
-  const canvas = $("pitch"), ctx = canvas.getContext("2d");
-  let cw = 0, ch = 0, sc = 1, ox = 0, oy = 0;
-  function resize() {
-    const r = $("field").getBoundingClientRect(); const dpr = Math.min(devicePixelRatio || 1, 2);
-    cw = r.width; ch = r.height; canvas.width = cw * dpr; canvas.height = ch * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    sc = Math.min(cw / (W + 2.4), ch / (L + 2.4)); ox = (cw - W * sc) / 2; oy = (ch - L * sc) / 2;
+  function syncSetup() {
+    document.querySelectorAll("#myTeams .tcard").forEach(b => b.setAttribute("aria-pressed", b.dataset.id === myPick));
+    document.querySelectorAll("#oppTeams .tcard").forEach(b => b.setAttribute("aria-pressed", b.dataset.id === oppPick));
+    KEYS.forEach((k, i) => { $("st-" + k).value = mine[i]; $("o-" + k).value = mine[i]; });
+    $("left").textContent = BUDGET - mine.reduce((a, b) => a + b, 0);
   }
-  const X = (x) => ox + x * sc, Y = (y) => oy + y * sc;
 
-  // ---------- helpers ----------
+  // ================= simulation (metres) =================
+  // sim space: x across the pitch (0..W), y along it (0..L). Home (team 0) attacks y = 0, shown as the RIGHT goal.
+  const W = 20, L = 34, GOAL_W = 4.2, GX0 = W / 2 - GOAL_W / 2, GX1 = W / 2 + GOAL_W / 2, GOAL_H = 2.0, AREA = 6;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -214,94 +237,90 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
     const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / l2, 0, 1);
     return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
   }
-  // team 0 (home) attacks the top goal (y = 0); team 1 attacks the bottom goal (y = L)
   const goalY = (t) => t === 0 ? 0 : L;
   const ownGoalY = (t) => t === 0 ? L : 0;
   const fwd = (t) => t === 0 ? -1 : 1;
-
-  // ---------- state ----------
   const ROLES = [
     { id: "GK", x: 10, y: 32.6 }, { id: "FIXO", x: 10, y: 26 },
     { id: "ALA", x: 4.5, y: 20 }, { id: "ALA", x: 15.5, y: 20 }, { id: "PIVO", x: 10, y: 13.5 },
   ];
-  let players = [], ball, teams, clock, state = "setup", mode = "play", user = -1, events = [], restart = null, pause = 0;
-  const input = { x: 0, y: 0, a: false, b: false, c: false };
+  let players = [], ball, teams, clock = 180, state = "setup", user = 0, restart = null, pause = 0, lastOwnerTeam = null;
+  const input = { x: 0, y: 0, dash: false, pass: false, shootDown: false, thru: false, lob: false };
+  let charge = -1;   // shot power being charged, -1 = not charging
 
-  function teamStats(vals) { return Object.fromEntries(KEYS.map((k, i) => [k, (vals[i] - 1) / 9])); }
-  function makeTeams(oppId) {
+  function makeTeams() {
+    const st = (v) => Object.fromEntries(KEYS.map((k, i) => [k, (v[i] - 1) / 9]));
     teams = [
-      { name: "ホーム", cls: "h", st: teamStats(mine), goals: 0, shots: 0, poss: 0, tackles: 0, aerials: 0, beaten: 0, passes: 0, passOk: 0 },
-      { name: PRESETS[oppId].name, cls: "a", st: teamStats(PRESETS[oppId].v), goals: 0, shots: 0, poss: 0, tackles: 0, aerials: 0, beaten: 0, passes: 0, passOk: 0 },
+      { name: "HOME", st: st(mine), goals: 0, shots: 0, onT: 0, poss: 0, tackles: 0, aerials: 0, passes: 0, passOk: 0 },
+      { name: PRESETS[oppPick].name, st: st(PRESETS[oppPick].v), goals: 0, shots: 0, onT: 0, poss: 0, tackles: 0, aerials: 0, passes: 0, passOk: 0 },
     ];
+    players.forEach(p => scene.remove(p.mesh));
     players = [];
     teams.forEach((tm, t) => ROLES.forEach((r, i) => {
-      const st = {};
-      KEYS.forEach(k => st[k] = clamp(tm.st[k] + rnd(-.06, .06), 0, 1));
-      if (r.id === "PIVO") st.aggr = clamp(st.aggr + .1, 0, 1);
-      if (r.id === "FIXO") st.pass = clamp(st.pass + .1, 0, 1);
-      players.push({ id: players.length, team: t, role: r.id, slot: i, num: [1, 4, 7, 11, 9][i], st,
-        x: 0, y: 0, vx: 0, vy: 0, face: fwd(t) * Math.PI / 2, stun: 0, jumpT: 0, think: 0, hold: 0,
-        tx: 0, ty: 0, drift: [0, 0], driftT: 0, pressD: 1.3, pressT: 0, tackleCd: 0, spot: null, spotT: 0 });
+      const s = {};
+      KEYS.forEach(k => s[k] = clamp(tm.st[k] + rnd(-.06, .06), 0, 1));
+      if (r.id === "PIVO") s.aggr = clamp(s.aggr + .1, 0, 1);
+      if (r.id === "FIXO") s.pass = clamp(s.pass + .1, 0, 1);
+      const p = { id: players.length, team: t, role: r.id, slot: i, num: [1, 4, 7, 11, 9][i], st: s,
+        x: 0, y: 0, vx: 0, vy: 0, face: 0, stun: 0, jumpT: 0, kickT: 0, tackleT: 0, think: 0, hold: 0,
+        tx: 0, ty: 0, drift: [0, 0], driftT: 0, pressD: 1.2, pressT: 0, tackleCd: 0, spot: null, spotT: 0, run: 0 };
+      p.mesh = makeFigure(t, r.id === "GK"); scene.add(p.mesh);
+      players.push(p);
     }));
+    $("awayName").textContent = teams[1].name;
   }
-  function base(p) {
-    const r = ROLES[p.slot];
-    return p.team === 0 ? { x: r.x, y: r.y } : { x: W - r.x, y: L - r.y };
-  }
+  function base(p) { const r = ROLES[p.slot]; return p.team === 0 ? { x: r.x, y: r.y } : { x: W - r.x, y: L - r.y }; }
 
   function kickoff(team) {
     players.forEach(p => {
       const b = base(p);
-      // own half only at kick-off
       p.x = b.x; p.y = p.team === 0 ? Math.max(b.y, L / 2 + 1) : Math.min(b.y, L / 2 - 1);
       if (p.role === "GK") p.y = b.y;
-      p.vx = p.vy = 0; p.stun = 0; p.hold = .6; p.face = fwd(p.team) * Math.PI / 2;
+      p.vx = p.vy = 0; p.stun = 0; p.hold = .5; p.face = fwd(p.team) * Math.PI / 2;
     });
     const taker = players.find(p => p.team === team && p.role === "PIVO");
     taker.x = W / 2; taker.y = L / 2 - fwd(team) * .7;
-    ball = { x: W / 2, y: L / 2, z: 0, vx: 0, vy: 0, vz: 0, owner: taker, last: taker, lastT: 0, tried: new Set(), shot: false, pass: null };
-    restart = null; pause = .8;
-    if (mode === "play") user = team === 0 ? taker.id : nearestField(0, ball).id;
+    ball = { x: W / 2, y: L / 2, z: 0, vx: 0, vy: 0, vz: 0, owner: taker, last: taker, lastT: 0, tried: new Set(), shot: false, pass: null, spin: 0 };
+    restart = null; pause = .9; charge = -1;
+    user = team === 0 ? taker.id : nearestField(0, ball).id;
   }
 
-  // ---------- events ----------
-  function say(team, text) {
-    events.unshift({ cls: team == null ? "" : teams[team].cls, text });
-    events = events.slice(0, 3);
-    $("ticker").innerHTML = events.map(e => `<div class="${e.cls}">${e.text}</div>`).join("");
-  }
-  const who = (p) => `${teams[p.team].name}の${p.num}番`;
+  let toastT = 0;
+  function say(text) { $("toast").textContent = text; $("toast").style.opacity = 1; toastT = 2.2; }
+  const who = (p) => p.team === 0 ? `${p.num}番` : `相手の${p.num}番`;
 
   // ---------- ball actions ----------
   function kick(p, tx, ty, speed, vz, kind) {
     const [dx, dy] = norm(tx - p.x, ty - p.y);
     ball.owner = null; ball.vx = dx * speed; ball.vy = dy * speed; ball.vz = vz; ball.z = Math.max(ball.z, .05);
     ball.last = p; ball.lastT = .28; ball.tried = new Set(); ball.shot = kind === "shot"; ball.pass = kind === "pass" ? p.team : null;
-    p.face = Math.atan2(dy, dx); p.hold = 0;
+    p.face = Math.atan2(dy, dx); p.hold = 0; p.kickT = .28;
     if (kind === "pass") teams[p.team].passes++;
   }
-  function passTo(p, r, lob) {
-    const lead = .35;
-    const tx = r.x + r.vx * lead, ty = r.y + r.vy * lead, d = Math.hypot(tx - p.x, ty - p.y);
-    if (lob) {
-      const vz = 5.5 + p.st.kick * 2 + d * .12, flight = 2 * vz / 9.8;
+  function passTo(p, r, how) {
+    let tx = r.x + r.vx * .35, ty = r.y + r.vy * .35;
+    if (how === "thru") { tx = clamp(r.x + r.vx * .5, 1, W - 1); ty = clamp(r.y + fwd(r.team) * 4.5 + r.vy * .4, .8, L - .8); }
+    const d = Math.hypot(tx - p.x, ty - p.y);
+    if (how === "lob") {
+      const vz = 5.2 + p.st.kick * 2 + d * .12, flight = 2 * vz / 9.8;
       kick(p, tx, ty, d / flight * 1.05, vz, "pass");
     } else {
-      const sp = Math.min(9 + p.st.kick * 9, d * 1.6 + 6);
-      kick(p, tx, ty, sp, 0, "pass");
+      kick(p, tx, ty, Math.min(9 + p.st.kick * 9, d * 1.6 + 6), 0, "pass");
     }
   }
-  function shoot(p, aimX) {
+  function shoot(p, aimX, power) {
     const gk = players.find(q => q.team !== p.team && q.role === "GK");
-    let tx = aimX != null ? aimX : (gk.x > W / 2 ? rnd(GX0 + .3, W / 2 - .3) : rnd(W / 2 + .3, GX1 - .3));
+    const tx = aimX != null ? aimX : (gk.x > W / 2 ? rnd(GX0 + .3, W / 2 - .3) : rnd(W / 2 + .3, GX1 - .3));
+    const pw = power == null ? rnd(.45, .8) : power;
     const pressure = pressureOn(p);
-    const err = (rnd() - .5) * (.16 + pressure * .22 + (1 - p.st.dribble) * .06);
+    const err = (rnd() - .5) * (.12 + pressure * .2 + (1 - p.st.dribble) * .06 + Math.max(0, pw - .8) * .3);
     const ty = goalY(p.team);
     const ang = Math.atan2(ty - p.y, tx - p.x) + err;
-    const sp = 14 + p.st.kick * 13;
-    kick(p, p.x + Math.cos(ang) * 10, p.y + Math.sin(ang) * 10, sp, rnd(.5, 2.2) + pressure, "shot");
-    teams[p.team].shots++;
-    if (p.st.kick > .75 && dist(p, { x: W / 2, y: ty }) > 11) say(p.team, `${who(p)}、キック力を生かしたミドルシュート`);
+    const sp = 11 + pw * (9 + p.st.kick * 9);
+    // too much power sends it over the bar
+    const vz = .6 + pw * pw * (2.2 + (1 - p.st.kick) * 1.5) + pressure * .8 + rnd(0, .6);
+    kick(p, p.x + Math.cos(ang) * 10, p.y + Math.sin(ang) * 10, sp, vz, "shot");
+    teams[p.team].shots++; shake = .25;
   }
   function pressureOn(p) {
     let m = 9;
@@ -313,28 +332,24 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
     players.forEach(q => { if (q.team !== team && q.role !== "GK") worst = Math.min(worst, segDist(q, a, b)); });
     return worst;
   }
-
-  function tackle(d, a) {
-    // d tries to win the ball from carrier a
+  function tackle(d, a, bonus = 0) {
     const gap = dist(d, a);
-    if (gap > 1.7) return false;
-    let p = .48 + .32 * (d.st.contact - a.st.body) + .25 * (d.st.space - a.st.space) - .18 * a.st.dribble + .08;
+    d.tackleT = .35; d.tackleCd = 1.0;
+    if (gap > 1.8) return false;
+    let p = .48 + bonus + .32 * (d.st.contact - a.st.body) + .25 * (d.st.space - a.st.space) - .18 * a.st.dribble + .08;
     p -= .3 * Math.abs(gap - 1.1) * (1 - d.st.space);
-    p = clamp(p, .08, .88);
-    d.tackleCd = 1.1;
+    p = clamp(p, .08, .9);
     if (Math.random() < p) {
       teams[d.team].tackles++;
-      const why = d.st.contact - a.st.body > .2 ? "フィジカルコンタクトで" : d.st.space > .6 ? "うまい間合いで" : "";
-      if (Math.random() < .45 + d.st.body * .4) { ball.owner = d; ball.last = d; d.hold = .25; say(d.team, `${who(d)}が${why}ボールを奪った`); }
-      else {
-        ball.owner = null; const a2 = rnd(0, Math.PI * 2); ball.vx = Math.cos(a2) * 5; ball.vy = Math.sin(a2) * 5; ball.last = d; ball.lastT = .2; ball.tried = new Set();
-        say(d.team, `${who(d)}が${why}ボールをつついた`);
-      }
+      const why = d.st.contact - a.st.body > .2 ? "フィジカルで" : d.st.space > .6 ? "間合いを読んで" : "";
+      if (Math.random() < .45 + d.st.body * .4) { ball.owner = d; ball.last = d; d.hold = .25; }
+      else { ball.owner = null; const a2 = rnd(0, Math.PI * 2); ball.vx = Math.cos(a2) * 5; ball.vy = Math.sin(a2) * 5; ball.last = d; ball.lastT = .2; ball.tried = new Set(); }
+      say(`${who(d)}が${why}ボールを奪った`);
       a.stun = .35;
       return true;
     }
-    d.stun = .75; teams[a.team].beaten++;
-    say(a.team, a.st.body > d.st.contact + .15 ? `${who(a)}がボディコンタクトでキープ` : `${who(a)}がタックルをかわした`);
+    d.stun = .7;
+    say(a.st.body > d.st.contact + .15 ? `${who(a)}が体を入れてキープ` : `${who(a)}がタックルをかわした`);
     return false;
   }
 
@@ -349,37 +364,30 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
     const t = (ball.vz + Math.sqrt(ball.vz * ball.vz + 2 * 9.8 * ball.z)) / 9.8;
     return { x: ball.x + ball.vx * t * .95, y: ball.y + ball.vy * t * .95 };
   }
-
   function think(p, dt) {
-    const tm = teams[p.team], st = p.st, ownerTeam = ball.owner ? ball.owner.team : null;
+    const st = p.st, ownerTeam = ball.owner ? ball.owner.team : null;
     const attacking = ownerTeam === p.team, defending = ownerTeam != null && ownerTeam !== p.team;
-
-    // slow-changing drift: weak positioning wanders from the right spot
     p.driftT -= dt;
     if (p.driftT <= 0) { p.driftT = rnd(1, 2.5); p.drift = [rnd(-1, 1) * (1 - st.pos) * 4.5, rnd(-1, 1) * (1 - st.pos) * 4.5]; }
-
     if (p.role === "GK") { gkThink(p); return; }
-
     const b = base(p);
     let tx = b.x + (ball.x - W / 2) * .42 + p.drift[0];
     let ty = b.y + (ball.y - L / 2) * .5 + p.drift[1];
     if (attacking) ty += fwd(p.team) * (1.5 + st.aggr * 4.5 - st.pass * 2);
     if (defending) ty -= fwd(p.team) * (1 + st.pass * 4 - st.aggr * 1.5);
-
     const restartMine = restart && restart.team === p.team;
-    // chase loose ball (closest of each team; aggressive teams send a second man)
     if (!ball.owner && (!restart || restartMine)) {
       const land = ballLanding();
-      const mates = players.filter(q => q.team === p.team && q.role !== "GK").sort((a, c) => dist(a, land) - dist(c, land));
+      const mates = players.filter(q => q.team === p.team && q.role !== "GK" && q.id !== user).sort((a, c) => dist(a, land) - dist(c, land));
       const n = !restart && st.aggr > .65 ? 2 : 1;
-      if (mates.indexOf(p) < n) { tx = land.x; ty = land.y; }
+      if (mates.indexOf(p) < n && (p.team === 1 || dist(players[user], land) > dist(p, land) - 1.5)) { tx = land.x; ty = land.y; }
     }
     if (defending) {
       const carrier = ball.owner;
       const chasers = players.filter(q => q.team === p.team && q.role !== "GK").sort((a, c) => dist(a, carrier) - dist(c, carrier));
       const rank = chasers.indexOf(p);
       const pressers = st.aggr > .6 ? 2 : 1;
-      const pressDepth = L * (.35 + st.aggr * .55);   // how far up the pitch they press
+      const pressDepth = L * (.35 + st.aggr * .55);
       const carrierDepth = Math.abs(carrier.y - ownGoalY(p.team));
       if (rank < pressers && (carrierDepth < pressDepth || rank === 0 && st.pass < .7)) {
         p.pressT -= dt;
@@ -387,22 +395,20 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
         const [gx, gy] = norm(W / 2 - carrier.x, ownGoalY(p.team) - carrier.y);
         tx = carrier.x + gx * Math.max(.35, p.pressD); ty = carrier.y + gy * Math.max(.35, p.pressD);
         p.tackleCd -= dt;
-        const d = dist(p, carrier);
-        const want = (.35 + st.aggr * .9) * (1 - st.pass * .45);
-        if (p.tackleCd <= 0 && d < 1.6 && p.stun <= 0 && Math.random() < want * dt * 2.2) tackle(p, carrier);
+        // the AI is a little gentler on the human player's carrier
+        const want = (.35 + st.aggr * .9) * (1 - st.pass * .45) * (carrier.id === user ? .75 : 1);
+        if (p.tackleCd <= 0 && dist(p, carrier) < 1.6 && p.stun <= 0 && Math.random() < want * dt * 2.2) tackle(p, carrier);
       } else {
-        // mark: stand goal-side of the nearest attacker in my zone; passive players stay in the zone
         let mark = null, md = 1e9;
         players.forEach(q => { if (q.team !== p.team && q !== carrier && q.role !== "GK") { const d = Math.hypot(q.x - tx, q.y - ty); if (d < md) { md = d; mark = q; } } });
         if (mark && md < 7) {
           const [gx, gy] = norm(W / 2 - mark.x, ownGoalY(p.team) - mark.y);
-          const mx = mark.x + gx * 1.4, my = mark.y + gy * 1.4, w = clamp(.35 + st.pos * .5 - st.pass * .3, 0, 1);
-          tx = tx * (1 - w) + mx * w; ty = ty * (1 - w) + my * w;
+          const w = clamp(.35 + st.pos * .5 - st.pass * .3, 0, 1);
+          tx = tx * (1 - w) + (mark.x + gx * 1.4) * w; ty = ty * (1 - w) + (mark.y + gy * 1.4) * w;
         }
       }
     }
     if (attacking && ball.owner !== p) {
-      // smart players look for a pocket of space with an open passing lane
       p.spotT -= dt;
       if (p.spotT <= 0) {
         p.spotT = .6;
@@ -411,8 +417,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
           for (let i = 0; i < 10; i++) {
             const c = { x: clamp(tx + rnd(-4, 4), 1, W - 1), y: clamp(ty + rnd(-4, 4), 1.5, L - 1.5) };
             let near = 9; players.forEach(q => { if (q.team !== p.team) near = Math.min(near, dist(q, c)); });
-            const lane = laneOpen(ball.owner, c, p.team);
-            const s = Math.min(near, 5) + Math.min(lane, 2.5) * 1.2 + (ball.y - c.y) * fwd(p.team) * -.15 * (.4 + st.aggr) - Math.hypot(c.x - tx, c.y - ty) * .15;
+            const s = Math.min(near, 5) + Math.min(laneOpen(ball.owner, c, p.team), 2.5) * 1.2 + (c.y - ball.y) * fwd(p.team) * .15 * (.4 + st.aggr) - Math.hypot(c.x - tx, c.y - ty) * .15;
             if (s > bs) { bs = s; best = c; }
           }
           p.spot = best;
@@ -421,32 +426,25 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
       if (p.spot) { tx = p.spot.x; ty = p.spot.y; }
     }
     p.tx = clamp(tx, .6, W - .6); p.ty = clamp(ty, .6, L - .6);
-
-    if (ball.owner === p) carrierThink(p, dt);
+    if (ball.owner === p) carrierThink(p);
   }
-
   function gkThink(p) {
     const gy = ownGoalY(p.team);
     const bx = ball.owner ? ball.owner.x : ball.x, by = ball.owner ? ball.owner.y : ball.y;
     const d = Math.abs(by - gy);
     const depth = clamp(.6 + (1 - d / L) * 1.6 * p.st.pos, .6, 2.2);
-    let tx = W / 2 + (bx - W / 2) * (depth / Math.max(d, 1)) * 1.3;
-    tx = clamp(tx, GX0 - .4, GX1 + .4);
+    let tx = clamp(W / 2 + (bx - W / 2) * (depth / Math.max(d, 1)) * 1.3, GX0 - .4, GX1 + .4);
     let ty = p.team === 0 ? L - depth : depth;
-    // a shot is coming: move to where it crosses the line
     if (!ball.owner && Math.sign(ball.vy) === Math.sign(gy - ball.y) && Math.abs(ball.vy) > 4) {
       const t = (gy - ball.y) / ball.vy;
       if (t > 0 && t < 1.5) tx = clamp(ball.x + ball.vx * t, GX0 - 1, GX1 + 1);
     }
-    // loose ball in the area: come and claim it
     if (!ball.owner && d < AREA && Math.abs(ball.vy) < 6 && (!restart || restart.team === p.team)) { tx = ball.x; ty = ball.y; }
     p.tx = tx; p.ty = ty;
-    if (ball.owner === p) carrierThink(p, 0);
+    if (ball.owner === p) carrierThink(p);
   }
-
-  function carrierThink(p, dt) {
-    if (mode === "play" && p.id === user) return;
-    if (pause > 0 || p.hold > 0) return;
+  function carrierThink(p) {
+    if (p.id === user || pause > 0 || p.hold > 0) return;
     const st = p.st, gy = goalY(p.team), pressure = pressureOn(p);
     const toGoal = Math.hypot(W / 2 - p.x, gy - p.y);
     const opts = [];
@@ -458,56 +456,96 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
     players.forEach(r => {
       if (r.team !== p.team || r === p || r.stun > 0) return;
       if (r.role === "GK" && st.pass < .5) return;
-      const lane = laneOpen(p, r, p.team);
-      const prog = (p.y - r.y) * -fwd(p.team) / 10; // positive = forward
+      const lane = laneOpen(p, r, p.team), prog = (r.y - p.y) * fwd(p.team) / 10, d = dist(p, r);
       let near = 9; players.forEach(q => { if (q.team !== p.team) near = Math.min(near, dist(q, r)); });
-      const d = dist(p, r);
       if (d < 2 || d > 22) return;
-      const base = .15 + Math.min(near, 4) / 4 * .45 + prog * (.3 + st.aggr * .7) + (prog < 0 ? st.pass * .35 : 0) + pressure * .3;
+      // passing to the human: favour it a little so the player gets the ball
+      const base = .15 + Math.min(near, 4) / 4 * .45 + prog * (.3 + st.aggr * .7) + (prog < 0 ? st.pass * .35 : 0) + pressure * .3 + (r.id === user ? .15 : 0);
       const noise = rnd(-1, 1) * (1 - st.pos) * .35;
-      if (lane > 1.1) opts.push({ s: base + noise, act: () => { passTo(p, r, false); } });
-      else if (prog > 0 && d > 6) opts.push({ s: base * .8 + noise - .1 + r.st.jump * .2, act: () => { passTo(p, r, true); } });
+      if (lane > 1.1) opts.push({ s: base + noise, act: () => passTo(p, r, "ground") });
+      else if (prog > 0 && d > 6) opts.push({ s: base * .8 + noise - .1 + r.st.jump * .2, act: () => passTo(p, r, "lob") });
     });
     if (p.role !== "GK") opts.push({ s: .3 + st.dribble * .5 + st.aggr * .25 - pressure * (.75 - st.body * .45) - st.pass * .25, act: null });
     opts.sort((a, b) => b.s - a.s);
-    const pick = opts[0];
-    if (pick && pick.act) pick.act();
-    else if (p.role === "GK" && opts[0]) opts[0].act();
+    if (opts[0] && opts[0].act) opts[0].act();
     p.hold = .25 + st.pass * .25;
   }
 
+  // ---------- user ----------
+  // screen input → sim direction. Landscape (side camera): screen right = toward home's target goal (-y), up = far side (-x).
+  // Portrait (camera behind home, looking up the pitch): screen up = toward the target goal, right = +x.
+  const inputSim = () => portrait ? [input.x, input.y] : [input.y, -input.x];
+  function aimDir(p) { const [dx, dy] = inputSim(); return Math.hypot(dx, dy) > .2 ? Math.atan2(dy, dx) : p.face; }
+  function pickMate(p, how) {
+    const dir = aimDir(p);
+    let best = null, bs = -1e9;
+    players.forEach(r => {
+      if (r.team !== p.team || r === p) return;
+      const d = dist(p, r); if (d < 1.5) return;
+      const ang = Math.abs(((Math.atan2(r.y - p.y, r.x - p.x) - dir + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      const s = -ang * 3 + (how === "lob" ? 0 : Math.min(laneOpen(p, r, p.team), 2)) - d * .04 - (r.role === "GK" ? 1.5 : 0);
+      if (s > bs) { bs = s; best = r; }
+    });
+    return best;
+  }
+  function userActions(p, dt) {
+    const mine = ball.owner === p;
+    if (input.pass) { input.pass = false;
+      if (mine) { const r = pickMate(p, "ground"); if (r) passTo(p, r, "ground"); }
+      else if (!ball.owner || ball.owner.team !== 0) { const n = nearestField(0, ball.owner || ballLanding(), p); if (n) user = n.id; }
+    }
+    if (input.thru) { input.thru = false;
+      if (mine) { const r = pickMate(p, "thru"); if (r) passTo(p, r, "thru"); }
+      else if (ball.owner && ball.owner.team === 1 && p.tackleCd <= 0) {
+        if (!tackle(p, ball.owner, .06) && dist(p, ball.owner) > 1.8) { p.stun = .3; }
+      }
+    }
+    if (input.lob) { input.lob = false; if (mine) { const r = pickMate(p, "lob"); if (r) passTo(p, r, "lob"); } }
+    // shot charging: hold to fill, release to shoot
+    if (mine && input.shootDown) { if (charge < 0) charge = 0; charge = Math.min(1, charge + dt * 1.1); }
+    if (charge >= 0 && (!input.shootDown || !mine)) {
+      if (mine) { const [dx] = inputSim(); shoot(p, W / 2 + clamp(dx, -1, 1) * 1.6, Math.max(.2, charge)); }
+      charge = -1;
+    }
+    p.tackleCd = Math.max(0, p.tackleCd - dt);
+  }
+
   // ---------- step ----------
+  let shake = 0, goalFlash = 0;
   function step(dt) {
-    if (state !== "play") return;
-    if (pause > 0) pause -= dt;
-    else clock -= dt;
+    if (pause > 0) pause -= dt; else clock -= dt;
     if (clock <= 0) { clock = 0; endMatch(); return; }
     if (ball.owner) teams[ball.owner.team].poss += dt;
-    // when the opponent wins the ball, hand control to the home player nearest to it
     const ot = ball.owner ? ball.owner.team : null;
-    if (mode === "play" && ot === 1 && lastOwnerTeam !== 1) { const n = nearestField(0, ball); if (n) user = n.id; }
+    if (ot === 1 && lastOwnerTeam !== 1) { const n = nearestField(0, ball); if (n) user = n.id; }
     lastOwnerTeam = ot;
 
-    // user input
-    const up = mode === "play" ? players[user] : null;
-    if (up && up.stun <= 0 && pause <= 0) {
-      if (input.a) { input.a = false; userA(up); }
-      if (input.b) { input.b = false; userB(up); }
-      if (input.c) { input.c = false; userC(up); }
-    } else { input.a = input.b = input.c = false; }
+    const up = players[user];
+    if (up.stun <= 0 && pause <= 0) userActions(up, dt); else { input.pass = input.thru = input.lob = false; if (charge >= 0 && ball.owner !== up) charge = -1; }
 
     players.forEach(p => {
       p.stun = Math.max(0, p.stun - dt); p.hold = Math.max(0, p.hold - dt); p.jumpT = Math.max(0, p.jumpT - dt);
+      p.kickT = Math.max(0, p.kickT - dt); p.tackleT = Math.max(0, p.tackleT - dt);
       p.think -= dt;
-      if (p.think <= 0) { p.think = .1; if (!(mode === "play" && p.id === user)) think(p, .1); }
-      let ax, ay, maxV;
+      if (p.think <= 0) { p.think = .1; if (p.id !== user) think(p, .1); }
       const carrying = ball.owner === p;
-      maxV = p.stun > 0 ? 1.2 : carrying ? 4.6 + p.st.dribble * 1.6 : 6.2;
+      const isUser = p.id === user;
+      const sprint = isUser && input.dash;
+      let maxV = p.stun > 0 ? 1.2 : carrying ? 4.6 + p.st.dribble * 1.6 : 6.2;
+      if (sprint && p.stun <= 0) maxV *= carrying ? 1.22 : 1.3;
       if (pause > 0 && !carrying) maxV = 3;
-      if (mode === "play" && p.id === user) {
-        ax = input.x * maxV; ay = input.y * maxV;
+      let ax, ay;
+      if (isUser) {
+        const [dx, dy] = inputSim();
+        ax = dx * maxV; ay = dy * maxV;
+        // hold X while defending: auto-close down the carrier at a good distance
+        if (input.shootDown && ball.owner && ball.owner.team === 1) {
+          const c = ball.owner, [gx, gy] = norm(W / 2 - c.x, ownGoalY(0) - c.y);
+          const tx = c.x + gx * 1.1, ty = c.y + gy * 1.1, [nx, ny] = norm(tx - p.x, ty - p.y), d = Math.hypot(tx - p.x, ty - p.y);
+          const v = Math.min(maxV * 1.05, d * 3);
+          ax = ax * .35 + nx * v; ay = ay * .35 + ny * v;
+        }
       } else {
-        // carriers dribble toward goal, bending away from the nearest defender
         if (carrying && p.role !== "GK") {
           let nd = null, ndd = 9; players.forEach(q => { if (q.team !== p.team && q.role !== "GK") { const d = dist(p, q); if (d < ndd) { ndd = d; nd = q; } } });
           let [gx, gy] = norm(W / 2 - p.x, goalY(p.team) - p.y);
@@ -519,15 +557,17 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
         const want = d < .2 ? 0 : Math.min(maxV, d * 2.2);
         ax = d ? dx / d * want : 0; ay = d ? dy / d * want : 0;
       }
-      const resp = Math.min(1, dt * (p.role === "GK" ? 9 : 6 + p.st.pos * 3));
+      const resp = Math.min(1, dt * (isUser ? 10 : p.role === "GK" ? 9 : 6 + p.st.pos * 3));
       p.vx += (ax - p.vx) * resp; p.vy += (ay - p.vy) * resp;
       const sp = Math.hypot(p.vx, p.vy);
       if (sp > maxV) { p.vx *= maxV / sp; p.vy *= maxV / sp; }
       p.x = clamp(p.x + p.vx * dt, .3, W - .3); p.y = clamp(p.y + p.vy * dt, .3, L - .3);
       if (sp > .4) p.face = Math.atan2(p.vy, p.vx);
+      p.run += sp * dt * 2.1;
+      // sprinting with the ball pushes it further ahead: easier to lose
+      p.sprintTouch = carrying && sprint;
     });
 
-    // body contact between players
     for (let i = 0; i < players.length; i++) for (let j = i + 1; j < players.length; j++) {
       const a = players[i], b = players[j], d = dist(a, b);
       if (d < .85 && d > 0) {
@@ -535,81 +575,69 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
         const [nx, ny] = norm(b.x - a.x, b.y - a.y);
         a.x -= nx * push * 2 * mb / (ma + mb); a.y -= ny * push * 2 * mb / (ma + mb);
         b.x += nx * push * 2 * ma / (ma + mb); b.y += ny * push * 2 * ma / (ma + mb);
-        // a strong shoulder can knock a weak-bodied carrier off the ball
         [[a, b], [b, a]].forEach(([c, o]) => {
           if (ball.owner === c && o.team !== c.team && o.stun <= 0 && pause <= 0) {
-            const edge = o.st.contact - c.st.body;
+            const edge = o.st.contact - c.st.body + (c.sprintTouch ? .15 : 0);
             if (edge > .1 && Math.random() < edge * dt * 3) {
               ball.owner = null; const [kx, ky] = norm(c.x - o.x, c.y - o.y); ball.vx = kx * 4 + c.vx; ball.vy = ky * 4 + c.vy; ball.last = o; ball.lastT = .15; ball.tried = new Set();
-              teams[o.team].tackles++; say(o.team, `${who(o)}がショルダーチャージで${c.num}番を弾き飛ばした`);
+              teams[o.team].tackles++; say(`${who(o)}のショルダーチャージ!`);
             }
           }
         });
       }
     }
-    // dribbler beats a defender who closed in too tight (bad 間合い)
     if (ball.owner && ball.owner.role !== "GK" && pause <= 0) {
       const c = ball.owner;
       players.forEach(q => {
         if (q.team === c.team || q.stun > 0 || q.role === "GK") return;
         const d = dist(q, c);
-        if (d < .75 && Math.random() < c.st.dribble * (1 - q.st.space * .7) * dt * 1.6) {
-          q.stun = .8; teams[c.team].beaten++;
-          say(c.team, `${who(c)}がドリブルで抜いた（${q.num}番は間合いを詰めすぎ）`);
+        const skill = c.id === user ? c.st.dribble * (input.dash ? 1.5 : 1) : c.st.dribble;
+        if (d < .75 && Math.random() < skill * (1 - q.st.space * .7) * dt * 1.6) {
+          q.stun = .8; say(`${who(c)}が${q.team === 0 ? "" : "相手を"}抜き去った`);
         }
       });
     }
-
     stepBall(dt);
   }
 
   function stepBall(dt) {
     ball.lastT = Math.max(0, ball.lastT - dt);
     if (ball.owner) {
-      const p = ball.owner, off = .5 + (1 - p.st.dribble) * .4;
-      ball.x = p.x + Math.cos(p.face) * off; ball.y = p.y + Math.sin(p.face) * off; ball.z = 0; ball.vx = p.vx; ball.vy = p.vy; ball.vz = 0;
-      ball.x = clamp(ball.x, .1, W - .1); ball.y = clamp(ball.y, .1, L - .1);
+      const p = ball.owner, off = .5 + (1 - p.st.dribble) * .4 + (p.sprintTouch ? .35 : 0) + Math.sin(p.run * 2) * .08;
+      ball.x = clamp(p.x + Math.cos(p.face) * off, .1, W - .1); ball.y = clamp(p.y + Math.sin(p.face) * off, .1, L - .1);
+      ball.z = 0; ball.vx = p.vx; ball.vy = p.vy; ball.vz = 0;
       return;
     }
-    // flight
     if (ball.z > 0 || ball.vz > 0) {
       ball.vz -= 9.8 * dt; ball.z += ball.vz * dt;
       if (ball.z <= 0) { ball.z = 0; ball.vz = -ball.vz * .42; if (ball.vz < 1.2) ball.vz = 0; }
     }
     const sp = Math.hypot(ball.vx, ball.vy);
-    if (sp > 0) {
-      const dec = ball.z > .05 ? .15 * sp : 2.6 + .35 * sp;
-      const ns = Math.max(0, sp - dec * dt);
-      ball.vx *= ns / sp; ball.vy *= ns / sp;
-    }
+    if (sp > 0) { const dec = ball.z > .05 ? .15 * sp : 2.6 + .35 * sp; const ns = Math.max(0, sp - dec * dt); ball.vx *= ns / sp; ball.vy *= ns / sp; }
     ball.x += ball.vx * dt; ball.y += ball.vy * dt;
 
-    // goal line / touch line
     if (ball.y < 0 || ball.y > L) {
-      const top = ball.y < 0, scorer = top ? 0 : 1;
-      if (ball.x > GX0 && ball.x < GX1 && ball.z < 2.1) { goal(scorer); return; }
-      const defender = scorer === 0 ? 1 : 0; // team defending that goal
+      const top = ball.y < 0, scorer = top ? 0 : 1, defender = 1 - scorer;
+      if (ball.x > GX0 && ball.x < GX1 && ball.z < GOAL_H) { goal(scorer); return; }
+      if (ball.shot && ball.last.team === scorer) say(ball.z >= GOAL_H && ball.x > GX0 - 1 && ball.x < GX1 + 1 ? "バーの上!" : "枠外");
       if (ball.last.team === defender) setRestart(scorer, ball.x < W / 2 ? .4 : W - .4, top ? .4 : L - .4, "コーナーキック");
-      else { const gk = players.find(q => q.team === defender && q.role === "GK"); ball.owner = gk; ball.last = gk; gk.x = W / 2; gk.y = top ? 1 : L - 1; gk.hold = 1; ball.vx = ball.vy = 0; ball.z = 0; pause = .5; say(defender, "ゴールキック"); }
+      else { const gk = players.find(q => q.team === defender && q.role === "GK"); ball.owner = gk; ball.last = gk; gk.x = W / 2; gk.y = top ? 1 : L - 1; gk.hold = 1; ball.vx = ball.vy = 0; ball.z = 0; pause = .5; }
       return;
     }
-    if (ball.x < 0 || ball.x > W) {
-      setRestart(1 - ball.last.team, ball.x < 0 ? .3 : W - .3, clamp(ball.y, .5, L - .5), "キックイン");
-      return;
-    }
+    if (ball.x < 0 || ball.x > W) { setRestart(1 - ball.last.team, ball.x < 0 ? .3 : W - .3, clamp(ball.y, .5, L - .5), "キックイン"); return; }
 
-    // aerial duel: ball dropping through head height
-    if (ball.z > 1.05 && ball.vz < 0) {
-      const cands = players.filter(p => p.stun <= 0 && p.role !== "GK" && Math.hypot(p.x - ball.x, p.y - ball.y) < .9 && ball.z < 1.75 + p.st.jump * .9 && p !== ball.last || (p.role === "GK" && false));
-      if (cands.length && ball.lastT <= 0) {
+    if (ball.z > 1.05 && ball.vz < 0 && ball.lastT <= 0) {
+      const cands = players.filter(p => p.stun <= 0 && p.role !== "GK" && p !== ball.last && Math.hypot(p.x - ball.x, p.y - ball.y) < .9 && ball.z < 1.75 + p.st.jump * .9);
+      if (cands.length) {
         cands.forEach(c => c.jumpT = .45);
-        const scored = cands.map(c => ({ c, s: c.st.jump * .65 + c.st.contact * .35 + rnd(0, .45) })).sort((a, b) => b.s - a.s);
-        const w = scored[0].c;
+        const w = cands.map(c => ({ c, s: c.st.jump * .65 + c.st.contact * .35 + rnd(0, .45) })).sort((a, b) => b.s - a.s)[0].c;
         teams[w.team].aerials++;
-        if (cands.length > 1) say(w.team, `${who(w)}が${w.st.jump > w.st.contact ? "ジャンプ" : "フィジカル"}で空中戦に勝った`);
-        const gy = goalY(w.team), near = Math.hypot(W / 2 - w.x, gy - w.y) < 10;
-        if (near) { const tx = rnd(GX0 + .4, GX1 - .4); const [dx, dy] = norm(tx - w.x, gy - w.y); ball.vx = dx * (9 + w.st.jump * 4); ball.vy = dy * (9 + w.st.jump * 4); ball.vz = -.5; ball.shot = true; teams[w.team].shots++; say(w.team, `${who(w)}のヘディングシュート!`); }
-        else {
+        if (cands.length > 1) say(`${who(w)}が空中戦に勝った`);
+        const gy = goalY(w.team);
+        if (Math.hypot(W / 2 - w.x, gy - w.y) < 10) {
+          const [dx, dy] = norm(rnd(GX0 + .4, GX1 - .4) - w.x, gy - w.y); const v = 9 + w.st.jump * 4;
+          ball.vx = dx * v; ball.vy = dy * v; ball.vz = -.5; ball.shot = true; teams[w.team].shots++; say(`${who(w)}のヘディング!`);
+        } else {
           const mate = nearestField(w.team, { x: w.x, y: w.y + fwd(w.team) * 6 }, w);
           const [dx, dy] = norm((mate ? mate.x : W / 2) - w.x, (mate ? mate.y : gy) - w.y);
           ball.vx = dx * 7; ball.vy = dy * 7; ball.vz = 1.5; ball.shot = false;
@@ -618,253 +646,347 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
         return;
       }
     }
-
-    // GK save / claim
     for (const g of players) {
       if (g.role !== "GK" || g.stun > 0) continue;
-      const inArea = Math.abs(g.y - ownGoalY(g.team)) < AREA;
-      if (!inArea || (restart && restart.team !== g.team) || (ball.last === g && ball.lastT > 0)) continue;
+      if (Math.abs(g.y - ownGoalY(g.team)) >= AREA || (restart && restart.team !== g.team) || (ball.last === g && ball.lastT > 0)) continue;
       const reach = .75 + g.st.jump * .85 + g.st.pos * .3, d = Math.hypot(g.x - ball.x, g.y - ball.y);
       if (d < reach && ball.z < 1.9 + g.st.jump * .6 && !ball.tried.has(g.id)) {
         ball.tried.add(g.id);
         const s = Math.hypot(ball.vx, ball.vy);
         const p = clamp(1.3 - s / 26 + g.st.pos * .2 - (d / reach) * .35, .1, 1);
-        if (d > .6) g.jumpT = .4;
+        if (d > .6) { g.jumpT = .5; g.diveDir = Math.sign((ball.x - g.x) * (g.team === 0 ? 1 : -1)) || 1; }
+        if (ball.shot) teams[1 - g.team].onT++;
         if (Math.random() < p) {
           ball.owner = g; ball.last = g; g.hold = .9; restart = null;
-          if (ball.shot) say(g.team, `${teams[g.team].name}のGKがセーブ`);
+          if (ball.shot) say(g.team === 0 ? "GKがセーブ!" : "相手GKがセーブ");
           ball.shot = false; return;
         } else if (ball.shot) {
-          const [nx] = norm(ball.x - g.x, 0.0001); ball.vx = (nx || 1) * s * .45; ball.vy *= -.25; ball.vz = 2; ball.last = g; ball.lastT = .2;
-          say(g.team, "GKが弾いた!");
+          ball.vx = (ball.x > g.x ? 1 : -1) * s * .45; ball.vy *= -.25; ball.vz = 2; ball.last = g; ball.lastT = .2;
+          say("GKが弾いた!");
         }
       }
     }
-
-    // ground control
     if (ball.z < .9) {
       for (const p of players) {
         if (p.stun > 0 || p.role === "GK" || ball.tried.has(p.id)) continue;
         if (ball.last === p && ball.lastT > 0) continue;
         if (restart && restart.team !== p.team) continue;
-        const d = Math.hypot(p.x - ball.x, p.y - ball.y);
-        if (d < .65) {
+        if (Math.hypot(p.x - ball.x, p.y - ball.y) < .7) {
           ball.tried.add(p.id);
           const s = Math.hypot(ball.vx, ball.vy);
-          const ok = Math.random() < clamp(1.35 - s / 17 + p.st.dribble * .35, .12, 1);
-          if (ok) {
+          if (Math.random() < clamp(1.35 - s / 17 + p.st.dribble * .35 + (p.team === 0 ? .1 : 0), .12, 1)) {
             if (ball.pass === p.team) teams[p.team].passOk++;
-            else if (ball.pass != null && ball.pass !== p.team && s > 5) say(p.team, `${who(p)}がパスカット`);
+            else if (ball.pass != null && s > 5) say(`${who(p)}がパスカット`);
             ball.owner = p; ball.last = p; ball.shot = false; ball.pass = null; restart = null; p.hold = .15 + p.st.pass * .2;
-            if (mode === "play" && p.team === 0 && p.role !== "GK") user = p.id;
+            if (p.team === 0) user = p.id;
             return;
           } else {
             const a = Math.atan2(ball.vy, ball.vx) + rnd(-1.2, 1.2); ball.vx = Math.cos(a) * s * .5; ball.vy = Math.sin(a) * s * .5; ball.last = p; ball.lastT = .15;
-            if (s > 8 && p.st.dribble < .45) say(p.team, `${who(p)}がトラップミス`);
           }
         }
       }
     }
   }
-
   function setRestart(team, x, y, label) {
-    ball.owner = null; ball.x = x; ball.y = y; ball.z = 0; ball.vx = ball.vy = ball.vz = 0; ball.tried = new Set(); ball.shot = false; ball.pass = null;
-    ball.last = players.find(p => p.team !== team); ball.lastT = 0;
-    restart = { team }; pause = .4;
-    say(team, label);
-    if (mode === "play" && team === 0) user = nearestField(0, ball).id;
+    Object.assign(ball, { owner: null, x, y, z: 0, vx: 0, vy: 0, vz: 0, tried: new Set(), shot: false, pass: null, lastT: 0 });
+    ball.last = players.find(p => p.team !== team);
+    restart = { team }; pause = .4; say(label);
+    if (team === 0) user = nearestField(0, ball).id;
   }
-
   function goal(team) {
-    teams[team].goals++;
+    teams[team].goals++; teams[team].onT++;
     $("sH").textContent = teams[0].goals; $("sA").textContent = teams[1].goals;
-    say(team, `ゴール!! ${who(ball.last.team === team ? ball.last : players.find(p => p.team === team && p.role === "PIVO"))}`);
-    state = "goal";
-    flash = 1.4;
-    setTimeout(() => { if (state === "goal") { state = "play"; kickoff(1 - team); } }, 1400);
+    const scorer = ball.last.team === team ? ball.last : null;
+    say(team === 0 ? `ゴール!! ${scorer ? scorer.num + "番" : ""}` : `失点… ${scorer ? "相手の" + scorer.num + "番" : ""}`);
+    state = "goal"; goalFlash = 1.8; $("goalText").hidden = false; $("goalText").style.color = team === 0 ? "var(--gold)" : "var(--away)";
+    $("goalText").textContent = team === 0 ? "GOAL!" : "失点";
+    setTimeout(() => { $("goalText").hidden = true; if (state === "goal") { state = "play"; kickoff(1 - team); } }, 1800);
   }
-  let flash = 0, lastOwnerTeam = null;
 
-  // ---------- user actions ----------
-  function aimDir(p) {
-    if (Math.hypot(input.x, input.y) > .2) return Math.atan2(input.y, input.x);
-    return p.face;
-  }
-  function pickMate(p, lob) {
-    const dir = aimDir(p);
-    let best = null, bs = -1e9;
-    players.forEach(r => {
-      if (r.team !== p.team || r === p || r.role === "GK" && !lob && false) return;
-      const d = dist(p, r); if (d < 1.5) return;
-      const ang = Math.abs(((Math.atan2(r.y - p.y, r.x - p.x) - dir + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-      const s = -ang * 3 + (lob ? 0 : Math.min(laneOpen(p, r, p.team), 2)) - d * .04;
-      if (s > bs) { bs = s; best = r; }
-    });
-    return best;
-  }
-  function userA(p) {
-    if (ball.owner === p) { const r = pickMate(p, false); if (r) passTo(p, r, false); }
-    else if (!ball.owner || ball.owner.team !== 0) {
-      const n = nearestField(0, ball, p); if (n) user = n.id;
-    }
-  }
-  function userB(p) {
-    if (ball.owner === p) { const ax = W / 2 + clamp(input.x, -1, 1) * 1.7; shoot(p, ax); }
-    else if (ball.owner && ball.owner.team === 1 && p.tackleCd <= 0) {
-      if (!tackle(p, ball.owner) && dist(p, ball.owner) > 1.7) { p.stun = .35; p.tackleCd = .6; }
-    }
-  }
-  function userC(p) { if (ball.owner === p) { const r = pickMate(p, true); if (r) passTo(p, r, true); } }
+  // ================= 3D =================
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0c1512);
+  scene.fog = new THREE.Fog(0x0c1512, 45, 90);
+  const camera = new THREE.PerspectiveCamera(42, 1, .1, 200);
+  scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x203020, .55));
+  const sun = new THREE.DirectionalLight(0xffffff, .85);
+  sun.position.set(-8, 22, 12); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 16, bottom: -16, near: 1, far: 60 });
+  scene.add(sun);
+  // sim → world: world X runs along the pitch (home attacks +X), world Z across it (toward the camera = +Z)
+  const wx = (simY) => L / 2 - simY, wz = (simX) => simX - W / 2;
+  const std = (o) => new THREE.MeshStandardMaterial(Object.assign({ roughness: .7 }, o));
 
-  // ---------- render ----------
-  function drawPitch() {
-    ctx.fillStyle = "#0f1a17"; ctx.fillRect(0, 0, cw, ch);
-    // turf stripes
-    for (let i = 0; i < 10; i++) { ctx.fillStyle = i % 2 ? "#215e3d" : "#1d5537"; ctx.fillRect(X(0), Y(i * L / 10), W * sc, L / 10 * sc + 1); }
-    ctx.strokeStyle = "rgba(238,240,226,.85)"; ctx.lineWidth = Math.max(1.5, sc * .1);
-    ctx.strokeRect(X(0), Y(0), W * sc, L * sc);
-    ctx.beginPath(); ctx.moveTo(X(0), Y(L / 2)); ctx.lineTo(X(W), Y(L / 2)); ctx.stroke();
-    ctx.beginPath(); ctx.arc(X(W / 2), Y(L / 2), 3 * sc, 0, Math.PI * 2); ctx.stroke();
+  // pitch texture with markings
+  const pitchTex = (() => {
+    const c = document.createElement("canvas"), CW = 1360, CH = 800; c.width = CW; c.height = CH;
+    const g = c.getContext("2d");
+    const col = (y) => (L - y) / L * CW, row = (x) => x / W * CH, s = CW / L;
+    for (let i = 0; i < 12; i++) { g.fillStyle = i % 2 ? "#26703f" : "#22663a"; g.fillRect(i * CW / 12, 0, CW / 12 + 1, CH); }
+    g.strokeStyle = "rgba(240,242,230,.92)"; g.lineWidth = 5;
+    g.strokeRect(3, 3, CW - 6, CH - 6);
+    g.beginPath(); g.moveTo(col(L / 2), 0); g.lineTo(col(L / 2), CH); g.stroke();
+    g.beginPath(); g.arc(col(L / 2), row(W / 2), 3 * s, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = "rgba(240,242,230,.92)";
     [0, L].forEach(gy => {
-      const s = gy === 0 ? 1 : -1, top = s > 0;
-      // futsal area: quarter circles round each post joined by a straight line
-      ctx.beginPath();
-      ctx.arc(X(GX0), Y(gy), AREA * sc, Math.PI, top ? Math.PI / 2 : Math.PI * 1.5, top);
-      ctx.lineTo(X(GX1), Y(gy + s * AREA));
-      ctx.arc(X(GX1), Y(gy), AREA * sc, top ? Math.PI / 2 : Math.PI * 1.5, top ? 0 : Math.PI * 2, top);
-      ctx.stroke();
-      ctx.fillStyle = "rgba(238,240,226,.85)"; ctx.beginPath(); ctx.arc(X(W / 2), Y(gy + s * 6), sc * .15, 0, 7); ctx.fill();
-      // goal frame + net
-      ctx.fillStyle = "rgba(238,240,226,.12)"; ctx.fillRect(X(GX0), Y(gy) - (s > 0 ? 1.2 * sc : 0), GOAL_W * sc, 1.2 * sc);
-      ctx.strokeStyle = "#eef0e2"; ctx.lineWidth = Math.max(2, sc * .16);
-      ctx.strokeRect(X(GX0), Y(gy) - (s > 0 ? 1.2 * sc : 0), GOAL_W * sc, 1.2 * sc);
-      ctx.lineWidth = Math.max(1.5, sc * .1); ctx.strokeStyle = "rgba(238,240,226,.85)";
+      const d = gy === 0 ? -1 : 1, ccw = d < 0, A = AREA * s; // d: which way the pitch extends from this goal line
+      // futsal area: a quarter circle round each post, joined by a straight line
+      g.beginPath();
+      g.arc(col(gy), row(GX0), A, Math.PI * 1.5, ccw ? Math.PI : Math.PI * 2, ccw);
+      g.lineTo(col(gy) + d * A, row(GX1));
+      g.arc(col(gy), row(GX1), A, ccw ? Math.PI : 0, Math.PI / 2, ccw);
+      g.stroke();
+      [6, 10].forEach(m => { g.beginPath(); g.arc(col(gy) + d * m * s, row(W / 2), 5, 0, Math.PI * 2); g.fill(); });
     });
+    g.beginPath(); g.arc(col(L / 2), row(W / 2), 5, 0, Math.PI * 2); g.fill();
+    const t = new THREE.CanvasTexture(c); t.anisotropy = 8; return t;
+  })();
+  const pitch = new THREE.Mesh(new THREE.PlaneGeometry(L, W), std({ map: pitchTex, roughness: .95 }));
+  pitch.rotation.x = -Math.PI / 2; pitch.receiveShadow = true; scene.add(pitch);
+  const surround = new THREE.Mesh(new THREE.PlaneGeometry(L + 14, W + 12), std({ color: 0x1b4a2c, roughness: 1 }));
+  surround.rotation.x = -Math.PI / 2; surround.position.y = -.01; surround.receiveShadow = true; scene.add(surround);
+  // boards + cage
+  const boardMat = std({ color: 0x15211c }), adTex = (() => {
+    const c = document.createElement("canvas"); c.width = 512; c.height = 32; const g = c.getContext("2d");
+    g.fillStyle = "#15211c"; g.fillRect(0, 0, 512, 32); g.fillStyle = "#e8562e"; g.font = "bold 20px sans-serif"; g.textBaseline = "middle";
+    for (let i = 0; i < 4; i++) g.fillText("NIGHT FUTSAL  5v5", i * 128 + 4, 17);
+    const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(4, 1); return t;
+  })();
+  [[0, -W / 2 - 1.6, L + 6, .8], [0, W / 2 + 1.6, L + 6, .8]].forEach(([x, z, len, h]) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(len, h, .15), [boardMat, boardMat, boardMat, boardMat, std({ map: adTex, emissive: 0x222222, emissiveMap: adTex }), boardMat]);
+    b.position.set(x, h / 2, z); scene.add(b);
+  });
+  [-1, 1].forEach(s => { const b = new THREE.Mesh(new THREE.BoxGeometry(.15, .8, W + 3.2), boardMat); b.position.set(s * (L / 2 + 3), .4, 0); scene.add(b); });
+  const netWall = new THREE.Mesh(new THREE.PlaneGeometry(L + 6, 7), new THREE.MeshBasicMaterial({ color: 0x9fb3a8, transparent: true, opacity: .06, side: THREE.DoubleSide }));
+  netWall.position.set(0, 4.3, -W / 2 - 1.6); scene.add(netWall);
+  // floodlights
+  [[-L / 2 - 2, -W / 2 - 3], [L / 2 + 2, -W / 2 - 3], [-L / 2 - 2, W / 2 + 5], [L / 2 + 2, W / 2 + 5]].forEach(([x, z]) => {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.12, .15, 11, 8), std({ color: 0x2a3330 })); pole.position.set(x, 5.5, z); scene.add(pole);
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.4, .5, .3), new THREE.MeshBasicMaterial({ color: 0xffffee })); lamp.position.set(x, 11, z); lamp.lookAt(0, 0, 0); scene.add(lamp);
+  });
+  // goals
+  function makeGoal(simGoalY) {
+    const g = new THREE.Group(), white = std({ color: 0xffffff, roughness: .3 });
+    const post = new THREE.CylinderGeometry(.06, .06, GOAL_H, 10);
+    [GX0, GX1].forEach(x => { const m = new THREE.Mesh(post, white); m.position.set(0, GOAL_H / 2, wz(x)); m.castShadow = true; g.add(m); });
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, GOAL_W, 10), white); bar.rotation.x = Math.PI / 2; bar.position.y = GOAL_H; g.add(bar);
+    const net = new THREE.Mesh(new THREE.BoxGeometry(1.2, GOAL_H, GOAL_W), new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: .35 }));
+    const out = simGoalY === 0 ? 1 : -1;
+    net.position.set(out * .6, GOAL_H / 2, 0); g.add(net);
+    g.position.x = wx(simGoalY); scene.add(g);
   }
-  function drawPlayer(p) {
-    const r = .62 * sc * (1 + (p.jumpT > 0 ? Math.sin(p.jumpT / .45 * Math.PI) * .35 : 0));
-    ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.beginPath(); ctx.ellipse(X(p.x) + sc * .12, Y(p.y) + sc * .18, .62 * sc, .52 * sc, 0, 0, 7); ctx.fill();
-    const gk = p.role === "GK";
-    const fill = p.team === 0 ? (gk ? "#f2c230" : "#f3f0e6") : (gk ? "#6a3fb5" : "#e8562e");
-    ctx.fillStyle = p.stun > 0 ? "rgba(140,150,145,.9)" : fill;
-    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), r, 0, 7); ctx.fill();
-    // facing notch
-    ctx.strokeStyle = p.team === 0 ? "#22306b" : "#fff"; ctx.lineWidth = Math.max(1.5, sc * .09);
-    ctx.beginPath(); ctx.moveTo(X(p.x) + Math.cos(p.face) * r * .55, Y(p.y) + Math.sin(p.face) * r * .55); ctx.lineTo(X(p.x) + Math.cos(p.face) * r * 1.05, Y(p.y) + Math.sin(p.face) * r * 1.05); ctx.stroke();
-    ctx.fillStyle = p.team === 0 ? "#22306b" : "#fff";
-    ctx.font = `700 ${Math.max(10, sc * .62)}px "Zen Kaku Gothic New", system-ui, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(p.num, X(p.x), Y(p.y) + 1);
-    if (mode === "play" && p.id === user) {
-      ctx.strokeStyle = "#f2c230"; ctx.lineWidth = Math.max(2, sc * .12);
-      ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), r + sc * .28, 0, 7); ctx.stroke();
-      ctx.fillStyle = "#f2c230"; ctx.beginPath(); ctx.moveTo(X(p.x), Y(p.y) - r - sc * .45); ctx.lineTo(X(p.x) - sc * .3, Y(p.y) - r - sc * .95); ctx.lineTo(X(p.x) + sc * .3, Y(p.y) - r - sc * .95); ctx.fill();
+  makeGoal(0); makeGoal(L);
+
+  // players
+  const SKIN = [0xf1c9a5, 0xd9a47a, 0x8d5a3b, 0xe8b893];
+  function makeFigure(team, gk) {
+    const shirt = team === 0 ? (gk ? 0xf2c230 : 0xf3f0e6) : (gk ? 0x6a3fb5 : 0xe8562e);
+    const shorts = team === 0 ? 0x22306b : 0x1d1d22;
+    const skin = SKIN[Math.floor(Math.random() * SKIN.length)];
+    const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+    const m = (geo, color, y, x = 0) => { const mesh = new THREE.Mesh(geo, std({ color })); mesh.position.set(x, y, 0); mesh.castShadow = true; return mesh; };
+    body.add(m(new THREE.BoxGeometry(.48, .6, .28), shirt, 1.28));
+    body.add(m(new THREE.BoxGeometry(.46, .26, .27), shorts, .9));
+    const head = m(new THREE.SphereGeometry(.15, 14, 10), skin, 1.76); body.add(head);
+    body.add(m(new THREE.SphereGeometry(.155, 14, 10, 0, Math.PI * 2, 0, Math.PI * .45), [0x1a1410, 0x3a2414, 0xc8a060][Math.floor(Math.random() * 3)], 1.79));
+    const legs = [], arms = [];
+    [-1, 1].forEach(s => {
+      const lp = new THREE.Group(); lp.position.set(s * .12, .8, 0);
+      const thigh = m(new THREE.CylinderGeometry(.075, .065, .42, 8), skin, -.21); lp.add(thigh);
+      const sock = m(new THREE.CylinderGeometry(.065, .06, .36, 8), shirt, -.58); lp.add(sock);
+      const boot = m(new THREE.BoxGeometry(.11, .08, .24), 0x111111, -.78); boot.position.z = .05; lp.add(boot);
+      body.add(lp); legs.push(lp);
+      const ap = new THREE.Group(); ap.position.set(s * .31, 1.53, 0);
+      ap.add(m(new THREE.CylinderGeometry(.055, .05, .55, 8), gk ? shirt : skin, -.27));
+      body.add(ap); arms.push(ap);
+    });
+    g.userData = { body, legs, arms };
+    return g;
+  }
+  // cursor: arrow over the controlled player
+  const cursor = new THREE.Mesh(new THREE.ConeGeometry(.22, .4, 4), new THREE.MeshBasicMaterial({ color: 0xf2c230 }));
+  cursor.rotation.x = Math.PI; scene.add(cursor);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(.55, .68, 28), new THREE.MeshBasicMaterial({ color: 0xf2c230, transparent: true, opacity: .8 }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = .02; scene.add(ring);
+  // ball
+  const ballTex = (() => { const c = document.createElement("canvas"); c.width = 128; c.height = 64; const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, 128, 64); g.fillStyle = "#1a1a1a"; for (let i = 0; i < 8; i++) { g.beginPath(); g.arc((i * 37) % 128, (i * 23) % 64, 7, 0, 7); g.fill(); } return new THREE.CanvasTexture(c); })();
+  const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(.2, 18, 14), std({ map: ballTex, roughness: .4 }));
+  ballMesh.castShadow = true; scene.add(ballMesh);
+
+  function syncMeshes(dt) {
+    players.forEach(p => {
+      const g = p.mesh, { body, legs, arms } = g.userData;
+      g.position.set(wx(p.y), 0, wz(p.x));
+      // sim facing (cos→x, sin→y) to world yaw; figures face +Z by default
+      const dX = -Math.sin(p.face), dZ = Math.cos(p.face);
+      const yaw = Math.atan2(dX, dZ);
+      g.rotation.y += (((yaw - g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 14);
+      const sp = Math.hypot(p.vx, p.vy), amp = Math.min(1, sp / 6) * .85;
+      legs[0].rotation.x = Math.sin(p.run) * amp; legs[1].rotation.x = -Math.sin(p.run) * amp;
+      arms[0].rotation.x = -Math.sin(p.run) * amp * .8; arms[1].rotation.x = Math.sin(p.run) * amp * .8;
+      if (p.kickT > 0) legs[1].rotation.x = -1.5 * Math.sin((1 - p.kickT / .28) * Math.PI);
+      body.rotation.x = p.tackleT > 0 ? .55 * Math.sin(p.tackleT / .35 * Math.PI) : sp * .03;
+      if (p.tackleT > 0) legs[1].rotation.x = -1.1;
+      body.rotation.z = p.stun > 0 ? Math.sin(p.stun * 10) * .25 : 0;
+      const jump = p.jumpT > 0 ? Math.sin(p.jumpT / .45 * Math.PI) : 0;
+      body.position.y = jump * (.35 + p.st.jump * .45);
+      if (p.role === "GK" && p.jumpT > 0 && p.diveDir) { body.rotation.z = -p.diveDir * jump * 1.1; arms.forEach(a => a.rotation.x = -2.8); }
+      else if (p.role === "GK" && ball.owner === p) arms.forEach(a => a.rotation.x = -1.4);
+    });
+    ballMesh.position.set(wx(ball.y), .2 + ball.z, wz(ball.x));
+    const sp = Math.hypot(ball.vx, ball.vy);
+    if (sp > .05) {
+      // roll about the axis perpendicular to travel: world travel dir is (-vy, 0, vx)
+      const dX = -ball.vy / sp, dZ = ball.vx / sp;
+      ballMesh.rotateOnWorldAxis(new THREE.Vector3(dZ, 0, -dX), sp * dt / .2);
     }
+    const up = players[user];
+    cursor.position.set(wx(up.y), 2.45 + Math.sin(performance.now() / 160) * .08, wz(up.x));
+    ring.position.x = wx(up.y); ring.position.z = wz(up.x);
   }
-  function draw() {
-    drawPitch();
-    if (!ball) return;
-    players.forEach(drawPlayer);
-    // ball + shadow
-    ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.arc(X(ball.x) + ball.z * sc * .35, Y(ball.y) + ball.z * sc * .5, .22 * sc, 0, 7); ctx.fill();
-    const br = .3 * sc * (1 + ball.z * .18);
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(X(ball.x), Y(ball.y), br, 0, 7); ctx.fill();
-    ctx.strokeStyle = "#111"; ctx.lineWidth = 1; ctx.stroke();
-    if (flash > 0) {
-      ctx.globalAlpha = Math.min(1, flash);
-      ctx.fillStyle = "#f2c230"; ctx.font = `${Math.max(28, sc * 2.6)}px "Dela Gothic One", system-ui, sans-serif`; ctx.textAlign = "center";
-      ctx.fillText("GOAL!", cw / 2, ch / 2); ctx.globalAlpha = 1;
+
+  // camera: broadcast view from the near touchline, tracking the ball along the pitch
+  const camT = new THREE.Vector3();
+  let portrait = false;
+  function updateCamera(dt) {
+    const bx = wx(ball.y), bz = wz(ball.x);
+    const halfSpan = portrait ? L / 2 - 6 : L / 2 - 7;
+    const tx = clamp(bx, -halfSpan, halfSpan);
+    camT.x += (tx - camT.x) * Math.min(1, dt * 2.5);
+    camT.z += (bz * .3 - camT.z) * Math.min(1, dt * 2);
+    const sx = shake > 0 ? (Math.random() - .5) * shake * .6 : 0;
+    if (portrait) {
+      camera.position.set(camT.x - 11 + sx, 19, camT.z * .35);
+      camera.lookAt(camT.x + 3.5, 0, camT.z * .35);
+    } else {
+      camera.position.set(camT.x * .92 + sx, 13, 21 + camT.z * .3);
+      camera.lookAt(camT.x, 0, camT.z - 1);
     }
   }
 
-  // ---------- flow ----------
+  // ================= HUD =================
+  function hud(dt) {
+    const s = Math.ceil(clock);
+    $("clock").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    if (toastT > 0) { toastT -= dt; if (toastT <= 0) $("toast").style.opacity = 0; }
+    const up = players[user];
+    if (up && up.role !== "GK") {
+      $("card").hidden = state === "setup";
+      $("cNum").textContent = up.num; $("cRole").textContent = up.role;
+      const v = KEYS.map(k => up.st[k]);
+      $("cPhy").style.width = Math.round((v[0] + v[1] + v[2]) / 3 * 100) + "%";
+      $("cIq").style.width = Math.round((v[3] + v[4] + v[5]) / 3 * 100) + "%";
+      $("cTch").style.width = Math.round((v[6] + v[7] + v[8]) / 3 * 100) + "%";
+    }
+    const g = $("gauge");
+    if (charge >= 0 && up) {
+      const v = new THREE.Vector3(wx(up.y), 2.2, wz(up.x)).project(camera);
+      const r = $("gl").getBoundingClientRect();
+      g.hidden = false; g.style.left = ((v.x + 1) / 2 * r.width) + "px"; g.style.top = ((1 - v.y) / 2 * r.height - 30) + "px";
+      $("gaugeFill").style.width = (charge * 100) + "%";
+    } else g.hidden = true;
+    const att = up && ball && ball.owner === up;
+    $("bPass").textContent = att ? "パス" : "切替";
+    $("bShoot").textContent = att ? "シュート" : "プレス";
+    $("bThru").textContent = att ? "スルー" : "タックル";
+  }
+
+  // ================= flow =================
   function startMatch() {
-    const opp = document.querySelector('input[name="opp"]:checked').value;
-    mode = document.querySelector('input[name="mode"]:checked').value;
-    makeTeams(opp);
-    clock = 180; events = [];
+    makeTeams(); clock = 180;
     $("sH").textContent = 0; $("sA").textContent = 0;
     $("setup").hidden = true; $("result").hidden = true;
-    say(null, `キックオフ。ホーム vs ${teams[1].name}`);
-    kickoff(0); state = "play";
-    $("pad").style.visibility = mode === "play" ? "visible" : "hidden";
-    $("keys").style.visibility = mode === "play" ? "visible" : "hidden";
+    kickoff(0); state = "play"; say("キックオフ!");
+    $("gl").focus?.();
   }
   function endMatch() {
-    state = "over";
+    state = "over"; charge = -1;
     const [h, a] = teams, total = h.poss + a.poss || 1;
     $("resScore").textContent = `${h.goals} - ${a.goals}`;
-    $("resLabel").textContent = `試合終了　ホーム vs ${a.name}`;
+    $("resLabel").textContent = `試合終了　HOME vs ${a.name}`;
     $("resTitle").textContent = h.goals > a.goals ? "勝利!" : h.goals < a.goals ? "敗戦" : "引き分け";
     const rows = [["ボール保持", Math.round(h.poss / total * 100) + "%", Math.round(a.poss / total * 100) + "%"],
-      ["シュート", h.shots, a.shots], ["パス成功", `${h.passOk}/${h.passes}`, `${a.passOk}/${a.passes}`],
-      ["ボール奪取", h.tackles, a.tackles], ["空中戦の勝ち", h.aerials, a.aerials], ["ドリブル突破・キープ", h.beaten, a.beaten]];
-    $("resTable").innerHTML = `<span class="hd"></span><span class="hd">ホーム</span><span class="hd">${a.name}</span>` + rows.map(r => r.map(c => `<span>${c}</span>`).join("")).join("");
-    // name the stat gap that mattered most
-    const diffs = KEYS.map(k => [k, h.st[k] - a.st[k]]).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]));
-    const [k, d] = diffs[0];
-    $("resNote").textContent = `いちばん差があった能力は「${NAMES[k]}」（${d > 0 ? "ホームが上" : "相手が上"}）。`;
+      ["シュート（枠内）", `${h.shots}（${h.onT}）`, `${a.shots}（${a.onT}）`], ["パス成功", `${h.passOk}/${h.passes}`, `${a.passOk}/${a.passes}`],
+      ["ボール奪取", h.tackles, a.tackles], ["空中戦の勝ち", h.aerials, a.aerials]];
+    $("resTable").innerHTML = `<span class="hd"></span><span class="hd">HOME</span><span class="hd">${a.name}</span>` + rows.map(r => r.map(c => `<span>${c}</span>`).join("")).join("");
     $("result").hidden = false; $("again").focus();
   }
   $("kickoff").addEventListener("click", startMatch);
   $("again").addEventListener("click", startMatch);
   $("rebuild").addEventListener("click", () => { $("result").hidden = true; $("setup").hidden = false; state = "setup"; });
 
-  // ---------- input ----------
+  // ================= input =================
   const held = {};
   function keyVec() {
-    input.x = (held.ArrowRight || held.KeyD ? 1 : 0) - (held.ArrowLeft || held.KeyA ? 1 : 0);
-    input.y = (held.ArrowDown || held.KeyS ? 1 : 0) - (held.ArrowUp || held.KeyW ? 1 : 0);
-    const m = Math.hypot(input.x, input.y); if (m > 1) { input.x /= m; input.y /= m; }
+    let x = (held.ArrowRight || held.KeyD ? 1 : 0) - (held.ArrowLeft || held.KeyA ? 1 : 0);
+    let y = (held.ArrowDown || held.KeyS ? 1 : 0) - (held.ArrowUp || held.KeyW ? 1 : 0);
+    const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
+    if (!stick) { input.x = x; input.y = y; }
+    input.dash = !!(held.ShiftLeft || held.ShiftRight) || padDash;
+    input.shootDown = !!held.KeyX || padShoot;
   }
   addEventListener("keydown", (e) => {
-    if (state !== "play") return;
+    if (state !== "play" && state !== "goal") return;
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
     if (e.repeat) return;
     held[e.code] = true; keyVec();
-    if (e.code === "KeyZ" || e.code === "KeyJ" || e.code === "Space") input.a = true;
-    if (e.code === "KeyX" || e.code === "KeyK") input.b = true;
-    if (e.code === "KeyC" || e.code === "KeyL") input.c = true;
+    if (e.code === "KeyZ" || e.code === "Space") input.pass = true;
+    if (e.code === "KeyC") input.thru = true;
+    if (e.code === "KeyV") input.lob = true;
   });
   addEventListener("keyup", (e) => { held[e.code] = false; keyVec(); });
-  // touch stick: drag anywhere on the left 60% of the pitch
-  let stick = null;
-  canvas.addEventListener("pointerdown", (e) => {
+  addEventListener("blur", () => { Object.keys(held).forEach(k => held[k] = false); keyVec(); });
+  // touch: floating stick on the left half, buttons on the right
+  let stick = null, padDash = false, padShoot = false;
+  const gl = $("gl"), stickEl = $("stick"), knob = $("knob");
+  gl.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse") return;
-    const r = canvas.getBoundingClientRect();
-    if (e.clientX - r.left > r.width * .6) return;
-    stick = { id: e.pointerId, x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId);
+    const r = gl.getBoundingClientRect();
+    if (e.clientX - r.left > r.width * .55) return;
+    stick = { id: e.pointerId, x: e.clientX, y: e.clientY }; gl.setPointerCapture(e.pointerId);
+    stickEl.hidden = false; stickEl.style.left = (e.clientX - r.left) + "px"; stickEl.style.top = (e.clientY - r.top) + "px"; knob.style.transform = "";
   });
-  canvas.addEventListener("pointermove", (e) => {
+  gl.addEventListener("pointermove", (e) => {
     if (!stick || e.pointerId !== stick.id) return;
-    const dx = e.clientX - stick.x, dy = e.clientY - stick.y, m = Math.hypot(dx, dy);
-    const k = Math.min(1, m / 50) / (m || 1); input.x = dx * k; input.y = dy * k;
+    const dx = e.clientX - stick.x, dy = e.clientY - stick.y, m = Math.hypot(dx, dy), k = Math.min(1, m / 45) / (m || 1);
+    input.x = dx * k; input.y = dy * k;
+    knob.style.transform = `translate(${input.x * 30}px, ${input.y * 30}px)`;
   });
-  const endStick = (e) => { if (stick && e.pointerId === stick.id) { stick = null; input.x = input.y = 0; } };
-  canvas.addEventListener("pointerup", endStick); canvas.addEventListener("pointercancel", endStick);
-  [["bA", "a"], ["bB", "b"], ["bC", "c"]].forEach(([id, k]) => $(id).addEventListener("pointerdown", (e) => { e.preventDefault(); input[k] = true; }));
-
-  function labels() {
-    const p = mode === "play" && players[user];
-    const att = p && ball && ball.owner === p;
-    $("bA").textContent = att ? "パス" : "切替";
-    $("bB").textContent = att ? "シュート" : "タックル";
-    $("bC").style.opacity = att ? 1 : .35;
+  const endStick = (e) => { if (stick && e.pointerId === stick.id) { stick = null; input.x = input.y = 0; stickEl.hidden = true; } };
+  gl.addEventListener("pointerup", endStick); gl.addEventListener("pointercancel", endStick);
+  function padBtn(id, down, up) {
+    const b = $(id);
+    b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add("on"); down(); });
+    const off = () => { b.classList.remove("on"); up && up(); };
+    b.addEventListener("pointerup", off); b.addEventListener("pointercancel", off);
   }
+  padBtn("bPass", () => input.pass = true);
+  padBtn("bThru", () => input.thru = true);
+  padBtn("bShoot", () => { padShoot = true; keyVec(); }, () => { padShoot = false; keyVec(); });
+  padBtn("bDash", () => { padDash = true; keyVec(); }, () => { padDash = false; keyVec(); });
 
-  // ---------- loop ----------
+  function resize() {
+    const el = $("stage"), w = el.clientWidth, h = el.clientHeight;
+    renderer.setSize(w, h, false);
+    portrait = w / h < 1;
+    camera.aspect = w / h; camera.fov = portrait ? 58 : w / h < 1.5 ? 48 : 40; camera.updateProjectionMatrix();
+  }
+  addEventListener("resize", resize);
+
   let last = performance.now();
   function frame(now) {
     const dt = Math.min(.04, (now - last) / 1000); last = now;
     if (state === "play") step(dt);
-    if (flash > 0) flash -= dt;
-    if (clock != null) { const s = Math.ceil(clock); $("clock").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
-    labels(); draw();
+    else if (state === "setup" || state === "goal") { players.forEach(p => { p.think -= dt; }); }
+    if (shake > 0) shake -= dt;
+    syncMeshes(dt); updateCamera(dt); hud(dt);
+    renderer.render(scene, camera);
     requestAnimationFrame(frame);
   }
-  addEventListener("resize", resize);
   buildSetup(); resize();
-  // demo match behind the setup sheet so the first frame shows the game
-  makeTeams("physical"); mode = "watch"; kickoff(0); clock = 180;
+  makeTeams(); kickoff(0); camT.set(0, 0, 0);
   requestAnimationFrame(frame);
 })();
 </script>
